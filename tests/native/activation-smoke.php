@@ -19,7 +19,7 @@ $result = $provider->setConfiguration([
     'branch' => $argv[1] ?? 'snapshots',
     'identity' => 'fixture',
     'hostTrust' => 'fixture',
-    'encryptionKey' => 'fixture',
+    'encryptionKey' => $argv[2] ?? 'fixture',
     'freshnessHours' => '48',
 ]);
 if ($result !== []) {
