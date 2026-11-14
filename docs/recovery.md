@@ -20,3 +20,11 @@ Write the checkpoint atomically after verification. Keep the archives and passwo
 
 
 After a definitive rejection, retry against the same branch. If an initial push may have succeeded but the branch is absent, leave the pending commit in place and verify the remote independently before authorizing recovery. Local pending commits stay in the provider's private state directory. For divergent history, stop delivery and investigate the remote branch before making any changes to the retained commits or activation checkpoint.
+
+### Hold delivery during package rollback
+
+Keep the plaintext writer disabled. Retain and read back the checkpoint and its matching provider settings before replacing either. Bind both copies to the active configuration revision. If the active configuration changes before replacement, stop and verify a fresh pair.
+
+Use the provider's private `delivery.lock` with PHP `flock(LOCK_EX | LOCK_NB)` to fence Git delivery. If acquisition fails, a worker may still be writing. Wait for it and try again before replacing any inputs. While holding that lock, atomically move `activation.json` out of its active path and account for and drain any already admitted encrypted backup requests. The missing checkpoint denies new encrypted backup requests through configd and through the native remote-backup runner without disabling other providers. Keep the lock until admitted requests have finished. If their completion cannot be verified, keep the checkpoint withheld and leave rollback on hold.
+
+Leave the checkpoint withheld across interruptions in package or input replacement. Verify the compatible settings, destination, branch and pending ancestry against the retained checkpoint before restoring it. Keep the older encrypted provider on hold if it cannot enforce the required remote ref update condition. Resume with a compatible provider only after the complete pair is verified. Preserve pending encrypted commits and external credential files throughout.
