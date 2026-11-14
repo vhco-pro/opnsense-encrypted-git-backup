@@ -396,6 +396,7 @@ None.
 | 2026-11-14 | R-43 | spec | `6c591c39289456ab2c9c5328c6193d14822116af` | unknown | procedural | Three factual findings and one nit. |
 | 2026-11-14 | R-44 | spec | `e6ca4fe4b22f0f7559c21df660d4f8d1a2bed74e` | unknown | procedural | NO FINDINGS; model identity not attested. |
 | 2026-11-14 | R-44 | spec | `e6ca4fe4b22f0f7559c21df660d4f8d1a2bed74e` | n/a | n/a | accepted by owner |
+| 2026-11-14 | R-45 | implementation | `3b785d386e59d55ba3211ab0cbe96b6287a2e315` | unknown | procedural | Three findings and no criteria met. Model identity was not attested. |
 
 ### R-1
 
@@ -1573,3 +1574,66 @@ NO FINDINGS
 - [Firmware plugins](https://docs.opnsense.org/manual/firmware.html) describes package administration and plugin discovery.
 - [Upstream contribution rules](https://github.com/opnsense/plugins/blob/5cca317cdc3e1a979a60b6935428f76de8d08d2b/CONTRIBUTING.md) govern licensing, proposal discussion, initial scope and AI disclosure.
 - [Existing encryption request](https://github.com/opnsense/plugins/issues/5833), [previous encryption PR](https://github.com/opnsense/plugins/pull/3574) and [redaction discussion](https://github.com/opnsense/plugins/pull/4558) establish maintainer feedback and limits on contribution claims.
+
+### R-45
+
+CRITERION: AC-01 The package installs and upgrades on the selected supported releases, exposes its provider in the native Backups screen and preserves core and unrelated provider behavior.
+VERDICT: not verified
+EVIDENCE: Inspected the package preparation, provider contract and lifecycle fixtures at 3b785d386e59d55ba3211ab0cbe96b6287a2e315. Exact-source package installation, upgrade and ownership comparisons were not observed. The requested reviewer cache path was absent, so canonical instructions were read from the local vh-adlc Git tag v0.20.0. The pinned conventions were read at 1edeb5f32d868bbe761ef3221f350634cd6ff022.
+
+CRITERION: AC-02 Complete encrypted exports restore through the native OPNsense interface on an isolated appliance, while all newly created provider Git snapshots and staging exclude plaintext configuration and synthetic secrets.
+VERDICT: not verified
+EVIDENCE: Inspected NativeRun.php, Snapshot.php, GitDelivery.php and the native restore fixture at 3b785d386e59d55ba3211ab0cbe96b6287a2e315. Encryption requires byte-for-byte round-trip verification before staging. Exact-source native restoration and inspection of retained appliance objects were not observed.
+
+CRITERION: AC-03 Validated configuration and secret custody survive the documented restore/upgrade paths, enforce the selected privilege boundary and permit recovery and credential rotation independently of management services.
+VERDICT: not met
+EVIDENCE: Source inspection at 3b785d386e59d55ba3211ab0cbe96b6287a2e315 establishes that GitDelivery.php checks the checkpoint parent against the remote only when local HEAD is absent. Existing pending history bypasses validation against a replacement checkpoint's required parent. Finding F-01 describes the reachable mismatch. Native restore, upgrade and rotation checks were not executed during this review.
+
+CRITERION: AC-04 Manual and scheduled runs produce consistent Git state under overlap, rejection, interrupted response, retry and divergent-remote cases, with success reflecting independently verified remote retention.
+VERDICT: not verified
+EVIDENCE: Independently retrieved the successful exact-source PHP job log from CI run 43619581606. PHPUnit reported 26 tests and 93 assertions, including Git delivery tests for overlap, rejection, divergence, lost push response and deleted branches. Inspected their implementation at 3b785d386e59d55ba3211ab0cbe96b6287a2e315. Native manual-versus-scheduled execution and the complete interruption matrix were not observed.
+
+CRITERION: AC-05 Native scheduling survives regeneration and upgrade, failure of another provider cannot silently suppress the selected scheduling path, and native status plus independent freshness checking expose stale or failed delivery.
+VERDICT: not met
+EVIDENCE: Inspected NativeRun.php, GitDelivery.php, run.php and the status endpoint at 3b785d386e59d55ba3211ab0cbe96b6287a2e315. Activation and credential failures occur before attempt recording. The entry point returns a generic error without updating persisted status, leaving an earlier verified outcome visible after a failed delivery invocation. Finding F-02 describes this path. Exact-source cron regeneration, upgrade and deployment-owned monitoring were not observed.
+
+CRITERION: AC-06 Migration preserves the verified final legacy history and previous remote ancestor off the firewall, prevents new credentials entering the legacy plaintext capture path and remains recoverable after interruption.
+VERDICT: not verified
+EVIDENCE: Inspected Activation.php, the native configuration-lock boundary, migration fixtures and recovery instructions at 3b785d386e59d55ba3211ab0cbe96b6287a2e315. The code rejects a present legacy hook and requires version 2 legacy checkpoints with export and configuration digests. Independent off-firewall archive retrieval, writer drain and interrupted cutover were not executed during this review.
+
+CRITERION: AC-07 A second operator can install, configure, observe and recover the provider from versioned documentation and verified package inputs, with supported versions, diff/storage trade-offs and distribution/contribution limits explicit.
+VERDICT: not verified
+EVIDENCE: Read installation.md, recovery.md, compatibility.md and the package preparation scripts at 3b785d386e59d55ba3211ab0cbe96b6287a2e315. A second-operator walkthrough using verified exact-source package inputs and independently retained recovery material was not observed.
+
+CRITERION: AC-08 Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests, with visible coverage and reviewed narrow exceptions. Required security scans and native audits complete with expected coverage and any findings resolved or given an independently reviewed, owner-approved disposition. The runtime package excludes development tooling and private fixtures.
+VERDICT: not verified
+EVIDENCE: Independently confirmed CI runs 43619581606 and 43619586476 succeeded for 3b785d386e59d55ba3211ab0cbe96b6287a2e315. Read the push-run PHP log showing PHP 8.5.12, passing syntax/style checks, PHPStan without errors, PHPUnit passing 26 tests with 93 assertions, Psalm without errors, a clean Composer audit, Semgrep covering 34 owned PHP files and Gitleaks scanning 198 commits without leaks. Independently counted 34 owned PHP files. Local actionlint, shell and JavaScript syntax checks, git diff --check and vh-adlc lint passed. PHP was unavailable locally. A current native package audit, applicable finding disposition and exact-source runtime package inspection were not observed.
+
+CRITERION: AC-09 The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable prior generation for established feeds through failed publication and signing-key rotation. An unresolved first activation prohibits further publisher mutations while the pending request may still become live. Bootstrap recovery withdraws the first catalogue and retains its packages for cached clients. A terminal live recovery that fails native validation permits one retry of the same approved files per separately authorized dispatch. Newer releases stay blocked until recovery is verified. Production signing and deployment require owner approval, and fixture execution has access only to owned staging and fixture keys.
+VERDICT: not verified
+EVIDENCE: Independently inspected the exact-source workflow and native-verifier job log from run 43619581606. The FreeBSD signed-feed fixture passed its publication, recovery, cached-client and trust-transition assertions. Source inspection shows hosted-feed-content.sh builds synthetic packages with an empty payload, while feed-verify-native.sh verifies catalogue queries and package fetching. Actual plugin installation, native updates and firmware-interface behavior were not established by that job. Production publication jobs were skipped. The complete accepted scenario matrix was not independently observed.
+
+CRITERION: AC-10 The native settings and status interfaces pass reproducible automated browser journeys for setup, reload persistence, success/failure states and permissions on owned disposable fixtures, with the applicable responsive and accessibility checks and developer tooling excluded from the runtime package.
+VERDICT: untested
+EVIDENCE: Inspected the complete browser suite, Playwright configuration and CI workflows at 3b785d386e59d55ba3211ab0cbe96b6287a2e315. Chromium and Firefox journeys cover setup, reload persistence, permissions and rejected delivery. The suite lacks the required zoom, reduced-motion, theme and responsive geometry coverage, and CI does not invoke it. Finding F-03 describes the missing coverage. Browser journeys and runtime package inspection were not executed during this review.
+
+FINDING: F-01
+KIND: factual
+SEVERITY: blocking
+WHERE: src/opnsense/mvc/app/library/OPNsense/EncryptedGitBackup/GitDelivery.php:125
+EVIDENCE: At 3b785d386e59d55ba3211ab0cbe96b6287a2e315, the required checkpoint parent is compared with the remote only when HEAD is null. With existing pending work, reconciliation checks only whether the observed remote is an ancestor of HEAD. After same-target checkpoint replacement, a remote rewind to an ancestor of the old pending work can therefore permit delivery even when the newly verified parent is absent from that work. The accepted design explicitly requires pending ancestry to include the replacement checkpoint's parent. This finding follows source control flow and was not dynamically reproduced.
+PROPOSAL: Validate existing pending ancestry against the active checkpoint before any push or receipt. Cover compatible and incompatible replacement parents, including a remote change after checkpoint verification.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: blocking
+WHERE: src/opnsense/mvc/app/library/OPNsense/EncryptedGitBackup/NativeRun.php:23
+EVIDENCE: At 3b785d386e59d55ba3211ab0cbe96b6287a2e315, activation, credential-file and configuration checks precede GitDelivery::recordDelivery(), which owns attempt recording. run.php:15 catches failures and emits a generic error without persisting them. After a successful delivery, removing a credential or invalidating activation leaves the status endpoint reporting the earlier verified attempt. The deployment monitor consequently cannot expose that newer failure through authenticated native status. Persisted failures also carry no sanitized failure category. This finding follows source control flow and was not dynamically reproduced.
+PROPOSAL: Record target-associated attempts and sanitized failure categories across delivery preconditions while preserving the last verified receipt. Add regression coverage for credential and activation failures after a successful delivery.
+
+FINDING: F-03
+KIND: factual
+SEVERITY: should-fix
+WHERE: tests/browser/native.spec.ts:45
+EVIDENCE: At 3b785d386e59d55ba3211ab0cbe96b6287a2e315, the browser suite exercises a 390 by 844 status view and keyboard navigation. It contains no zoom, reduced-motion, supported-theme or responsive geometry assertions. Neither checked CI workflow invokes Playwright. The pinned frontend-testing standard requires these applicable checks and automated browser verification before merge, so passing current CI leaves those interface requirements uncovered.
+PROPOSAL: Add the applicable viewport, geometry, zoom, motion and theme checks, and run the browser suite against an owned disposable appliance in the verification workflow. Retain and inspect representative screenshots from the reviewed source.
