@@ -38,12 +38,10 @@ boot() {
     node tests/appliance/console.mjs "$directory" "$phase"
 }
 boot install -drive "file=$directory/installer.img,if=none,id=installer,format=raw,snapshot=on" \
-    -device "virtio-blk-pci,drive=installer,bootindex=1" \
-    -device e1000,netdev=fixture -netdev user,id=fixture,restrict=on
+    -device "virtio-blk-pci,drive=installer,bootindex=1"
 wait "$pid"
 pid=
-boot sets -cdrom "$directory/inputs.iso" -boot order=c \
-    -device e1000,netdev=fixture -netdev user,id=fixture,restrict=on
+boot sets -cdrom "$directory/inputs.iso" -boot order=c
 wait "$pid"
 pid=
 boot package -cdrom "$directory/inputs.iso" -boot order=c \
