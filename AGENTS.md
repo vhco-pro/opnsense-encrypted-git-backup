@@ -1,7 +1,7 @@
 # Repository instructions
 
 Read the personal conventions at
-https://github.com/vhco-pro/docs/blob/06c929bea58e31d28a2a1ae9b563d10c744d9886/AGENTS.md
+https://github.com/vhco-pro/docs/blob/d59008a3d135dfac17e93033a854dc67065d7a40/AGENTS.md
 and follow the task routes there before implementation.
 Read conventions/coding.md for code, conventions/feature-documents.md for features,
 and conventions/documentation.md and guides/humanize-prose.md for prose.
@@ -34,8 +34,8 @@ their separate design, review and owner approvals.
 ## Verification
 
 The repository currently contains design documents only.
-The PHP guidance is adopted from the immutable revision proposed in
-https://github.com/vhco-pro/docs/pull/37, which remains under review.
+The PHP guidance is adopted from the merged revision in
+https://github.com/vhco-pro/docs/pull/37.
 Use the verified vh-adlc binary for feature-document lint and review checks.
 Run `git diff --check` before committing.
 Record native build and integration commands after observing them on a disposable

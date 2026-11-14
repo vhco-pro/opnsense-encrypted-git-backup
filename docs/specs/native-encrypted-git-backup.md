@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "Current-stable targeting, protected external credentials and a signed package repository are selected. PHP quality requirements are added for renewed independent review; repository hosting remains a design choice."
+status_description: "The owner approved end-to-end implementation after the PHP guidance merged. Managed Cloudflare Pages is the selected static feed direction. The final merged-pin and hosting clarification awaits a fresh spec review before claiming implementation."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
 goal: "Administrators configure, run and recover encrypted Git configuration backups through a native OPNsense provider with verifiable delivery and safe migration."
 covers:
@@ -56,7 +56,8 @@ Retain independently recoverable encrypted history and test a real native restor
 Shared PHP conventions now define typing, small effect boundaries, PSR-12, secure resources and explicit development checks.
 The implementation must pass style, static analysis and behavior tests with recorded coverage of owned files.
 Development tools are kept in the build/test environment.
-The owner requires managed static hosting for the signed repository, with its proposed Cloudflare Pages delivery still awaiting the hosting choice.
+The owner requires managed static hosting for the signed repository and approved implementation after the Cloudflare Pages clarification.
+The selected direction is a static Cloudflare Pages feed with managed HTTPS and an operator-configured public hostname.
 This design phase produces a reviewed specification and installation/recovery design.
 Implementation and live rollout follow acceptance of the revised design.
 
@@ -96,8 +97,8 @@ Deployment-specific credentials, real configuration exports, external-monitor cr
 
 ### PHP quality and compatibility
 
-Follow the shared [PHP convention](https://github.com/vhco-pro/docs/blob/06c929bea58e31d28a2a1ae9b563d10c744d9886/conventions/php.md), pinned by AGENTS.md.
-That immutable revision is the proposal in https://github.com/vhco-pro/docs/pull/37 and is included in this independent review.
+Follow the shared [PHP convention](https://github.com/vhco-pro/docs/blob/d59008a3d135dfac17e93033a854dc67065d7a40/conventions/php.md), pinned by AGENTS.md.
+That immutable revision merged through https://github.com/vhco-pro/docs/pull/37 and preserves the PHP and browser guidance independently reviewed in R-4.
 Use OPNsense's PSR-12 style and preserve its exact provider/model interface signatures.
 Use native types and strict typing for owned implementation where compatible with those signatures and actual framework callers.
 Validate model/XML/request input before conversion and confine unavoidable dynamic types to tested integration boundaries.
@@ -226,9 +227,9 @@ Distribute the initial trusted key/fingerprint through a separately verified rel
 Keep signing private keys outside source and package artifacts, with independently retained recovery material.
 Publish a complete validated repository generation so interrupted publication preserves a usable previous generation.
 Choose compatible release/ABI channels explicitly and refuse an incompatible package on the target.
-Q4 chooses static public hosting and its availability boundary.
+Use managed Cloudflare Pages static public hosting for the signed feed.
 The owner requires managed serverless/static hosting and wants no instance-maintenance responsibility.
-The proposed Cloudflare Pages feed serves static catalogue, signature and package files over managed HTTPS.
+The Cloudflare Pages feed serves static catalogue, signature and package files over managed HTTPS.
 Its publication pipeline and signing-key lifecycle remain project responsibilities.
 Validate artifact count/size limits, response behavior and native client compatibility before selecting the final feed configuration.
 Retain immutable package versions needed by cached catalogues across repository generations and test an update during catalogue/artifact retrieval.
@@ -275,16 +276,7 @@ None yet; written after design acceptance.
 
 ## Open Questions
 
-### Q4: Where should the signed package repository be hosted?
-
-**Recommendation:** A. Use managed Cloudflare Pages static hosting under the owner's service domain, with the feed's client trust independent of its hosting credentials.
-
-| Option | You get | It costs |
-| --- | --- | --- |
-| **A. Static Cloudflare Pages hosting** | A managed static feed using the owner's existing hosting platform and domain. | A selected hostname, checked hosting limits, deployment ownership and independent signing-key recovery. |
-| **B. GitHub-hosted static repository** | Package/source delivery on the same platform with independently verified signatures. | Publishing/hosting configuration and an availability dependency on GitHub for updates. |
-
-**Why this is yours:** The hosting and hostname determine a public endpoint and ongoing release responsibility.
+None. The public hostname, publication credentials and trusted signing identity are deployment inputs selected and verified before a separately approved public release.
 
 ## Review Log
 
@@ -330,8 +322,8 @@ NO FINDINGS
 
 ## Sources
 
-- [Shared PHP convention proposal](https://github.com/vhco-pro/docs/blob/06c929bea58e31d28a2a1ae9b563d10c744d9886/conventions/php.md) supplies the implementation and verification rules, with primary-source links for each subject.
-- [Shared browser verification standard](https://github.com/vhco-pro/docs/blob/06c929bea58e31d28a2a1ae9b563d10c744d9886/conventions/frontend-testing.md) supplies the owned-fixture and automated browser proof requirements.
+- [Shared PHP convention](https://github.com/vhco-pro/docs/blob/d59008a3d135dfac17e93033a854dc67065d7a40/conventions/php.md) supplies the implementation and verification rules, with primary-source links for each subject.
+- [Shared browser verification standard](https://github.com/vhco-pro/docs/blob/d59008a3d135dfac17e93033a854dc67065d7a40/conventions/frontend-testing.md) supplies the owned-fixture and automated browser proof requirements.
 - [Cloudflare Pages static hosting](https://developers.cloudflare.com/pages/framework-guides/deploy-anything/) and [limits](https://developers.cloudflare.com/pages/platform/limits/) describe the proposed managed hosting model and the limits to verify before feed publication.
 - [FreeBSD pkg repository tooling](https://man.freebsd.org/cgi/man.cgi?query=pkg-repo&sektion=8&format=html) defines native catalogue creation/signing and repository metadata.
 
