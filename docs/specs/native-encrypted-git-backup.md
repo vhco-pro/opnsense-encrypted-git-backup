@@ -1,7 +1,7 @@
 ---
-status: in-progress
+status: draft
 branch: feat/native-encrypted-git-backup
-status_description: "The implementation session owns the native provider, package and appliance verification."
+status_description: "Revising the security and release proof after independent review."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
 goal: "Administrators configure, run and recover encrypted Git configuration backups through a native OPNsense provider with verifiable delivery and safe migration."
 covers:
