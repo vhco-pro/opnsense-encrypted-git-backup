@@ -69,6 +69,7 @@ $state = Credentials::DIRECTORY;
 $checkpoint = $state . '/activation.json';
 $retained = $state . '/rollback.json';
 $pair = $state . '/rollback-pair.json';
+$closing = $state . '/rollback-closing.json';
 try {
     [$status, $uid] = Process::run(['/usr/bin/id', '-u'], '/', [], 5);
     if ($status !== 0 || trim($uid) !== '0') {
@@ -80,6 +81,30 @@ try {
         throw new RuntimeException('Git delivery still holds its write lock.');
     }
     try {
+        if (file_exists($closing) || is_link($closing)) {
+            Credentials::privateFile($closing);
+            if (file_exists($pair) || is_link($pair)) {
+                throw new RuntimeException('Conflicting rollback records require inspection.');
+            }
+            if (file_exists($checkpoint) || is_link($checkpoint)) {
+                Credentials::privateFile($checkpoint);
+                $closedBytes = file_get_contents($closing, false, null, 0, 4096);
+                $closedRecord = $closedBytes === false ? null : json_decode($closedBytes, true, 8, JSON_THROW_ON_ERROR);
+                if (
+                    !is_array($closedRecord)
+                    || ($closedRecord['checkpoint'] ?? null) !== hash_file('sha256', $checkpoint)
+                    || file_exists($retained) || is_link($retained)
+                    || !unlink($closing)
+                ) {
+                    throw new RuntimeException('Could not retire the completed rollback record.');
+                }
+            } else {
+                $pair = $closing;
+                if (!in_array($action, ['hold', 'revision', 'verify', 'resume'], true)) {
+                    throw new RuntimeException('Resume the interrupted checkpoint restoration first.');
+                }
+            }
+        }
         if ($argv[1] === 'hold') {
             if (file_exists($checkpoint) || is_link($checkpoint)) {
                 $config = Config::getInstance();
@@ -237,6 +262,11 @@ try {
                                 throw new RuntimeException('Pending Git ancestry could not be verified.');
                             }
                         }
+                    }
+                    // Mark the verified pair as closing before making activation visible.
+                    // A retry with activation still withheld verifies the same pair again.
+                    if ($pair !== $closing && !rename($pair, $closing)) {
+                        throw new RuntimeException('Could not record checkpoint restoration in progress.');
                     }
                     if (!rename($retained, $checkpoint)) {
                         throw new RuntimeException('Could not restore the verified compatible checkpoint.');
