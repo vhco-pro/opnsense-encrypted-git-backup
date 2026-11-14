@@ -10,15 +10,27 @@ git -c user.name=Fixture -c user.email=fixture@example.test commit -qm fixture -
 source=$(git rev-parse HEAD)
 git tag v0.0.9-alpha.1
 mkdir bin generation
-# Substitute the native query only. The archive, tag and checksums are real fixture inputs.
-printf '%s\n' '#!/bin/sh' 'printf "%s\n" "os-encrypted-git-backup 0.0.9.alpha1"' > bin/pkg
+# Model the native command boundary using an algorithm-tagged fixture checksum.
+cat > bin/pkg <<'SH'
+#!/bin/sh
+set -eu
+case "$1" in
+    query) printf '%s\n' 'os-encrypted-git-backup 0.0.9.alpha1' ;;
+    checksum)
+        test "$2 $3" = '-q -c'
+        digest=$(openssl dgst -sha256 -r "$5" | cut -d ' ' -f 1)
+        test "$4" = "1\$$digest"
+        ;;
+    *) exit 64 ;;
+esac
+SH
 chmod +x bin/pkg
 export PATH="$fixture/bin:$PATH"
 package=os-encrypted-git-backup-0.0.9.alpha1.pkg
 printf 'synthetic package\n' > "$package"
 cp "$package" generation/
 digest=$(openssl dgst -sha256 -r "$package" | cut -d ' ' -f 1)
-jq -n --arg sum "$digest" --arg path "$package" \
+jq -n --arg sum "1\$$digest" --arg path "$package" \
     '{name:"os-encrypted-git-backup",version:"0.0.9.alpha1",sum:$sum,path:$path}' > packagesite.yaml
 tar -cf generation/packagesite.pkg packagesite.yaml
 
