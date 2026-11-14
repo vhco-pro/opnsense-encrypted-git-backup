@@ -17,9 +17,10 @@ final class NativeRun
         string $branch,
         string $identity,
         string $trust,
-        string $key
+        string $key,
+        string $activation
     ): string {
-        $legacyParent = Activation::check($destination, $branch);
+        $legacyParent = Activation::check($destination, $branch, $activation)['parent'];
         Settings::validateDestination($destination);
         $identityPath = Credentials::file('identity', $identity);
         $trustPath = Credentials::file('hosts', $trust);

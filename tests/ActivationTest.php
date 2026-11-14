@@ -68,4 +68,14 @@ final class ActivationTest extends TestCase
         $this->expectException(RuntimeException::class);
         Activation::validate(json_encode($checkpoint, JSON_THROW_ON_ERROR), $target, 'snapshots', true);
     }
+    public function testStaleConfigurationCannotAuthorizeLegacySave(): void
+    {
+        $before = hash('sha256', '<opnsense><system/></opnsense>');
+        $after = hash('sha256', '<opnsense><system><hostname>changed</hostname></system></opnsense>');
+        $checkpoint = json_encode(['configurationSha256' => $before], JSON_THROW_ON_ERROR);
+        Activation::verifyConfigurationDigest($checkpoint, $before);
+
+        $this->expectExceptionMessage('The configuration changed after the verified export.');
+        Activation::verifyConfigurationDigest($checkpoint, $after);
+    }
 }

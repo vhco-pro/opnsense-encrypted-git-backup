@@ -90,28 +90,38 @@ final class EncryptedGit extends Base implements IBackupProvider
                 throw new InvalidArgumentException('The freshness limit must be between 1 and 8760 hours.');
             }
             $values['freshnessHours'] = $freshness;
-            if ($enabled === '1') {
-                $response = (new Backend())->configdpRun(
-                    'encryptedgit check',
-                    [$values['destination'], $values['branch'], $values['identity'],
-                        $values['hostTrust'], $values['encryptionKey']]
-                );
-                if (trim($response) !== 'ready') {
-                    throw new RuntimeException('Backup activation or credential validation failed.');
-                }
-            }
         } catch (InvalidArgumentException | RuntimeException $exception) {
             return [$exception->getMessage()];
         }
 
-        $model = new EncryptedGitSettings();
-        $this->setModelProperties($model, $values);
-        $errors = $this->validateModel($model);
-        if ($errors === []) {
-            $model->serializeToConfig();
-            Config::getInstance()->save();
+        $config = Config::getInstance();
+        $config->lock();
+        try {
+            $model = new EncryptedGitSettings();
+            $values['activation'] = '';
+            if ($enabled === '1') {
+                $saved = $this->readField($model, 'activation');
+                $response = trim((new Backend())->configdpRun(
+                    'encryptedgit check',
+                    [$values['destination'], $values['branch'], $values['identity'],
+                        $values['hostTrust'], $values['encryptionKey'], hash('sha256', (string)$config),
+                        $saved === '' ? '-' : $saved]
+                ));
+                if (preg_match('/\A[0-9a-f]{64}\z/', $response) !== 1) {
+                    return [gettext('Backup activation or credential validation failed.')];
+                }
+                $values['activation'] = $response;
+            }
+            $this->setModelProperties($model, $values);
+            $errors = $this->validateModel($model);
+            if ($errors === []) {
+                $model->serializeToConfig();
+                $config->save();
+            }
+            return $errors;
+        } finally {
+            $config->unlock();
         }
-        return $errors;
     }
 
     /** @return string */
@@ -148,7 +158,8 @@ final class EncryptedGit extends Base implements IBackupProvider
             $this->readField($model, 'branch'),
             $this->readField($model, 'identity'),
             $this->readField($model, 'hostTrust'),
-            $this->readField($model, 'encryptionKey')
+            $this->readField($model, 'encryptionKey'),
+            $this->readField($model, 'activation')
         );
     }
 
