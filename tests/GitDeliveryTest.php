@@ -90,6 +90,56 @@ final class GitDeliveryTest extends TestCase
         }
     }
 
+    public function testLostPushResponseStillRequiresRemoteReadBack(): void
+    {
+        $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
+        self::assertTrue(mkdir($directory, 0700));
+        try {
+            $remote = $directory . '/remote';
+            self::assertSame(0, Process::run(['/usr/bin/git', 'init', '--bare', $remote], $directory, [], 5)[0]);
+            $wrapper = $directory . '/git';
+            $script = <<<'SH'
+#!/bin/sh
+for argument do
+    if [ "$argument" = push ]; then
+        /usr/bin/git "$@" || exit "$?"
+        exit 1
+    fi
+done
+exec /usr/bin/git "$@"
+SH;
+            self::assertNotFalse(file_put_contents($wrapper, $script));
+            self::assertTrue(chmod($wrapper, 0700));
+            $delivery = new GitDelivery($wrapper, $directory, ['GIT_CONFIG_NOSYSTEM' => '1']);
+            $commit = $delivery->deliver($remote, 'snapshots', '1.0', 'key', static fn (): string => 'encrypted');
+            self::assertSame(
+                [0, $commit . "\n"],
+                Process::run(['/usr/bin/git', 'rev-parse', 'refs/heads/snapshots'], $remote, [], 5)
+            );
+            self::assertFileExists($directory . '/verified.json');
+        } finally {
+            Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
+        }
+    }
+
+    public function testOverlapFailsWithoutWritingAnAttemptReceipt(): void
+    {
+        $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
+        self::assertTrue(mkdir($directory, 0700));
+        $lock = fopen($directory . '/delivery.lock', 'c');
+        self::assertIsResource($lock);
+        try {
+            self::assertTrue(flock($lock, LOCK_EX | LOCK_NB));
+            $delivery = new GitDelivery('/usr/bin/git', $directory, []);
+            $this->expectExceptionMessage('Another encrypted backup is running.');
+            $delivery->deliver('unused', 'snapshots', '1.0', 'key', static fn (): string => 'encrypted');
+        } finally {
+            self::assertFileDoesNotExist($directory . '/attempt.json');
+            fclose($lock);
+            Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
+        }
+    }
+
     public function testRemoteCommitMustBeReadBackAndIdenticalSnapshotsDoNotGrowHistory(): void
     {
         $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
