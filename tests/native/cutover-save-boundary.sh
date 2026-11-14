@@ -48,23 +48,41 @@ exit 1
 SH
 sed "s@^command:/usr/local/bin/php /usr/local/opnsense/scripts/encryptedgit/check.php\$@command:/bin/sh $fixture/check.sh@" \
     "$fixture/actions" > "$actions"
+wait_ready() {
+    for attempt in $(jot 15); do
+        if timeout 2 configctl encryptedgit status | jq -e 'type == "object" or type == "array"' >/dev/null; then
+            return 0
+        fi
+        sleep 2
+    done
+    return 1
+}
 service configd restart
-ready=
-for attempt in $(jot 15); do
-    if timeout 2 configctl encryptedgit status | jq -e 'type == "object" or type == "array"' >/dev/null; then
-        ready=yes
-        break
-    fi
-    sleep 2
-done
-test "$ready" = yes
-php /tmp/activation-smoke.php migration > "$fixture/save" 2>&1 &
-saver=$!
-for attempt in $(jot 20); do
-    test ! -e "$fixture/checked" || break
-    sleep 1
-done
-test -e "$fixture/checked"
+wait_ready
+start_save() {
+    php /tmp/activation-smoke.php migration > "$fixture/save" 2>&1 &
+    saver=$!
+    for attempt in $(jot 20); do
+        test ! -e "$fixture/checked" || break
+        kill -0 "$saver"
+        sleep 1
+    done
+    test -e "$fixture/checked"
+}
+start_save
+kill -TERM "$saver"
+if wait "$saver"; then exit 1; fi
+touch "$fixture/release"
+test "$(sha256 -q /conf/config.xml)" = "$before"
+test "$(git -C "$repo" rev-parse migration)" = "$remote"
+cmp "$checkpoint" "$fixture/checkpoint"
+printf '%s\n' NATIVE_CUTOVER_INTERRUPTED_AFTER_CHECK_HELD
+
+# Restart configd to retire the interrupted request before repeating the save.
+service configd restart
+rm "$fixture/checked" "$fixture/release"
+wait_ready
+start_save
 php /tmp/queued-settings.php "$fixture" &
 writer=$!
 for attempt in $(jot 8); do
