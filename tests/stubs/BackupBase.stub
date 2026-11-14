@@ -1,0 +1,25 @@
+<?php
+
+namespace OPNsense\Backup;
+
+use OPNsense\Base\BaseModel;
+
+abstract class Base
+{
+    /**
+     * @param BaseModel $mdl
+     * @param array<string, string> $properties
+     * @return void
+     */
+    protected function setModelProperties($mdl, $properties)
+    {
+    }
+
+    /**
+     * @param BaseModel $mdl
+     * @return list<string>
+     */
+    protected function validateModel($mdl)
+    {
+    }
+}
