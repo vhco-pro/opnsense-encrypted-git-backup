@@ -335,6 +335,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     packageSha256: await hashFile(packageName), catalogueSha256: await hashFile("packagesite.pkg"),
                 };
                 if (number === 4) {
+                    const keyDigest = async (name) => createHash("sha256").update((await execute("openssl",
+                        ["pkey", "-pubin", "-in", join(native, name), "-outform", "DER"],
+                        { encoding: "buffer" })).stdout).digest("hex");
+                    release.keySha256 = await keyDigest("next-key.pem");
                     await mkdir(join(next, "prior-key"));
                     for (const file of await readdir(join(native, "site-3"))) {
                         const relativePath = "prior-key/" + file;
@@ -344,7 +348,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                         candidateFiles.push(relativePath);
                     }
                     release.predecessorCatalogue = {
-                        path: "prior-key", version: "0.0.3",
+                        path: "prior-key", version: "0.0.3", keySha256: await keyDigest("key.pem"),
                         packageSha256: await hashFile("prior-key/os-encrypted-git-backup-0.0.3.pkg"),
                         catalogueSha256: await hashFile("prior-key/packagesite.pkg"),
                     };
@@ -358,7 +362,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 fixture = await retainFixture({ directory: next, endpoint: url, packageName,
                     candidateFiles, version, predecessor: previous.payload.history,
                     previousSite: join(native, number === 2 ? "site" : number === 4 ? "site-3-recovery" : "site-2"),
-                    predecessorCatalogue: release.predecessorCatalogue,
+                    predecessorCatalogue: release.predecessorCatalogue, keySha256: release.keySha256,
                 });
                 // Before each dispatch only the controller's predecessor is retained.
                 if (number === 4) nextOutcome = "failure";

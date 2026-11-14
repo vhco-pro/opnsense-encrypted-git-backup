@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const sharedSha = "3b78b04df802ea1592cbe19338d7a882d1888389";
 const workflow = `vhco-pro/version-workflow/.github/workflows/version.yml@${sharedSha}`;
 
-export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor, previousSite, predecessorCatalogue }) {
+export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor, previousSite, predecessorCatalogue, keySha256 }) {
     const sha = (await execute("git", ["rev-parse", "HEAD"])).stdout.trim();
     const tag = `v${version}`;
     const repo = join(directory, "repository");
@@ -74,7 +74,7 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
         await writeFile(join(recovery, "release.json"), JSON.stringify({
             version: priorVersion, packageSha256: await digest(priorPackage),
             catalogueSha256: await digest("packagesite.pkg"),
-            ...(predecessorCatalogue ? { predecessorCatalogue } : {}),
+            ...(predecessorCatalogue ? { predecessorCatalogue, keySha256 } : {}),
         }));
         catalogueFiles.push("release.json");
         if (predecessorCatalogue) {
