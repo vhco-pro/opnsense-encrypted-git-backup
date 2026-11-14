@@ -57,7 +57,9 @@ jobs:
           fetch-tags: true
           persist-credentials: false
       - name: Test version and source identity
-        run: bash tests/package/version-test.sh
+        run: |
+          bash tests/package/version-test.sh
+          bash tests/package/feed-manifest-test.sh
       - name: Prepare the native package version
         shell: bash
         env:
