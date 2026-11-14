@@ -60,6 +60,14 @@ preflight() {
 }
 preflight "$tmp/readback"
 cmp "$tmp/recovery/$package" "$tmp/readback/recovery/$package"
+# Run the dispatch entrypoint here as well: no publishing configuration is
+# present in this fixture, so verified preflight must still stop before effects.
+if env -u PAGES_API -u FEED_URL bash "$root/scripts/feed-dispatch.sh" fixture \
+    "$tmp/version.json" "$tmp/run.json" "$sha" "$sha" "${digests[@]}" "$tmp/history.json" > "$tmp/dispatch.log" 2>&1
+then
+    exit 1
+fi
+grep -F 'PAGES_API' "$tmp/dispatch.log"
 rm "$tmp/assets/feed-${digests[1]}.tar"
 if preflight "$tmp/missing"; then exit 1; fi
 test -z "$(ls -A "$tmp/missing")"
