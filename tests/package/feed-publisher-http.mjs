@@ -386,6 +386,8 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     };
                     await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
                     assert.equal(journal.at(-2).payload.phase, "recovery-required");
+                    assert.equal(journal.at(-3).payload.packages["prior-key/os-encrypted-git-backup-0.0.3.pkg"],
+                        release.predecessorCatalogue.packageSha256);
                     assert.match((await run("fixture", authorized)).stdout, /closure is recorded/);
                     await cachedClient("fetch", version, await hashFile(packageName));
                     await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "rm -rf -- " + cacheDirectory]);

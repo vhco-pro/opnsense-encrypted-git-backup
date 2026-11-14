@@ -198,12 +198,21 @@ marker=$FEED_DIGEST
 if [[ -n "${FEED_HISTORY:-}" ]]; then
     marker=$(sha256sum -- "$FEED_NATIVE_MANIFEST" | cut -d ' ' -f 1)
     package_history=$(jq -ce --slurpfile manifest "$FEED_NATIVE_MANIFEST" '
+        def retain($path; $digest):
+            if has($path) and .[$path] != $digest
+            then error("conflicting advertised package")
+            else . + {($path):$digest}
+            end;
         $manifest[0] as $next |
-        if has($next.package) and .[$next.package] != $next.packageSha256
-        then error("conflicting advertised package")
-        else . + {($next.package):$next.packageSha256}
-        end
+        retain($next.package; $next.packageSha256) |
+        if $next | has("predecessorCatalogue") then
+            $next.predecessorCatalogue as $old |
+            retain(($old.path + "/os-encrypted-git-backup-" + $old.version + ".pkg"); $old.packageSha256)
+        else . end
     ' "$temp/history")
+    printf '%s\n' "$package_history" > "$temp/proposed-history"
+    bash "$scripts/check-feed-history.sh" "$temp/proposed-history" "$FEED_DIRECTORY"
+    bash "$scripts/check-feed-history.sh" "$temp/proposed-history" "$(dirname -- "$FEED_DIRECTORY")/recovery"
 fi
 jq -n --arg sha "$GITHUB_SHA" --arg environment "$environment" --arg attempt "$attempt" \
     --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg parent "$parent" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '{
