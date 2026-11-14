@@ -119,8 +119,21 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     });
     const directory = await mkdtemp(join(tmpdir(), "feed-http-"));
     let forward;
+    let cacheDirectory;
     try {
         const url = `http://127.0.0.1:${server.address().port}`;
+        const cachedClient = (action, version, work = cacheDirectory) => execute("ssh", [
+            "-o", "BatchMode=yes", "freebsd", "sh", work + "/feed-cached-client.sh",
+            action, work, url + "/feed", work + "/key.pem", version,
+        ]);
+        const newCache = async () => {
+            const result = await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "mktemp -d /tmp/feed-cache.XXXXXXXX"]);
+            const work = result.stdout.trim();
+            assert.match(work, /^\/tmp\/feed-cache[.][a-zA-Z0-9]+$/);
+            await execute("scp", ["-q", fileURLToPath(new URL("./feed-cached-client.sh", import.meta.url)),
+                join(native, "key.pem"), `freebsd:${work}/`]);
+            return work;
+        };
         const manifest = join(directory, "pages-manifest.json");
         let fixture;
         let nativeManifest;
@@ -326,6 +339,8 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 assert.equal(journal.at(-1).payload.predecessor, previous.payload.attempt);
                 assert.equal(journal.at(-1).payload.history, previous.payload.history);
                 if (number === 4) {
+                    cacheDirectory = await newCache();
+                    await cachedClient("cache", version);
                     const calls = createRequests;
                     await assert.rejects(run());
                     assert.equal(createRequests, calls);
@@ -333,6 +348,9 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
                     assert.equal(journal.at(-2).payload.phase, "recovery-required");
                     assert.match((await run("fixture", authorized)).stdout, /closure is recorded/);
+                    await cachedClient("fetch", version);
+                    await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "rm -rf -- " + cacheDirectory]);
+                    cacheDirectory = undefined;
                 } else {
                     assert.match((await run()).stdout, /closure is recorded/);
                 }
@@ -351,6 +369,8 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             nextOutcome = "failure";
             await assert.rejects(run(), /curl: [(]52[)]/);
             const candidate = journal.at(-1).payload.attempt;
+            cacheDirectory = await newCache();
+            await cachedClient("cache", "0.0.1");
             nextOutcome = "failure";
             const authorized = { FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "70" };
             await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
@@ -358,6 +378,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal[1].payload.candidate, candidate);
             assert.equal(journal[2].payload.phase, "recovery-started");
             assert.equal((await fetch(url + "/feed/packagesite.pkg")).status, 404);
+            await cachedClient("fetch", "0.0.1");
             const packagePath = "/os-encrypted-git-backup-0.0.1.pkg";
             const packageKey = sites.at(-1).get(packagePath);
             const original = assets.get(packageKey);
@@ -419,6 +440,9 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(journal.length, 1);
         assert.equal(pages.length, 0);
     } finally {
+        if (cacheDirectory) {
+            await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "rm -rf -- " + cacheDirectory]);
+        }
         if (forward) forward.kill();
         await new Promise((resolve) => server.close(resolve));
         await rm(directory, { recursive: true, force: true });
