@@ -27,6 +27,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     const sites = [];
     const site = new Map([["/generation.json", key]]);
     let loseJournalReply = false;
+    let truncatedJournal = false;
     let nextOutcome = "success";
     let dropBeforeCreate = false;
     let createRequests = 0;
@@ -44,7 +45,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 downloaded.push(path);
                 return response.writeHead(200).end(bundles.get(path));
             }
-            if (path === "/repos/fixture/plugin/deployments") return reply(200, historyAnchor ? [historyAnchor, ...journal] : journal);
+            if (path === "/repos/fixture/plugin/deployments") {
+                if (truncatedJournal) response.setHeader("Link", '<http://127.0.0.1/next>; rel="next"');
+                return reply(200, historyAnchor ? [historyAnchor, ...journal] : journal);
+            }
             if (path === "/pages/upload-token") return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
             if (path === "/pages/deployments") return reply(200, { success: true, result: pages });
             if (path === "/pages") {
@@ -214,6 +218,11 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
 
         await assert.rejects(run("production"), /Production publication requires the approved protected workflow/);
         assert.equal(journal.length, 0);
+        truncatedJournal = true;
+        await assert.rejects(run(), /supported complete-read bound/);
+        truncatedJournal = false;
+        assert.equal(createRequests, 0);
+        assert.equal(assets.size, 0);
         if (native) {
             const anchor = historyAnchor;
             historyAnchor = undefined;

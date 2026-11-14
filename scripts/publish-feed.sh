@@ -17,7 +17,11 @@ request() {
 }
 
 # A bounded complete read. Hold if pagination would be required.
-request "${github_headers[@]}" "$journal?environment=$environment&per_page=100" > "$temp/journal"
+request "${github_headers[@]}" -D "$temp/journal-headers" "$journal?environment=$environment&per_page=100" > "$temp/journal"
+if grep -Ei '^link:' "$temp/journal-headers" | grep -Eq 'rel="next"'; then
+    echo 'Feed journal exceeds the supported complete-read bound.' >&2
+    exit 1
+fi
 jq -e 'type == "array" and length < 100' "$temp/journal" >/dev/null
 generation=$(jq -ce -f "$scripts/feed-journal-generation.jq" "$temp/journal")
 started=$(jq -c '.latest // {}' <<< "$generation")
