@@ -92,3 +92,26 @@ test('rejected delivery keeps the previous verified receipt visible', async ({ p
   await expect(page.locator('#backup-outcome')).toHaveText('failed');
   await expect(commit).toHaveText(previous ?? '');
 });
+
+test('native status fits narrow layouts and remains usable with reduced motion', async ({ page }, testInfo) => {
+  await login(page, 'fixture-reader', process.env.FIXTURE_READER_PASSWORD);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/ui/encrypted_git_backup');
+  const heading = page.getByRole('heading', { name: 'Encrypted Git backup status' });
+  const link = page.getByRole('link', { name: 'Backups settings' });
+  for (const width of [1280, 640, 390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(heading).toBeVisible();
+    await expect(link).toBeVisible();
+    const bounds = await link.boundingBox();
+    expect(bounds).not.toBeNull();
+    if (!bounds) throw new Error('Status navigation has no layout box.');
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+  expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBeTruthy();
+  await link.focus();
+  await expect(link).toBeFocused();
+  await page.screenshot({ path: testInfo.outputPath('status-narrow-reduced-motion.png'), fullPage: true });
+});
