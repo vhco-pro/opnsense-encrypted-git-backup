@@ -6,7 +6,9 @@ namespace OPNsense\Backup;
 
 use InvalidArgumentException;
 use OPNsense\Core\ACL;
+use OPNsense\Core\Backend;
 use OPNsense\Core\Config;
+use OPNsense\EncryptedGitBackup\NativeRun;
 use OPNsense\EncryptedGitBackup\Settings;
 use RuntimeException;
 
@@ -90,7 +92,9 @@ final class EncryptedGit extends Base implements IBackupProvider
             $values['freshnessHours'] = $freshness;
             if ($enabled === '1') {
                 self::assertLegacyHookAbsent();
-                throw new RuntimeException('Encrypted Git delivery is unavailable until transport is configured.');
+                if (!is_file('/conf/encrypted-git-backup/activation.json')) {
+                    throw new RuntimeException('Complete the encrypted backup activation checkpoint first.');
+                }
             }
         } catch (InvalidArgumentException | RuntimeException $exception) {
             return [$exception->getMessage()];
@@ -115,8 +119,32 @@ final class EncryptedGit extends Base implements IBackupProvider
     /** @return list<string> */
     public function backup()
     {
+        if (!$this->isEnabled()) {
+            return [];
+        }
+        $response = (new Backend())->configdRun('encryptedgit run', false, 240);
+        $result = json_decode($response, true);
+        $commit = is_array($result) ? ($result['commit'] ?? null) : null;
+        if (!is_string($commit) || preg_match('/\A(?:[0-9a-f]{40}|[0-9a-f]{64})\z/', $commit) !== 1) {
+            throw new RuntimeException('Encrypted Git backup failed. Check the encrypted backup status.');
+        }
+        return ['config.xml.enc'];
+    }
+
+    public function runConfigured(): string
+    {
         self::assertLegacyHookAbsent();
-        throw new RuntimeException('Encrypted Git delivery is unavailable until transport is configured.');
+        $model = new EncryptedGitSettings();
+        if ($this->readField($model, 'enabled') !== '1') {
+            throw new RuntimeException('Encrypted Git backup is disabled.');
+        }
+        return NativeRun::run(
+            $this->readField($model, 'destination'),
+            $this->readField($model, 'branch'),
+            $this->readField($model, 'identity'),
+            $this->readField($model, 'hostTrust'),
+            $this->readField($model, 'encryptionKey')
+        );
     }
 
     /** @return bool */

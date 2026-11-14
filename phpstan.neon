@@ -5,6 +5,8 @@ parameters:
         - src
         - tests
     scanFiles:
+        - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Core/Backend.php
+        - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Backup/Local.php
         - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Backup/Base.php
         - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Core/Config.php
         - work/upstream/core/src/opnsense/mvc/app/models/OPNsense/Core/ACL.php
