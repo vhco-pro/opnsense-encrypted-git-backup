@@ -76,6 +76,7 @@ try {
       dark: 'php /tmp/browser-build/plugin/tests/native/browser-theme.php opnsense-dark',
       reject: 'sh /tmp/browser-build/plugin/tests/native/browser-push-reject.sh reject',
       accept: 'sh /tmp/browser-build/plugin/tests/native/browser-push-reject.sh accept',
+      growth: 'sh /tmp/browser-build/plugin/tests/native/browser-growth.sh',
     };
     if (!Object.hasOwn(commands, phase)) throw new Error('Unknown browser fixture phase');
     // Further commands use the live package-phase serial log.

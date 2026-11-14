@@ -57,3 +57,4 @@ node tests/appliance/console.mjs "$directory" accept
 openssl s_client -connect 127.0.0.1:38443 </dev/null 2>/dev/null | openssl x509 -out "$directory/artifacts/r45-fixture-cert.pem"
 timeout 90s node tests/appliance/chromium-zoom.mjs "$directory/artifacts" | tee "$directory/artifacts/chromium-zoom.log"
 timeout 90s node tests/appliance/firefox-real-zoom.mjs "$directory/artifacts" | tee "$directory/artifacts/firefox-zoom.log"
+node tests/appliance/console.mjs "$directory" growth

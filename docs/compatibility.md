@@ -131,3 +131,14 @@ directory. The lock uses versioned files from the OPNsense mirror. Missing or
 changed inputs fail the job before boot. The locally reconstructed package
 repository is evidence for appliance behavior; trusted Firmware installation
 and real feed publication have separate proofs.
+
+### Measured repository growth
+
+On the installed alpha8 package from `3fc566d`, three synthetic configuration
+revisions each produced a 54,381-byte encrypted blob. Each new tree contained
+only `config.xml.enc` and `snapshot.json`. The bare loopback repository grew from
+1,296 KiB to 1,512 KiB in allocated space (`du -sk`), or 72 KiB per revision in
+this small sample before repacking. Allocation depends on the filesystem and
+Git maintenance. Use the measured ciphertext size of the target export and the
+expected changed-revision cadence when estimating capacity. Unchanged-source
+verification can refresh the receipt without adding a new configuration revision.
