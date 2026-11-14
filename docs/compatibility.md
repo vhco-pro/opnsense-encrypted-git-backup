@@ -142,3 +142,43 @@ this small sample before repacking. Allocation depends on the filesystem and
 Git maintenance. Use the measured ciphertext size of the target export and the
 expected changed-revision cadence when estimating capacity. Unchanged-source
 verification can refresh the receipt without adding a new configuration revision.
+
+### Lifecycle readiness and eligible signed package
+
+A fresh disconnected FreeBSD 15.1-RELEASE-p6 appliance ran OPNsense 26.7.9_1,
+PHP 8.5.12 and pkg 2.8.4_1,1. The alpha96 package from `2879ab3` had SHA-256
+`c1914129f37f8f05a1fa0ffe1e77b117bca454ad641f25a767d5aa5a92ee323d`. Native
+removal and reinstallation preserved the activation checkpoint and delivered
+after an eight-second delay in starting configd. With configd kept stopped,
+the fixture exhausted its 15 readiness probes, reported the startup failure
+and made zero delivery calls. R48 retains the two earlier startup failures.
+
+In an isolated clone with no remote, the pinned GitVersion 6.8.0 tool and
+bundled shared config calculated `0.1.0` for `42d69b3` on a local `main` ref.
+The fixture used that calculation, a local `v0.1.0` tag and synthetic workflow
+metadata to verify release identity. The pinned framework built the actual
+package. Native pkg signed the catalogue with a fixture key. The manifest
+matched package SHA-256
+`1af046322d21200662f4133a0f9310a1b78150fc60213d142be05e54fbb8597c` and
+catalogue SHA-256
+`0c8037a5ee03d4cf99a578930cdf36c1236d2c1ccc8c85ca962ff2b724f3beb0`.
+Native Firmware upgraded the installed alpha96 fixture to `0.1.0` and verified
+the installed package integrity. The earlier manifest comparison failed
+because pkg used an algorithm-tagged BLAKE2b catalogue checksum. The manifest
+now verifies that checksum with native pkg and retains SHA-256 for feed byte
+identity. The fixture used a local signed catalogue and did not publish it.
+
+In a separate clean guest, the historical provider from `2044d6b` ran as
+fixture version `0.0.8` with enabled version 1 null-legacy settings. After a
+successful run, a rejected push left a pending commit. Upgrading to the
+`42d69b3` alpha96 package preserved the checkpoint and pending tip. Before
+activation was saved, a manual run failed and the remote ref stayed unchanged.
+Saving through the native provider and restarting configd restored delivery.
+The independently read remote tip contained the pending commit in its ancestry.
+
+A second historical upgrade began with enabled version 1 legacy settings,
+a retained legacy archive, a matching remote ancestor and a rejected pending
+commit. The current package preserved the pending commit and remote ref
+through the pre-save hold. The native settings save rejected the old checkpoint
+without changing the configuration. It accepted a freshly verified version 2
+checkpoint and advanced the remote after restart while preserving pending ancestry.
