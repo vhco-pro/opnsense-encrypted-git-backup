@@ -437,7 +437,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     const attest = async (clients, observedAt = Math.floor(Date.now() / 1000)) => {
                         await writeFile(evidence, JSON.stringify({
                             attempt: candidate.payload.attempt, deployment: pages.at(-1).id,
-                            digest: candidate.payload.digest, observedAt, clients,
+                            digest: candidate.payload.digest, scope: journal.at(-1).payload.scope, observedAt, clients,
                         }));
                         await execute("openssl", ["dgst", "-sha256", "-sign", operatorKey, "-out", signature, evidence]);
                     };

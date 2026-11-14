@@ -13,7 +13,7 @@ validate_retirement() {
     ' <<< "$retirement" >/dev/null
 }
 verify_retirement() {
-    local path alias status pending
+    local path alias status pending retirement_scope
     path=$(jq -er .path <<< "$retirement")
     for alias in packagesite.pkg packagesite.txz meta.conf meta.pkg meta.txz data.pkg data.txz; do
         status=$(request --no-fail -o /dev/null -w '%{http_code}' "$FEED_URL/$path/$alias")
@@ -22,25 +22,26 @@ verify_retirement() {
             return 1
         }
     done
+    retirement_scope=$(jq -cS . <<< "$retirement" | sha256sum | cut -d ' ' -f 1)
     pending=$(jq -c '.retirement // {}' <<< "$generation")
     if [[ "$pending" == '{}' ]]; then
         source "$scripts/feed-recovery.sh"
         append_recovery trust-finalization-pending "$(jq -cn --arg attempt "$attempt" \
-            --arg deployment "$id" --arg digest "$digest" \
-            '{attempt:$attempt,deployment:$deployment,digest:$digest}')"
+            --arg deployment "$id" --arg digest "$digest" --arg scope "$retirement_scope" \
+            '{attempt:$attempt,deployment:$deployment,digest:$digest,scope:$scope}')"
         echo 'Withdrawal verified. Trust finalization is pending.' >&2
         return 1
     fi
-    jq -e --arg id "$id" '.payload.deployment == $id' <<< "$pending" >/dev/null
+    jq -e --arg id "$id" --arg scope "$retirement_scope" '.payload.deployment == $id and .payload.scope == $scope' <<< "$pending" >/dev/null
     : "${FEED_OPERATOR_KEY:?}" "${FEED_OPERATOR_EVIDENCE:?}" "${FEED_OPERATOR_SIGNATURE:?}"
     local fingerprint
     fingerprint=$(openssl pkey -pubin -in "$FEED_OPERATOR_KEY" -outform DER | sha256sum | cut -d ' ' -f 1)
     [[ "$fingerprint" == "$(jq -er .operatorKey <<< "$retirement")" ]]
     openssl dgst -sha256 -verify "$FEED_OPERATOR_KEY" -signature "$FEED_OPERATOR_SIGNATURE" \
         "$FEED_OPERATOR_EVIDENCE" >/dev/null
-    jq -e --arg attempt "$attempt" --arg deployment "$id" --arg digest "$digest" \
+    jq -e --arg attempt "$attempt" --arg deployment "$id" --arg digest "$digest" --arg scope "$retirement_scope" \
         --argjson retirement "$retirement" '
-        .attempt == $attempt and .deployment == $deployment and .digest == $digest and
+        .attempt == $attempt and .deployment == $deployment and .digest == $digest and .scope == $scope and
         (.observedAt | type == "number" and . <= now and . > now - 900) and
         .clients == ($retirement.clients | map_values(.after))
     ' "$FEED_OPERATOR_EVIDENCE" >/dev/null
