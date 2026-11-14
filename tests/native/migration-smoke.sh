@@ -5,6 +5,12 @@ state=/conf/encrypted-git-backup
 repo=/tmp/fixture.git
 legacy=/conf/backup/git
 fixture=$(mktemp -d /tmp/encryptedgit-migration.XXXXXXXX)
+mode=${1:-}
+interrupted_shutdown=
+if [ "$mode" = --interrupted-shutdown ]; then
+    interrupted_shutdown=yes
+    mode=--unpublished
+fi
 test ! -e "$legacy"
 git init -b migration "$legacy"
 printf '<opnsense><fixture>legacy-only</fixture></opnsense>\n' > "$legacy/config.xml"
@@ -12,7 +18,7 @@ git -C "$legacy" add config.xml
 git -C "$legacy" -c user.name=Fixture -c user.email=fixture@example.test commit -m 'Synthetic legacy snapshot'
 git -C "$legacy" push "$repo" HEAD:refs/heads/migration
 remote=$(git -C "$legacy" rev-parse HEAD)
-if [ "${1:-}" = "--unpublished" ]; then
+if [ "$mode" = "--unpublished" ]; then
     # An admitted synthetic writer finishes after preliminary retention.
     hook=/usr/local/etc/rc.syshook.d/config/10-git-backup
     test ! -e "$hook"
@@ -49,7 +55,28 @@ HOOK
     if php /tmp/activation-smoke.php migration > "$fixture/active-writer.log" 2>&1; then exit 1; fi
     test "$(sha256 -q /conf/config.xml)" = "$before"
     # Quiesce entry before releasing and joining the already admitted writer.
-    rm "$hook"
+    if [ "$interrupted_shutdown" = yes ]; then
+        (
+            rm "$hook"
+            touch "$fixture/hook-withdrawn"
+            for tick in $(jot 20); do sleep 1; done
+        ) &
+        shutdown=$!
+        for tick in $(jot 10); do
+            [ ! -e "$fixture/hook-withdrawn" ] || break
+            sleep 1
+        done
+        test -e "$fixture/hook-withdrawn"
+        kill -TERM "$shutdown"
+        if wait "$shutdown"; then exit 1; fi
+        kill -0 "$writer"
+        if php /tmp/activation-smoke.php migration > "$fixture/interrupted-writer.log" 2>&1; then exit 1; fi
+        test "$(sha256 -q /conf/config.xml)" = "$before"
+        test "$(git -C "$repo" rev-parse migration)" = "$remote"
+        printf '%s\n' NATIVE_PRELIMINARY_WRITER_SHUTDOWN_INTERRUPTED
+    else
+        rm "$hook"
+    fi
     touch "$fixture/writer-release"
     wait "$writer"
     trap - EXIT
@@ -60,7 +87,7 @@ HOOK
 fi
 tip=$(git -C "$legacy" rev-parse HEAD)
 test "$(git -C "$repo" rev-parse refs/heads/migration)" = "$remote"
-if [ "${1:-}" = "--unpublished" ]; then test "$tip" != "$remote"; fi
+if [ "$mode" = "--unpublished" ]; then test "$tip" != "$remote"; fi
 git -C "$legacy" bundle create "$fixture/legacy.bundle" --all HEAD
 export FIXTURE_ARCHIVE_PASSWORD=synthetic-archive-fixture
 openssl enc -aes-256-cbc -pbkdf2 -salt -in "$fixture/legacy.bundle" \
@@ -88,7 +115,7 @@ for name in target.json pending verified.json attempt.json; do
         mv "$state/$name" "$fixture/prior/"
     fi
 done
-if [ "${1:-}" = "--unpublished" ]; then
+if [ "$mode" = "--unpublished" ]; then
     # After activation, a rejected first delivery must retain its exact pending object.
     hook=$repo/hooks/pre-receive
     test ! -e "$hook"
@@ -110,7 +137,7 @@ configctl encryptedgit run | php -r '
 '
 commit=$(git -C "$repo" rev-parse refs/heads/migration)
 test "$(git -C "$repo" rev-parse "$commit^")" = "$remote"
-if [ "${1:-}" = "--unpublished" ]; then test "$commit" = "$pending"; fi
+if [ "$mode" = "--unpublished" ]; then test "$commit" = "$pending"; fi
 test "$(git -C "$repo" ls-tree --name-only "$commit" | tr '\n' ' ')" = 'config.xml.enc snapshot.json '
 test "$(git -C "$legacy" rev-parse HEAD)" = "$tip"
 printf 'NATIVE_LEGACY_CUTOVER_OK %s\n' "$commit"
