@@ -182,7 +182,7 @@ SH;
         }
     }
 
-    public function testRemoteCommitMustBeReadBackAndIdenticalSnapshotsDoNotGrowHistory(): void
+    public function testRemoteCommitMustBeReadBackAndIdenticalSnapshotsReuseTheCiphertextBlob(): void
     {
         $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
         self::assertTrue(mkdir($directory, 0700));
@@ -207,13 +207,17 @@ SH;
                 'key',
                 static fn (): never => throw new RuntimeException('Unchanged capture was encrypted again.')
             );
-            self::assertSame($first, $second);
+            self::assertNotSame($first, $second);
+            self::assertSame(
+                Process::run(['/usr/bin/git', 'rev-parse', $first . ':config.xml.enc'], $directory . '/remote', [], 5),
+                Process::run(['/usr/bin/git', 'rev-parse', $second . ':config.xml.enc'], $directory . '/remote', [], 5)
+            );
             $receipt = file_get_contents($directory . '/verified.json');
             self::assertIsString($receipt);
-            self::assertStringContainsString($first, $receipt);
+            self::assertStringContainsString($second, $receipt);
             self::assertStringContainsString(hash('sha256', 'synthetic-encrypted-artifact'), $receipt);
             self::assertSame(
-                [0, $first . "\n"],
+                [0, $second . "\n"],
                 Process::run(['/usr/bin/git', 'rev-parse', 'refs/heads/snapshots'], $directory . '/remote', [], 5)
             );
         } finally {

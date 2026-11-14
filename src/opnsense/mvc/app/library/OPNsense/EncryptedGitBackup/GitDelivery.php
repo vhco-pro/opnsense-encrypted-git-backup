@@ -128,9 +128,12 @@ final class GitDelivery
             $previous = $this->snapshot($repository, $head);
             if ($remote !== $head) {
                 $this->pushAndVerify($repository, $destination, $ref, $head, $previous['sha256']);
+                if ($previous['revision'] === $revision && $previous['key'] === $key) {
+                    return $head;
+                }
             }
             if ($previous['revision'] === $revision && $previous['key'] === $key) {
-                return $head;
+                return $this->observe($repository, $destination, $ref, $head, $previous['sha256']);
             }
         }
 
@@ -145,6 +148,7 @@ final class GitDelivery
             'key' => $key,
             'capturedAt' => gmdate('Y-m-d\TH:i:s\Z'),
             'sha256' => $digest,
+            'observedAt' => gmdate(DATE_ATOM),
         ], JSON_THROW_ON_ERROR) . "\n";
         $this->write($repository, self::ARTIFACT, $artifact);
         $this->write($repository, self::METADATA, $metadata);
@@ -165,6 +169,31 @@ final class GitDelivery
         $this->requireGit(['update-ref', 'HEAD', $commit, $old], $repository);
         $this->pushAndVerify($repository, $destination, $ref, $commit, $digest);
 
+        return $commit;
+    }
+
+    private function observe(string $repository, string $destination, string $ref, string $head, string $digest): string
+    {
+        $metadata = json_decode(
+            $this->requireGit(['show', $head . ':' . self::METADATA], $repository),
+            true,
+            8,
+            JSON_THROW_ON_ERROR
+        );
+        if (!is_array($metadata)) {
+            throw new RuntimeException('The retained backup metadata is invalid.');
+        }
+        $metadata['observedAt'] = gmdate(DATE_ATOM);
+        $this->requireGit(['read-tree', $head], $repository);
+        $this->write($repository, self::METADATA, json_encode($metadata, JSON_THROW_ON_ERROR) . "\n");
+        $this->requireGit(['add', '--', self::METADATA], $repository);
+        $tree = $this->objectId(trim($this->requireGit(['write-tree'], $repository)));
+        $commit = $this->objectId(trim($this->requireGit(
+            ['commit-tree', $tree, '-p', $head, '-m', 'Verify retained encrypted configuration'],
+            $repository
+        )));
+        $this->requireGit(['update-ref', 'HEAD', $commit, $head], $repository);
+        $this->pushAndVerify($repository, $destination, $ref, $commit, $digest);
         return $commit;
     }
 
