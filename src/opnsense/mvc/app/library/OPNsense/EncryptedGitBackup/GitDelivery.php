@@ -16,7 +16,8 @@ final class GitDelivery
     public function __construct(
         private string $git,
         private string $directory,
-        private array $environment
+        private array $environment,
+        private ?string $legacyParent = null
     ) {
     }
 
@@ -114,8 +115,8 @@ final class GitDelivery
         $remote = $this->fetch($repository, $destination, $ref);
         [$exit, $headOutput] = $this->git(['rev-parse', '--verify', 'HEAD'], $repository);
         $head = $exit === 0 ? $this->objectId(trim($headOutput)) : null;
-        if ($head === null && $remote !== null) {
-            throw new RuntimeException('An existing remote needs an explicit migration checkpoint.');
+        if ($head === null && $remote !== $this->legacyParent) {
+            throw new RuntimeException('The remote branch does not match the activation checkpoint.');
         }
         if ($head !== null) {
             if (
@@ -152,11 +153,16 @@ final class GitDelivery
         if (array_diff(explode("\0", rtrim($staged, "\0")), [self::ARTIFACT, self::METADATA]) !== []) {
             throw new RuntimeException('Unexpected files are staged in the encrypted backup repository.');
         }
-        $this->requireGit(
-            ['commit', '-m', 'Encrypted configuration snapshot', '--', self::ARTIFACT, self::METADATA],
-            $repository
-        );
-        $commit = $this->objectId(trim($this->requireGit(['rev-parse', 'HEAD'], $repository)));
+        $tree = $this->objectId(trim($this->requireGit(['write-tree'], $repository)));
+        $commitArgs = ['commit-tree', $tree, '-m', 'Encrypted configuration snapshot'];
+        $parent = $head ?? $this->legacyParent;
+        if ($parent !== null) {
+            $commitArgs[] = '-p';
+            $commitArgs[] = $parent;
+        }
+        $commit = $this->objectId(trim($this->requireGit($commitArgs, $repository)));
+        $old = $head ?? str_repeat('0', strlen($commit));
+        $this->requireGit(['update-ref', 'HEAD', $commit, $old], $repository);
         $this->pushAndVerify($repository, $destination, $ref, $commit, $digest);
 
         return $commit;

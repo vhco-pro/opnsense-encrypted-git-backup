@@ -11,6 +11,47 @@ use RuntimeException;
 
 final class GitDeliveryTest extends TestCase
 {
+    public function testMigrationKeepsTheLegacyParentWithoutCheckingOutPlaintext(): void
+    {
+        $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
+        self::assertTrue(mkdir($directory, 0700));
+        try {
+            $remote = $directory . '/remote';
+            $init = ['/usr/bin/git', 'init', '-b', 'snapshots', $remote];
+            self::assertSame(0, Process::run($init, $directory, [], 5)[0]);
+            self::assertNotFalse(file_put_contents($remote . '/config.xml', 'synthetic legacy plaintext'));
+            self::assertSame(0, Process::run(['/usr/bin/git', 'add', 'config.xml'], $remote, [], 5)[0]);
+            self::assertSame(0, Process::run(
+                ['/usr/bin/git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
+                    'commit', '-m', 'Legacy fixture'],
+                $remote,
+                [],
+                5
+            )[0]);
+            self::assertSame(0, Process::run(
+                ['/usr/bin/git', 'config', 'receive.denyCurrentBranch', 'ignore'],
+                $remote,
+                [],
+                5
+            )[0]);
+            [$exit, $legacy] = Process::run(['/usr/bin/git', 'rev-parse', 'HEAD'], $remote, [], 5);
+            self::assertSame(0, $exit);
+            $delivery = new GitDelivery('/usr/bin/git', $directory, ['GIT_CONFIG_NOSYSTEM' => '1'], trim($legacy));
+            $result = $delivery->deliver($remote, 'snapshots', '1.0', 'key', static fn (): string => 'encrypted');
+            self::assertSame(
+                [0, $legacy],
+                Process::run(['/usr/bin/git', 'rev-parse', $result . '^'], $remote, [], 5)
+            );
+            self::assertSame(
+                [0, "config.xml.enc\nsnapshot.json\n"],
+                Process::run(['/usr/bin/git', 'ls-tree', '--name-only', $result], $remote, [], 5)
+            );
+            self::assertFileDoesNotExist($directory . '/pending/config.xml');
+        } finally {
+            Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
+        }
+    }
+
     public function testRejectedPushRetainsPendingCommitForRetry(): void
     {
         $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
