@@ -9,15 +9,16 @@ pending=$(git -C "$state/pending" rev-parse HEAD)
 remote=$(git -C "$repo" rev-parse migration)
 php "$operator" hold
 original=$(php "$operator" revision)
-php /tmp/operator-change-settings.php
-grep -q '<freshnessHours>37</freshnessHours>' /conf/config.xml
+changed_hours=${1:-37}
+php /tmp/operator-change-settings.php "$changed_hours"
+grep -q "<freshnessHours>$changed_hours</freshnessHours>" /conf/config.xml
 if php "$operator" restore-settings "$original"; then exit 1; fi
 test ! -e "$state/activation.json"
 changed=$(php "$operator" revision)
 php "$operator" restore-settings "$changed"
 test ! -e "$state/activation.json"
 grep -q '<domain>operator-fixture.invalid</domain>' /conf/config.xml
-if grep -q '<freshnessHours>37</freshnessHours>' /conf/config.xml; then exit 1; fi
+if grep -q "<freshnessHours>$changed_hours</freshnessHours>" /conf/config.xml; then exit 1; fi
 test "$(git -C "$state/pending" rev-parse HEAD)" = "$pending"
 test "$(git -C "$repo" rev-parse migration)" = "$remote"
 if php "$operator" resume "$changed"; then exit 1; fi
