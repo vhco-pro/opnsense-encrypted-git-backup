@@ -47,6 +47,22 @@ final class GitDeliveryTest extends TestCase
                 Process::run(['/usr/bin/git', 'ls-tree', '--name-only', $result], $remote, [], 5)
             );
             self::assertFileDoesNotExist($directory . '/pending/config.xml');
+            $receipt = file_get_contents($directory . '/verified.json');
+            $incompatible = new GitDelivery('/usr/bin/git', $directory, [], str_repeat('a', 40));
+            try {
+                $incompatible->deliver($remote, 'snapshots', '2.0', 'key', static fn (): string => 'new snapshot');
+                self::fail('Delivery accepted pending history without the active checkpoint parent.');
+            } catch (RuntimeException $error) {
+                self::assertSame(
+                    'Pending history does not contain the active checkpoint parent.',
+                    $error->getMessage()
+                );
+            }
+            self::assertSame($receipt, file_get_contents($directory . '/verified.json'));
+            self::assertSame(
+                [0, $result . "\n"],
+                Process::run(['/usr/bin/git', 'rev-parse', 'refs/heads/snapshots'], $remote, [], 5)
+            );
         } finally {
             Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
         }

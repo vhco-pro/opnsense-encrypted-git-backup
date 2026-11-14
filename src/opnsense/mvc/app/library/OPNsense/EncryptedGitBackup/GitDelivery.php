@@ -125,6 +125,15 @@ final class GitDelivery
         if ($head === null && $remote !== $this->legacyParent) {
             throw new RuntimeException('The remote branch does not match the activation checkpoint.');
         }
+        if (
+            $head !== null && $this->legacyParent !== null
+            && $this->git(
+                ['merge-base', '--is-ancestor', $this->objectId($this->legacyParent), $head],
+                $repository
+            )[0] !== 0
+        ) {
+            throw new RuntimeException('Pending history does not contain the active checkpoint parent.');
+        }
         if ($head !== null && $remote === null) {
             $permission = $this->directory . '/initial-rejected';
             if (
