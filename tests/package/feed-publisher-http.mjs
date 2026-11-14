@@ -258,6 +258,14 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(assets.get(key).toString(), JSON.stringify({ digest: effectiveMarker }));
         assert.equal(pages.length, 1);
         if (native) {
+            const terminal = pages[0].latest_stage;
+            pages[0].latest_stage = { ...terminal, name: "build" };
+            const beforeIntermediate = createRequests;
+            assert.equal((await (await fetch(url + "/feed/generation.json")).json()).digest, effectiveMarker);
+            await assert.rejects(run());
+            assert.equal(createRequests, beforeIntermediate);
+            assert.equal(journal.length, 1);
+            pages[0].latest_stage = terminal;
             loseHistoryReply = true;
             await assert.rejects(run(), /curl: [(]52[)]/);
             assert.equal(journal.length, 1);
@@ -459,9 +467,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     assert.equal(journal.at(-1).payload.phase, "trust-finalization-pending");
                     const evidence = join(next, "operator-evidence.json");
                     const signature = join(next, "operator-evidence.sig");
-                    const attest = async (clients, observedAt = Math.floor(Date.now() / 1000)) => {
+                    const attest = async (clients, observedAt = Math.floor(Date.now() / 1000),
+                        deployment = pages.at(-1).id) => {
                         await writeFile(evidence, JSON.stringify({
-                            attempt: candidate.payload.attempt, deployment: pages.at(-1).id,
+                            attempt: candidate.payload.attempt, deployment,
                             digest: candidate.payload.digest, scope: journal.at(-1).payload.scope, observedAt, clients,
                         }));
                         await execute("openssl", ["dgst", "-sha256", "-sign", operatorKey, "-out", signature, evidence]);
@@ -470,7 +479,17 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                         FEED_OPERATOR_EVIDENCE: evidence, FEED_OPERATOR_SIGNATURE: signature };
                     await attest({ alpha: overlap.keySha256 });
                     await assert.rejects(run("fixture", evidenceEnv));
+                    const pendingTrust = journal.length;
+                    available.set(old, earlier);
+                    await assert.rejects(run("fixture", evidenceEnv), /withdrawal could not be verified/);
+                    assert.equal(journal.length, pendingTrust);
+                    assert.equal(createRequests, calls);
+                    available.delete(old);
                     const clients = { alpha: overlap.keySha256, beta: overlap.keySha256 };
+                    await attest(clients, Math.floor(Date.now() / 1000), pages.at(-2).id);
+                    await assert.rejects(run("fixture", evidenceEnv));
+                    assert.equal(journal.length, pendingTrust);
+                    assert.equal(createRequests, calls);
                     await attest(clients, Math.floor(Date.now() / 1000) - 901);
                     await assert.rejects(run("fixture", evidenceEnv));
                     await attest(clients);
@@ -497,6 +516,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 const cached = await fetch(url + "/feed/os-encrypted-git-backup-0.0.1.pkg");
                 assert.deepEqual(Buffer.from(await cached.arrayBuffer()), initial);
             }
+            const allGenerations = journal.slice();
+            const retainedActivation = allGenerations.at(-1);
+            const beforeRollback = createRequests;
+            // Present a valid older generation and its original history.
+            // Keep independent evidence that a later generation was served.
+            journal.splice(2, journal.length, retainedActivation);
+            await assert.rejects(run(), /conflicting generation closure/);
+            assert.equal(createRequests, beforeRollback);
+            assert.equal(journal.at(-1), retainedActivation);
+            journal.splice(0, journal.length, ...allGenerations);
         }
 
         if (native) {
@@ -617,6 +646,24 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal.at(-1).payload.phase, "recovery-started");
             await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "92" }), /unresolved Pages create/);
             assert.equal(createRequests, beforeUnclassifiedRecovery + 1);
+
+            journal.length = 0;
+            pages.length = 0;
+            sites.length = 0;
+            nextOutcome = "failure";
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
+            assert.equal(pages.length, 2);
+            const recoveryTerminal = pages[1].latest_stage;
+            pages[1].latest_stage = { ...recoveryTerminal, name: "build" };
+            const beforeIntermediateRecovery = createRequests;
+            const openRecovery = journal.length;
+            await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "93" }));
+            assert.equal(createRequests, beforeIntermediateRecovery);
+            assert.equal(journal.length, openRecovery);
+            assert.equal(journal.at(-1).payload.phase, "recovery-started");
+            pages[1].latest_stage = recoveryTerminal;
+            await run("fixture", authorized);
         }
 
         fixture = firstFixture;
