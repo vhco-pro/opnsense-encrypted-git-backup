@@ -40,3 +40,9 @@ Semgrep CE 1.185.0 ran three local rules against 15 tracked PHP files with zero 
 Native pkg 2.3.1 audited installed packages with FreeBSD VuXML snapshot SHA-256 `76d5b3f677d5171048bd4fd9671c6b3853408ab8ed2e3e7599a29c435a193c26`. The mixed-version fixture returned exit 1 with 11 affected packages. A missing database also returned exit 1 and a different diagnostic. Querying the 11 corresponding versions from the current upstream catalogue still reported CVE-2025-15367 on `python313-3.13.18`. The catalogue candidate query does not establish the installed target's vulnerability status.
 
 The follow-up scan split filesystem and HTML taint. Its positive probe flags a request-controlled path even after HTML escaping. Its escaped HTML probe passes. A repository-level ignore file replaces Semgrep's default test exclusions. The scan then covered all 15 PHP files under `src/` and eight PHP files under `tests/` with zero findings and errors. Non-PHP fixtures and analysis stubs with the `.stub` extension remain outside this PHP scan. The hash-locked scanner environment passed the CI probe script locally, including the distinct Gitleaks finding and error exits.
+
+Additional fixture observations on the installed 26.7.9_1 core package and PHP 8.5.12 with the installer kernel:
+
+- Native configd accepted root-owned 0600 credential files and rejected both a mode-0644 password file and a present legacy capture hook.
+- A native model save activated the provider for a synthetic loopback SSH repository. The native configd run returned a commit that matched the remote branch and the verification receipt.
+- Chromium and Firefox each verified anonymous status denial, authenticated settings persistence, and a mobile status page with the seeded failed attempt and previous successful receipt. The tests retained screenshots and checked page errors and keyboard focus. Read-only-account, theme, zoom and successful delivery journeys remain open.
