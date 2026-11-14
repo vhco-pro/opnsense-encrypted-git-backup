@@ -19,6 +19,16 @@ request() {
 # A bounded complete read. Hold if pagination would be required.
 request "${github_headers[@]}" "$journal?environment=$environment&per_page=100" > "$temp/journal"
 jq -e 'type == "array" and length < 100' "$temp/journal" >/dev/null
+history_digest=
+if [[ -n "${FEED_HISTORY:-}" ]]; then
+    history_digest=$(jq -cS . "$FEED_HISTORY" | sha256sum | cut -d ' ' -f 1)
+    jq -ce --arg digest "$history_digest" --slurpfile retained "$FEED_HISTORY" '
+        if ($retained | length) == 1 then . else error("invalid history input") end
+    ' "$temp/journal" | jq -ce --arg digest "$history_digest" \
+        --argjson checkpoint "$(jq -c . "$FEED_HISTORY")" -f "$scripts/feed-history.jq" > "$temp/history"
+    bash "$scripts/check-feed-history.sh" "$temp/history" "$FEED_DIRECTORY"
+    bash "$scripts/check-feed-history.sh" "$temp/history" "$(dirname -- "$FEED_DIRECTORY")/recovery"
+fi
 started=$(jq -ce '
     [.[] | select(.payload.phase == "submission-started")] |
     if length <= 1 then first // {} else error("conflicting journal") end
@@ -45,6 +55,7 @@ if [[ "$started" != '{}' ]]; then
     if [[ -n "${FEED_NATIVE_MANIFEST:-}" ]]; then
         [[ "$(sha256sum -- "$FEED_NATIVE_MANIFEST" | cut -d ' ' -f 1)" == "$marker" ]]
         [[ "${FEED_DIGEST:?}" == "$digest" ]]
+        [[ "${FEED_RECOVERY_DIGEST:?}" == "$(jq -er .payload.recovery <<< "$started")" ]]
         scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
         bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
         version=$(jq -er .version "$FEED_NATIVE_MANIFEST")
@@ -72,7 +83,6 @@ fi
 jq -e 'type == "object" and length > 0' "$FEED_MANIFEST" >/dev/null
 request "${pages_headers[@]}" "$PAGES_API" | jq -e '.success == true and (.result | type == "object" and has("canonical_deployment") and .canonical_deployment == null)' >/dev/null
 scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-node "$scripts/feed-pages-assets.mjs" "$PAGES_API" "$PAGES_ASSET_API" "$FEED_DIRECTORY" "$FEED_MANIFEST"
 attempt=$(openssl rand -hex 16)
 package_history='{}'
 marker=$FEED_DIGEST
@@ -84,18 +94,20 @@ if [[ -n "${FEED_HISTORY:-}" ]]; then
         then error("conflicting advertised package")
         else . + {($next.package):$next.packageSha256}
         end
-    ' "$FEED_HISTORY")
+    ' "$temp/history")
 fi
 jq -n --arg sha "$GITHUB_SHA" --arg environment "$environment" --arg attempt "$attempt" \
-    --arg digest "$FEED_DIGEST" --arg marker "$marker" --argjson packages "$package_history" '{
+    --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '{
         ref:$sha, environment:$environment, auto_merge:false, required_contexts:[],
         transient_environment:false, production_environment:false,
-        payload:{phase:"submission-started",attempt:$attempt,digest:$digest,marker:$marker,packages:$packages}
+        payload:{phase:"submission-started",attempt:$attempt,digest:$digest,marker:$marker,history:$history,recovery:$recovery,packages:$packages}
     }' > "$temp/record"
+node "$scripts/feed-pages-assets.mjs" "$PAGES_API" "$PAGES_ASSET_API" "$FEED_DIRECTORY" "$FEED_MANIFEST"
 request "${github_headers[@]}" -H 'Content-Type: application/json' --data-binary "@$temp/record" "$journal" > "$temp/record-result"
-jq -e --arg attempt "$attempt" --arg sha "$GITHUB_SHA" --arg digest "$FEED_DIGEST" --arg marker "$marker" --argjson packages "$package_history" '
+jq -e --arg attempt "$attempt" --arg sha "$GITHUB_SHA" --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '
     .sha == $sha and .payload.attempt == $attempt and .payload.digest == $digest
     and .payload.phase == "submission-started" and .payload.packages == $packages and .payload.marker == $marker
+    and .payload.history == $history and .payload.recovery == $recovery
 ' "$temp/record-result" >/dev/null
 request "${pages_headers[@]}" --form-string "branch=$PAGES_BRANCH" --form-string "commit_hash=$GITHUB_SHA" \
     --form-string "commit_message=feed-attempt:$attempt" -F "manifest=<$FEED_MANIFEST" \

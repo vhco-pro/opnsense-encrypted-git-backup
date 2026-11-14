@@ -18,6 +18,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     const native = process.env.NATIVE_FEED_DIRECTORY && resolve(process.env.NATIVE_FEED_DIRECTORY);
     const journal = [];
     const pages = [];
+    let historyAnchor;
     const digest = createHash("sha256").update("fixture generation").digest("hex");
     const assets = new Map();
     const bundles = new Map();
@@ -37,7 +38,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 downloaded.push(path);
                 return response.writeHead(200).end(bundles.get(path));
             }
-            if (path === "/repos/fixture/plugin/deployments") return reply(200, journal);
+            if (path === "/repos/fixture/plugin/deployments") return reply(200, historyAnchor ? [historyAnchor, ...journal] : journal);
             if (path === "/pages/upload-token") return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
             if (path === "/pages/deployments") return reply(200, { success: true, result: pages });
             if (path === "/pages") {
@@ -140,6 +141,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 directory, endpoint: url, packageName: "os-encrypted-git-backup-0.0.1.pkg", candidateFiles,
             });
             site.set("/" + fixture.previous, fixture.previousDigest.slice(0, 32));
+            const packages = { [fixture.previous]: fixture.previousDigest };
+            const canonical = JSON.stringify(packages) + "\n";
+            historyAnchor = { sha: fixture.sha, payload: {
+                phase: "history-checkpoint", packages,
+                digest: createHash("sha256").update(canonical).digest("hex"),
+            } };
             downloaded.length = 0;
         }
         const env = {
@@ -171,6 +178,17 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
 
         await assert.rejects(run("production"), /Production publication requires the approved protected workflow/);
         assert.equal(journal.length, 0);
+        if (native) {
+            const anchor = historyAnchor;
+            historyAnchor = undefined;
+            await assert.rejects(run(), /missing authoritative history checkpoint/);
+            historyAnchor = { ...anchor, payload: { ...anchor.payload, digest: "0".repeat(64) } };
+            await assert.rejects(run(), /retained history checkpoint changed/);
+            historyAnchor = anchor;
+            assert.equal(journal.length, 0);
+            assert.equal(assets.size, 0);
+            downloaded.length = 0;
+        }
         await assert.rejects(run(), (error) => {
             assert.match(error.stderr, /curl: [(]52[)]/, error.stderr);
             return true;

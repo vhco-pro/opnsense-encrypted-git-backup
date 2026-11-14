@@ -22,6 +22,7 @@ export FEED_DIRECTORY="$directory/candidate"
 export FEED_MANIFEST="$FEED_DIRECTORY/pages-manifest.json"
 export FEED_NATIVE_MANIFEST="$FEED_DIRECTORY/release.json"
 export FEED_DIGEST=$5
+export FEED_RECOVERY_DIGEST=$6
 export FEED_HISTORY=$7
 export GITHUB_SHA=$source
 jq -e --arg sha "$source" '.source == $sha' "$record" >/dev/null
