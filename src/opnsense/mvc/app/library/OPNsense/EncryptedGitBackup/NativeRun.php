@@ -49,7 +49,7 @@ final class NativeRun
             static fn (string $data, string $pass): ?string => $crypter->decrypt($data, $pass)
         );
         $directory = Credentials::DIRECTORY;
-        $ssh = '/usr/bin/ssh -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes'
+        $ssh = '/usr/local/bin/ssh -F /dev/null -o BatchMode=yes -o IdentitiesOnly=yes'
             . ' -o IdentityAgent=none -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null'
             . ' -o ConnectTimeout=8 -o ConnectionAttempts=1'
             . ' -o UserKnownHostsFile=' . escapeshellarg($trustPath)

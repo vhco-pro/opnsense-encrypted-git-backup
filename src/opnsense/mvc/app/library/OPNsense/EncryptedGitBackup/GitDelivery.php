@@ -40,6 +40,15 @@ final class GitDelivery
                 if (!flock($lock, LOCK_EX | LOCK_NB)) {
                     throw new RuntimeException('Another encrypted backup is running.');
                 }
+                $binding = json_encode([$destination, $branch], JSON_THROW_ON_ERROR);
+                $target = $this->directory . '/target.json';
+                if (is_file($target)) {
+                    if (file_get_contents($target) !== $binding) {
+                        throw new RuntimeException('The backup state belongs to a different destination or branch.');
+                    }
+                } else {
+                    $this->write($this->directory, 'target.json', $binding);
+                }
                 return $this->reconcile($destination, $branch, $revision, $key, $capture);
             } finally {
                 fclose($lock);
@@ -85,8 +94,8 @@ final class GitDelivery
         }
 
         $artifact = $capture();
-        if ($artifact === '') {
-            throw new RuntimeException('The encrypted export is empty.');
+        if ($artifact === '' || strlen($artifact) > 32 * 1024 * 1024) {
+            throw new RuntimeException('The encrypted export is empty or too large.');
         }
         $digest = hash('sha256', $artifact);
         $metadata = json_encode([
@@ -99,6 +108,10 @@ final class GitDelivery
         $this->write($repository, self::ARTIFACT, $artifact);
         $this->write($repository, self::METADATA, $metadata);
         $this->requireGit(['add', '--', self::ARTIFACT, self::METADATA], $repository);
+        $staged = $this->requireGit(['diff', '--cached', '--name-only', '-z'], $repository);
+        if (array_diff(explode("\0", rtrim($staged, "\0")), [self::ARTIFACT, self::METADATA]) !== []) {
+            throw new RuntimeException('Unexpected files are staged in the encrypted backup repository.');
+        }
         $this->requireGit(
             ['commit', '-m', 'Encrypted configuration snapshot', '--', self::ARTIFACT, self::METADATA],
             $repository
