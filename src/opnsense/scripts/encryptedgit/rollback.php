@@ -27,6 +27,29 @@ $captureProviderSettings = static function (string $xml): string {
     }
     return $serialized;
 };
+$drain = static function (string $state): void {
+    $deadline = time() + 30;
+    do {
+        [$status, $workers] = Process::run(
+            [
+                '/usr/bin/pgrep',
+                '-f',
+                '(^|[[:space:]])/usr/local/opnsense/scripts/encryptedgit/run[.]php([[:space:]]|$)',
+            ],
+            $state,
+            [],
+            5
+        );
+        if ($status === 1 && trim($workers) === '') {
+            return;
+        }
+        if ($status !== 0) {
+            throw new RuntimeException('Could not enumerate native delivery workers.');
+        }
+        sleep(1);
+    } while (time() < $deadline);
+    throw new RuntimeException('Native delivery workers did not drain.');
+};
 $state = Credentials::DIRECTORY;
 $checkpoint = $state . '/activation.json';
 $retained = $state . '/rollback.json';
@@ -90,35 +113,19 @@ try {
             }
             Credentials::privateFile($retained);
             Credentials::privateFile($pair);
-            $deadline = time() + 30;
-            do {
-                [$status, $workers] = Process::run(
-                    [
-                        '/usr/bin/pgrep',
-                        '-f',
-                        '(^|[[:space:]])/usr/local/opnsense/scripts/encryptedgit/run[.]php([[:space:]]|$)',
-                    ],
-                    $state,
-                    [],
-                    5
-                );
-                if ($status === 1 && trim($workers) === '') {
-                    echo "HELD_AND_DRAINED\n";
-                    exit(0);
-                }
-                if ($status !== 0) {
-                    throw new RuntimeException('Could not enumerate native delivery workers.');
-                }
-                sleep(1);
-            } while (time() < $deadline);
-            throw new RuntimeException('Native delivery workers did not drain.');
+            $drain($state);
+            echo "HELD_AND_DRAINED\n";
+            exit(0);
         }
-        if (in_array($argv[1], ['verify', 'replace'], true)) {
+        if (in_array($argv[1], ['verify', 'replace', 'resume'], true)) {
             if (file_exists($checkpoint) || is_link($checkpoint)) {
                 throw new RuntimeException('The active checkpoint has not been withheld.');
             }
             Credentials::privateFile($retained);
             Credentials::privateFile($pair);
+            if ($argv[1] !== 'verify') {
+                $drain($state);
+            }
             $config = Config::getInstance();
             $config->lock();
             try {
@@ -131,6 +138,59 @@ try {
                     || ($record['settings'] ?? null) !== $captureProviderSettings((string)$config)
                 ) {
                     throw new RuntimeException('The checkpoint or native configuration changed.');
+                }
+                if ($argv[1] === 'resume') {
+                    $contents = file_get_contents($retained, false, null, 0, 65537);
+                    $model = new EncryptedGitSettings();
+                    $destination = $model->getNodeByReference('destination')?->getValue() ?? '';
+                    $branch = $model->getNodeByReference('branch')?->getValue() ?? '';
+                    $saved = $model->getNodeByReference('activation')?->getValue() ?? '';
+                    if (
+                        $contents === false || strlen($contents) > 65536
+                        || !hash_equals(hash('sha256', $contents), $saved)
+                        || file_exists('/usr/local/etc/rc.syshook.d/config/10-git-backup')
+                        || is_link('/usr/local/etc/rc.syshook.d/config/10-git-backup')
+                        || is_link('/conf/backup/git')
+                    ) {
+                        throw new RuntimeException('Compatible activation or writer quiescence could not be verified.');
+                    }
+                    $legacy = Activation::validate($contents, $destination, $branch, is_dir('/conf/backup/git'));
+                    $pending = $state . '/pending';
+                    if (is_dir($pending)) {
+                        Credentials::privateFile($state . '/target.json');
+                        $target = json_encode([$destination, $branch], JSON_THROW_ON_ERROR);
+                        if (file_get_contents($state . '/target.json') !== $target) {
+                            throw new RuntimeException('Pending Git target could not be verified.');
+                        }
+                    }
+                    if ($legacy !== null) {
+                        $env = ['GIT_CONFIG_NOSYSTEM' => '1', 'GIT_CONFIG_GLOBAL' => '/dev/null'];
+                        [$tipStatus, $tip] = Process::run(
+                            ['/usr/local/bin/git', 'rev-parse', '--verify', 'HEAD'],
+                            '/conf/backup/git',
+                            $env,
+                            5
+                        );
+                        if ($tipStatus !== 0 || trim($tip) !== $legacy['tip']) {
+                            throw new RuntimeException('The legacy repository has changed.');
+                        }
+                        if (is_dir($pending)) {
+                            [$ancestry] = Process::run(
+                                ['/usr/local/bin/git', 'merge-base', '--is-ancestor', $legacy['remote'], 'HEAD'],
+                                $pending,
+                                $env,
+                                5
+                            );
+                            if ($ancestry !== 0) {
+                                throw new RuntimeException('Pending Git ancestry could not be verified.');
+                            }
+                        }
+                    }
+                    if (!rename($retained, $checkpoint)) {
+                        throw new RuntimeException('Could not restore the verified compatible checkpoint.');
+                    }
+                    echo "COMPATIBLE_CHECKPOINT_RESTORED\n";
+                    exit(0);
                 }
                 if ($argv[1] === 'replace') {
                     $candidate = $state . '/activation.next';
