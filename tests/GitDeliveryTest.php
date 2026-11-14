@@ -90,6 +90,48 @@ final class GitDeliveryTest extends TestCase
         }
     }
 
+    public function testDivergentRemoteDoesNotReplaceLastVerifiedReceipt(): void
+    {
+        $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
+        self::assertTrue(mkdir($directory, 0700));
+        try {
+            $remote = $directory . '/remote';
+            self::assertSame(0, Process::run(['/usr/bin/git', 'init', '--bare', $remote], $directory, [], 5)[0]);
+            $delivery = new GitDelivery('/usr/bin/git', $directory, ['GIT_CONFIG_NOSYSTEM' => '1']);
+            $first = $delivery->deliver($remote, 'snapshots', '1.0', 'key', static fn (): string => 'encrypted');
+            $receipt = file_get_contents($directory . '/verified.json');
+            [$exit, $tree] = Process::run(['/usr/bin/git', 'rev-parse', $first . '^{tree}'], $remote, [], 5);
+            self::assertSame(0, $exit);
+            [$exit, $other] = Process::run(
+                ['/usr/bin/git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
+                    'commit-tree', trim($tree), '-m', 'Divergent history'],
+                $remote,
+                [],
+                5
+            );
+            self::assertSame(0, $exit);
+            self::assertSame(0, Process::run(
+                ['/usr/bin/git', 'update-ref', 'refs/heads/snapshots', trim($other), $first],
+                $remote,
+                [],
+                5
+            )[0]);
+            try {
+                $delivery->deliver($remote, 'snapshots', '2.0', 'key', static fn (): string => 'encrypted-new');
+                self::fail('Divergent history was accepted.');
+            } catch (RuntimeException $exception) {
+                self::assertStringContainsString('diverged', $exception->getMessage());
+            }
+            self::assertSame($receipt, file_get_contents($directory . '/verified.json'));
+            self::assertSame(
+                [0, $other],
+                Process::run(['/usr/bin/git', 'rev-parse', 'refs/heads/snapshots'], $remote, [], 5)
+            );
+        } finally {
+            Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
+        }
+    }
+
     public function testLostPushResponseStillRequiresRemoteReadBack(): void
     {
         $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
