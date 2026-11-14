@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, writeFile, copyFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, copyFile, readFile, readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -65,7 +65,8 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
     if (previousSite) {
         const priorVersion = `0.0.${Number(version.split(".").at(-1)) - 1}`;
         const priorPackage = `os-encrypted-git-backup-${priorVersion}.pkg`;
-        for (const path of ["meta.conf", "meta.pkg", "packagesite.pkg", "data.pkg"]) {
+        for (const path of await readdir(previousSite)) {
+            if (!/^(?:meta|packagesite|data)[.](?:conf|pkg|txz)$/.test(path)) continue;
             await copyFile(join(previousSite, path), join(recovery, path));
             catalogueFiles.push(path);
         }
