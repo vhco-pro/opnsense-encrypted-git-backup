@@ -182,3 +182,22 @@ commit. The current package preserved the pending commit and remote ref
 through the pre-save hold. The native settings save rejected the old checkpoint
 without changing the configuration. It accepted a freshly verified version 2
 checkpoint and advanced the remote after restart while preserving pending ancestry.
+
+### Independently retained cutover inputs
+
+On a fresh disconnected appliance, the alpha96 package from `6aeed14` held
+delivery while the synthetic settings and checkpoint were copied off the guest.
+Both files passed digest comparison after retrieval. Native verification
+matched the pair to the held state, then resumed delivery with the pending
+commit and previous remote tip in its ancestry.
+
+In a separate guest, missing and version 1 legacy evidence each blocked the
+initial native activation save without changing the saved configuration.
+The fixture paused the installed activation check after it validated version 2
+evidence. A concurrent native settings writer waited on the config lock until
+the activation was persisted. No backup was pushed during either save.
+
+The versioned full-export fixture independently retrieved the encrypted export
+and legacy bundle. After a rejected first delivery and a stale legacy tip,
+native restore and external credential reprovisioning resumed encrypted
+delivery without dropping the pending commit or re-enabling legacy capture.
