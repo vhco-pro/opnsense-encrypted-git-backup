@@ -121,7 +121,7 @@ if [[ "$started" != '{}' ]]; then
             [[ "$(jq -r .payload.source <<< "$(jq -c .recovery <<< "$generation")")" == "$id" ]]
             if jq -e '.retries | length == 0' <<< "$generation" >/dev/null; then live_id_is "$id"; fi
             [[ "${FEED_RECOVERY_AUTHORIZED:-}" == true ]]
-            reconcile_recovery "$outcome" "$id"
+            reconcile_recovery "$id"
             [[ "$id" != "$(jq -r .id <<< "$match")" ]] || exit 0
         else
             live_id_is "$id"
@@ -130,9 +130,12 @@ if [[ "$started" != '{}' ]]; then
             if [[ "$outcome" == failure ]] ||
                 ! bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
             then
+                # A later verification failure on a closed generation holds
+                # for diagnosis; it cannot reopen this activation.
+                [[ "$(jq -r '.closed.payload.attempt // ""' <<< "$generation")" != "$attempt" ]] || exit 1
                 [[ "${FEED_RECOVERY_AUTHORIZED:-}" == true ]]
                 source "$scripts/feed-recovery.sh"
-                reconcile_recovery "$outcome" "$id"
+                reconcile_recovery "$id"
                 exit 0
             fi
         fi

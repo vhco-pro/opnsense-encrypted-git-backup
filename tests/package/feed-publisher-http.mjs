@@ -368,6 +368,34 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.match((await run("fixture", second)).stdout, /closure is recorded/);
         }
 
+        if (native) {
+            fixture = firstFixture;
+            journal.length = 0;
+            pages.length = 0;
+            sites.length = 0;
+            dropBeforeCreate = true;
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            const requests = createRequests;
+            await assert.rejects(run(), /unresolved Pages create/);
+            assert.equal(createRequests, requests);
+            assert.equal(pages.length, 0);
+
+            // Reset only the owned fixture project. The recovery request can
+            // be ambiguous before it has created a Pages deployment as well.
+            journal.length = 0;
+            dropBeforeCreate = false;
+            nextOutcome = "failure";
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            dropBeforeCreate = true;
+            const authorized = { FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "90" };
+            await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
+            const recoveryRequests = createRequests;
+            await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "91" }), /unresolved Pages create/);
+            assert.equal(createRequests, recoveryRequests);
+            assert.equal(journal.at(-1).payload.phase, "recovery-started");
+            dropBeforeCreate = false;
+        }
+
         fixture = firstFixture;
         journal.length = 0;
         sites.length = 0;

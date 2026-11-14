@@ -41,7 +41,7 @@ submit_recovery() {
 }
 
 reconcile_recovery() {
-    local outcome=$1 id=$2 recovery_dir latest recovery_match recovery_id recovery_outcome dispatch
+    local candidate_id=$1 recovery_dir latest recovery_match recovery_id recovery_outcome dispatch
     recovery_dir="$(dirname -- "$FEED_DIRECTORY")/recovery"
     latest=$(jq -c --arg candidate "$attempt" '
         [.[] | select(.payload.phase == "recovery-started" and .payload.candidate == $candidate)]
@@ -54,9 +54,9 @@ reconcile_recovery() {
             any(.[]; .payload.phase == "recovery-required" and .payload.candidate == $candidate)
         ' "$temp/journal" >/dev/null; then
             append_recovery recovery-required "$(jq -cn --arg candidate "$attempt" \
-                --arg digest "$recovery_digest" --arg source "$id" '{candidate:$candidate,digest:$digest,source:$source}')"
+                --arg digest "$recovery_digest" --arg source "$candidate_id" '{candidate:$candidate,digest:$digest,source:$source}')"
         fi
-        submit_recovery "" "$id" "$recovery_dir"
+        submit_recovery "" "$candidate_id" "$recovery_dir"
         return
     fi
     recovery_match=$(correlate "$(jq -er .payload.attempt <<< "$latest")")
@@ -72,6 +72,7 @@ reconcile_recovery() {
         id=$recovery_id
         return 0
     fi
+    [[ "$(jq -r '.closed.payload.attempt // ""' <<< "$generation")" != "$attempt" ]] || return 1
     dispatch=${GITHUB_RUN_ID:-}
     [[ "$dispatch" =~ ^[0-9]+$ ]]
     if jq -e --arg candidate "$attempt" --arg dispatch "$dispatch" '
