@@ -260,4 +260,52 @@ SH;
             Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
         }
     }
+    public function testUnknownInitialCreationDoesNotRecreateMissingBranch(): void
+    {
+        $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
+        self::assertTrue(mkdir($directory, 0700));
+        try {
+            $remote = $directory . '/remote';
+            self::assertSame(0, Process::run(['/usr/bin/git', 'init', '--bare', $remote], $directory, [], 5)[0]);
+            $wrapper = $directory . '/git';
+            $script = <<<'SH'
+#!/bin/sh
+for argument do
+    if [ "$argument" = push ]; then
+        /usr/bin/git "$@" || exit "$?"
+        /usr/bin/git -C "$FIXTURE_REMOTE" update-ref -d refs/heads/snapshots || exit "$?"
+        exit 1
+    fi
+done
+exec /usr/bin/git "$@"
+SH;
+            self::assertNotFalse(file_put_contents($wrapper, $script));
+            self::assertTrue(chmod($wrapper, 0700));
+            $delivery = new GitDelivery($wrapper, $directory, ['FIXTURE_REMOTE' => $remote]);
+            try {
+                $delivery->deliver($remote, 'snapshots', '1.0', 'key', static fn (): string => 'encrypted');
+                self::fail('The removed commit was reported as retained.');
+            } catch (RuntimeException $exception) {
+                self::assertStringContainsString('did not retain', $exception->getMessage());
+            }
+
+            self::assertFileExists($directory . '/creation.json');
+            $restarted = new GitDelivery('/usr/bin/git', $directory, []);
+            try {
+                $restarted->deliver($remote, 'snapshots', '1.0', 'key', static fn (): string => 'encrypted');
+                self::fail('An unresolved initial creation was repeated.');
+            } catch (RuntimeException $exception) {
+                self::assertStringContainsString('requires independent recovery', $exception->getMessage());
+            }
+            self::assertFileDoesNotExist($directory . '/verified.json');
+            self::assertSame(1, Process::run(
+                ['/usr/bin/git', 'show-ref', '--verify', '--quiet', 'refs/heads/snapshots'],
+                $remote,
+                [],
+                5
+            )[0]);
+        } finally {
+            Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
+        }
+    }
 }

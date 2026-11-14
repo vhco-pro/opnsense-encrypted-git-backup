@@ -85,6 +85,10 @@ final class GitDelivery
                 'verified.json',
                 json_encode($verification, JSON_THROW_ON_ERROR) . "\n"
             );
+            $creation = $this->directory . '/creation.json';
+            if (is_file($creation) && !unlink($creation)) {
+                throw new RuntimeException('Could not retire the initial creation attempt.');
+            }
             $this->writeStatus(['attempt' => $attempt, 'outcome' => 'verified']);
             return $commit;
         } catch (RuntimeException $exception) {
@@ -117,6 +121,18 @@ final class GitDelivery
         $head = $exit === 0 ? $this->objectId(trim($headOutput)) : null;
         if ($head === null && $remote !== $this->legacyParent) {
             throw new RuntimeException('The remote branch does not match the activation checkpoint.');
+        }
+        if ($head !== null && $remote === null) {
+            $permission = $this->directory . '/initial-rejected';
+            if (
+                $this->legacyParent !== null
+                || is_file($this->directory . '/verified.json')
+                || is_file($this->directory . '/creation.json')
+                || !is_file($permission)
+                || file_get_contents($permission) !== $head
+            ) {
+                throw new RuntimeException('The absent branch requires independent recovery verification.');
+            }
         }
         if ($head !== null) {
             if (
@@ -225,13 +241,40 @@ final class GitDelivery
     ): void {
         // Callers only create the branch or advance an observed ancestor.
         $lease = '--force-with-lease=' . $ref . ':' . ($expected ?? '');
+        $creation = $this->directory . '/creation.json';
+        $permission = $this->directory . '/initial-rejected';
+        if ($expected === null) {
+            $this->write(
+                $this->directory,
+                'creation.json',
+                json_encode(['ref' => $ref, 'commit' => $commit], JSON_THROW_ON_ERROR)
+            );
+            if (is_file($permission) && !unlink($permission)) {
+                throw new RuntimeException('Could not consume initial push retry evidence.');
+            }
+        }
+        $rejected = false;
         try {
-            $this->git(['push', $lease, '--', $destination, $commit . ':' . $ref], $repository);
+            [$exit, $output] = $this->git(
+                ['push', '--porcelain', $lease, '--', $destination, $commit . ':' . $ref],
+                $repository
+            );
+            $rejected = $exit !== 0 && str_contains(
+                $output,
+                "\n!\t" . $commit . ':' . $ref . "\t[remote rejected]"
+            );
         } catch (RuntimeException) {
             // A transport failure may arrive after the server accepted the update.
         }
+        $observed = $this->fetch($repository, $destination, $ref);
+        if ($expected === null && $rejected && $observed === null) {
+            $this->write($this->directory, 'initial-rejected', $commit);
+            if (!unlink($creation)) {
+                throw new RuntimeException('Could not retire the rejected initial attempt.');
+            }
+        }
         if (
-            $this->fetch($repository, $destination, $ref) !== $commit
+            $observed !== $commit
             || $this->snapshot($repository, $commit)['sha256'] !== $digest
         ) {
             throw new RuntimeException('The remote did not retain the expected encrypted backup.');
