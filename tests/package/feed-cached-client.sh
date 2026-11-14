@@ -20,9 +20,15 @@ client() {
     pkg -o "REPOS_DIR=$work/repos" -o "PKG_DBDIR=$work/db" -o "PKG_CACHEDIR=$work/cache" "$@"
 }
 snapshot_catalogue() {
-    (cd "$work/db" && find . -type f ! -name local.sqlite -print | sort | while IFS= read -r path; do
-        printf '%s %s\n' "$path" "$(sha256 -q "$path")"
-    done)
+    (
+        cd "$work/db/repos/fixture"
+        test -s db
+        for path in ./*; do
+            test -f "$path"
+            digest=$(sha256 -q "$path")
+            printf '%s %s\n' "$path" "$digest"
+        done
+    )
 }
 if [ "$action" = cache ]; then
     client update -f -r fixture </dev/null
