@@ -609,8 +609,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             const bootstrap = join(directory, "empty-bootstrap");
             await mkdir(bootstrap);
             for (const path of candidateFiles) {
-                await copyFile(join(directory, path), join(bootstrap, path));
+                if (path !== "pages-manifest.json") await copyFile(join(directory, path), join(bootstrap, path));
             }
+            const bootstrapManifest = Object.fromEntries([...site].filter(([path]) => candidateFiles.includes(path.slice(1))));
+            await writeFile(join(bootstrap, "pages-manifest.json"), JSON.stringify(bootstrapManifest));
             fixture = await retainFixture({
                 directory: bootstrap, endpoint: url, packageName: "os-encrypted-git-backup-0.0.1.pkg",
                 candidateFiles, emptyHistory: true,
