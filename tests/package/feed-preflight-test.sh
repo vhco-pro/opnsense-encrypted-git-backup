@@ -67,7 +67,7 @@ if env -u PAGES_API -u FEED_URL bash "$root/scripts/feed-dispatch.sh" fixture \
 then
     exit 1
 fi
-grep -F 'PAGES_API' "$tmp/dispatch.log"
+grep -E 'GITHUB_API_URL|PAGES_API' "$tmp/dispatch.log"
 rm "$tmp/assets/feed-${digests[1]}.tar"
 if preflight "$tmp/missing"; then exit 1; fi
 test -z "$(ls -A "$tmp/missing")"
