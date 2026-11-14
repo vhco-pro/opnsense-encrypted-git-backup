@@ -111,7 +111,7 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
     await writeFile(shim, `#!/bin/sh
 set -eu
 test "$1" = release
-case "$3" in v0.0.[1-5]) ;; *) exit 1 ;; esac
+case "$3" in v0.0.[1-6]) ;; *) exit 1 ;; esac
 case "$2" in
     upload)
         test "$5 $6" = "--repo fixture/plugin"

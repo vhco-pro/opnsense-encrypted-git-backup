@@ -11,6 +11,7 @@ verify_recovery() {
             [[ "$status" == 404 ]] || return 1
         done
     fi
+    if [[ -n "$withdrawn" ]]; then verify_withdrawal "$withdrawn" || return 1; fi
     while IFS=$'\t' read -r path expected; do
         actual=$(request "$FEED_URL/$path" | sha256sum | cut -d ' ' -f 1) || return 1
         [[ "$actual" == "$expected" ]] || return 1

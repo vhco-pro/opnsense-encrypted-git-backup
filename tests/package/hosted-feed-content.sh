@@ -10,7 +10,7 @@ openssl genrsa -out "$out/sign.pem" 2048
 openssl pkey -in "$out/sign.pem" -pubout -out "$out/key.pem"
 openssl genrsa -out "$out/next-sign.pem" 2048
 openssl pkey -in "$out/next-sign.pem" -pubout -out "$out/next-key.pem"
-for generation in 1 2 3 4 5; do
+for generation in 1 2 3 4 5 6; do
     version="0.0.$generation"
     site="$out/site-$generation"
     mkdir "$site"

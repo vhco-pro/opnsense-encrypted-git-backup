@@ -12,16 +12,20 @@ validate_retirement() {
             .value.before != .value.after))
     ' <<< "$retirement" >/dev/null
 }
-verify_retirement() {
-    local path alias status pending retirement_scope
-    path=$(jq -er .path <<< "$retirement")
+verify_withdrawal() {
+    local path=$1 alias status
+    [[ "$path" =~ ^[A-Za-z0-9_-]+$ ]] || return 1
     for alias in packagesite.pkg packagesite.txz meta.conf meta.pkg meta.txz data.pkg data.txz; do
-        status=$(request --no-fail -o /dev/null -w '%{http_code}' "$FEED_URL/$path/$alias")
+        status=$(request --no-fail -o /dev/null -w '%{http_code}' "$FEED_URL/$path/$alias") || return 1
         [[ "$status" == 404 ]] || {
             echo 'Predecessor catalogue withdrawal could not be verified.' >&2
             return 1
         }
     done
+}
+verify_retirement() {
+    local pending retirement_scope
+    verify_withdrawal "$(jq -er .path <<< "$retirement")"
     retirement_scope=$(jq -cS . <<< "$retirement" | sha256sum | cut -d ' ' -f 1)
     pending=$(jq -c '.retirement // {}' <<< "$generation")
     if [[ "$pending" == '{}' ]]; then

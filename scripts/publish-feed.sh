@@ -122,6 +122,10 @@ if [[ "$started" != '{}' ]]; then
         jq -r 'to_entries[] | [.key, .value] | @tsv' "$temp/history" > "$temp/advertised"
         source "$scripts/feed-retirement.sh"
         if [[ "$retirement" != '{}' ]]; then validate_retirement; fi
+        withdrawn=$(jq -r '.payload.withdrawn // ""' <<< "$predecessor")
+        if [[ -n "$withdrawn" ]]; then
+            [[ "$withdrawn" =~ ^[A-Za-z0-9_-]+$ ]]
+        fi
         if jq -e '.recovery != null' <<< "$generation" >/dev/null; then
             source "$scripts/feed-recovery.sh"
             [[ "$(jq -r .payload.source <<< "$(jq -c .recovery <<< "$generation")")" == "$id" ]]
@@ -136,6 +140,7 @@ if [[ "$started" != '{}' ]]; then
             if [[ "$outcome" == success && "$retirement" != '{}' ]]; then
                 bash "$scripts/verify-feed-generation.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
                 verify_retirement
+                withdrawn=$(jq -er .path <<< "$retirement")
             elif [[ "$outcome" == failure ]] ||
                 ! bash "$scripts/verify-feed-generation.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
             then
@@ -148,6 +153,7 @@ if [[ "$started" != '{}' ]]; then
                 exit 0
             fi
         fi
+        if [[ -n "$withdrawn" ]]; then verify_withdrawal "$withdrawn"; fi
         while IFS=$'\t' read -r path expected; do
             actual=$(request "$FEED_URL/$path" | sha256sum | cut -d ' ' -f 1)
             [[ "$actual" == "$expected" ]] || {
@@ -156,11 +162,11 @@ if [[ "$started" != '{}' ]]; then
             }
         done < "$temp/advertised"
         history_head=$(jq -cS . "$temp/history" | sha256sum | cut -d ' ' -f 1)
-        closed=$(jq -er --arg source "$source_sha" --arg history "$history_head" --arg version "$version" --arg attempt "$attempt" --arg id "$id" --arg digest "$digest" '
+        closed=$(jq -er --arg source "$source_sha" --arg history "$history_head" --arg withdrawn "$withdrawn" --arg version "$version" --arg attempt "$attempt" --arg id "$id" --arg digest "$digest" '
             [.[] | select(.payload.phase == "verified-closure" and .payload.attempt == $attempt)] |
             if length == 0 then "false"
             elif length == 1 and .[0].payload.deployment == $id and .[0].payload.digest == $digest
-                and .[0].payload.history == $history and .[0].sha == $source and .[0].payload.version == $version then "true"
+                and (.[0].payload.withdrawn // "") == $withdrawn and .[0].payload.history == $history and .[0].sha == $source and .[0].payload.version == $version then "true"
             else error("conflicting closure") end
         ' "$temp/journal")
         release=$(jq -er .tag "$FEED_NATIVE_MANIFEST")
@@ -175,7 +181,7 @@ if [[ "$started" != '{}' ]]; then
         fi
         cmp "$temp/$asset" "$temp/readback/$asset"
         if [[ "$closed" == false ]]; then
-            bash "$scripts/feed-close.sh" "$1" "$journal" "$source_sha" "$attempt" "$id" "$digest" "$version" "$history_head" "$release"
+            bash "$scripts/feed-close.sh" "$1" "$journal" "$source_sha" "$attempt" "$id" "$digest" "$version" "$history_head" "$release" "$withdrawn"
         fi
         printf '%s\n' 'Native client verification passed and closure is recorded.'
     else
@@ -202,6 +208,15 @@ package_history='{}'
 marker=$FEED_DIGEST
 if [[ -n "${FEED_HISTORY:-}" ]]; then
     source "$scripts/feed-retirement.sh"
+    withdrawn=$(jq -r '.payload.withdrawn // ""' <<< "$predecessor")
+    if [[ -n "$withdrawn" ]]; then
+        [[ "$withdrawn" =~ ^[A-Za-z0-9_-]+$ && "$retirement" == '{}' ]]
+        for bundle in "$FEED_DIRECTORY" "$(dirname -- "$FEED_DIRECTORY")/recovery"; do
+            jq -e --arg path "$withdrawn" 'all(keys[];
+                . != ("/" + $path + "/meta.conf") and
+                (test("^/" + $path + "/(packagesite|data|meta)[.](pkg|txz)$") | not))'                 "$bundle/pages-manifest.json" >/dev/null
+        done
+    fi
     if [[ "$retirement" != '{}' ]]; then
         validate_retirement
         [[ "$predecessor" != '{}' ]]

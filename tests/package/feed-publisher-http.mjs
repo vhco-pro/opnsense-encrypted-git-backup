@@ -323,7 +323,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             await execute("openssl", ["pkey", "-in", operatorKey, "-pubout", "-out", operatorPublic]);
             const keyDigest = async (path) => createHash("sha256").update((await execute("openssl",
                 ["pkey", "-pubin", "-in", path, "-outform", "DER"], { encoding: "buffer" })).stdout).digest("hex");
-            for (const number of [2, 3, 4, 5]) {
+            for (const number of [2, 3, 4, 5, 6]) {
                 const next = join(directory, `generation-${number}`);
                 const version = `0.0.${number}`;
                 const packageName = `os-encrypted-git-backup-${version}.pkg`;
@@ -371,13 +371,13 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 const previous = journal.at(-1);
                 fixture = await retainFixture({ directory: next, endpoint: url, packageName,
                     candidateFiles, version, predecessor: previous.payload.history,
-                    previousSite: join(native, number === 2 ? "site" : number >= 4 ? "site-3-recovery" : "site-2"),
-                    predecessorCatalogue: number >= 4 ? overlap.predecessorCatalogue : undefined,
+                    previousSite: join(native, number === 2 ? "site" : number === 6 ? "site-5" : number >= 4 ? "site-3-recovery" : "site-2"),
+                    predecessorCatalogue: number === 4 || number === 5 ? overlap.predecessorCatalogue : undefined,
                     keySha256: number >= 4 ? overlap.keySha256 : undefined,
                     overlapSite: number === 5 ? join(directory, "generation-4") : undefined,
                 });
                 // Before each dispatch only the controller's predecessor is retained.
-                if (number === 4) nextOutcome = "failure";
+                if (number === 4 || number === 6) nextOutcome = "failure";
                 const retirementEnv = {
                     FEED_RETIREMENT_AUTHORIZED: "true", FEED_PUBLIC_KEY: join(native, "next-key.pem"),
                     FEED_PREDECESSOR_PUBLIC_KEY: join(native, "key.pem"),
@@ -390,7 +390,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     await assert.rejects(run());
                     assert.equal(createRequests, calls);
                 }
-                await assert.rejects(run("fixture", number === 5 ? retirementEnv : {}), /curl: [(]52[)]/);
+                await assert.rejects(run("fixture", number >= 5 ? retirementEnv : {}), /curl: [(]52[)]/);
                 assert.equal(journal.at(-1).payload.predecessor, previous.payload.attempt);
                 assert.equal(journal.at(-1).payload.history, previous.payload.history);
                 if (number === 4) {
@@ -455,6 +455,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                         cacheDirectory, "/feed/prior-key");
                     await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "rm -rf -- " + cacheDirectory]);
                     cacheDirectory = undefined;
+                } else if (number === 6) {
+                    const authorized = { ...retirementEnv, FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "62" };
+                    await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
+                    assert.match((await run("fixture", authorized)).stdout, /closure is recorded/);
+                    assert.equal(journal.at(-1).payload.withdrawn, "prior-key");
+                    assert.equal((await fetch(url + "/feed/prior-key/packagesite.pkg")).status, 404);
+                    const path = "/feed/prior-key/os-encrypted-git-backup-0.0.3.pkg";
+                    const cached = await fetch(url + path);
+                    assert.equal(createHash("sha256").update(Buffer.from(await cached.arrayBuffer())).digest("hex"),
+                        overlap.predecessorCatalogue.packageSha256);
                 } else {
                     assert.match((await run()).stdout, /closure is recorded/);
                 }
