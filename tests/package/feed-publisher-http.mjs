@@ -29,12 +29,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let loseJournalReply = false;
     let truncatedJournal = false;
     let nextOutcome = "success";
+    let canonicalIndex;
+    let serveLatest;
     let dropBeforeCreate = false;
     let rejectCreate = false;
     let unclassifiedCreate = false;
     let createRequests = 0;
     let loseClosureReply = false;
     let loseHistoryReply = false;
+    let dropHistoryWrite = false;
+    let dropSubmissionWrite = false;
 
     const server = createServer(async (request, response) => {
         const path = new URL(request.url, "http://localhost").pathname;
@@ -54,10 +58,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             if (path === "/pages/upload-token") return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
             if (path === "/pages/deployments") return reply(200, { success: true, result: pages });
             if (path === "/pages") {
-                return reply(200, { success: true, result: { canonical_deployment: pages.at(-1) ?? null } });
+                const live = canonicalIndex === null ? null : pages.at(canonicalIndex ?? -1) ?? null;
+                return reply(200, { success: true, result: { canonical_deployment: live } });
             }
-            if (path.startsWith("/feed/") && pages.length && sites.at(-1)?.has(path.slice(5))) {
-                return response.writeHead(200).end(assets.get(sites.at(-1).get(path.slice(5))));
+            const served = serveLatest ? sites.at(-1) : canonicalIndex === null ? null : sites.at(canonicalIndex ?? -1);
+            if (path.startsWith("/feed/") && served?.has(path.slice(5))) {
+                return response.writeHead(200).end(assets.get(served.get(path.slice(5))));
             }
             return reply(404, {});
         }
@@ -68,6 +74,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         if (request.method === "PUT" && /^\/bundles\/(?:feed-[a-f0-9]{64}[.]tar|history-[a-f0-9]{64}[.]json)$/.test(path)) {
             if (bundles.has(path)) return reply(409, {});
             if (!path.includes(createHash("sha256").update(bytes).digest("hex"))) return reply(422, {});
+            if (dropHistoryWrite && path.includes("/history-")) {
+                dropHistoryWrite = false;
+                return request.socket.destroy();
+            }
             bundles.set(path, bytes);
             if (loseHistoryReply && path.includes("/history-")) {
                 loseHistoryReply = false;
@@ -79,6 +89,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         if (path === "/repos/fixture/plugin/deployments") {
             const record = JSON.parse(body);
             if (record.auto_merge !== false || record.environment !== "feed-fixture") return reply(422, {});
+            if (dropSubmissionWrite && record.payload.phase === "submission-started") {
+                dropSubmissionWrite = false;
+                return request.socket.destroy();
+            }
             const entry = { id: journal.length + 1, sha: record.ref, payload: record.payload };
             journal.push(entry);
             if (loseJournalReply || (loseClosureReply && entry.payload.phase === "verified-closure")) {
@@ -266,6 +280,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(createRequests, beforeIntermediate);
             assert.equal(journal.length, 1);
             pages[0].latest_stage = terminal;
+            const historyAssets = [...bundles.keys()].filter((path) => path.includes("/history-"));
+            dropHistoryWrite = true;
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            assert.deepEqual([...bundles.keys()].filter((path) => path.includes("/history-")), historyAssets);
+            assert.equal(journal.length, 1);
+            assert.equal(createRequests, beforeIntermediate);
             loseHistoryReply = true;
             await assert.rejects(run(), /curl: [(]52[)]/);
             assert.equal(journal.length, 1);
@@ -400,6 +420,27 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     FEED_RETIREMENT_AUTHORIZED: "true", FEED_PUBLIC_KEY: join(native, "next-key.pem"),
                     FEED_PREDECESSOR_PUBLIC_KEY: join(native, "key.pem"),
                 };
+                if (number === 2) {
+                    nextOutcome = "failure";
+                    await assert.rejects(run(), /curl: [(]52[)]/);
+                    const failed = journal.at(-1);
+                    const calls = createRequests;
+                    canonicalIndex = -2;
+                    serveLatest = true;
+                    await assert.rejects(run());
+                    assert.equal(journal.at(-1), failed);
+                    assert.equal(createRequests, calls);
+                    serveLatest = false;
+                    assert.match((await run()).stdout, /Terminally failed candidate closed/);
+                    assert.equal(journal.at(-1).payload.phase, "candidate-failure-closure");
+                    assert.equal(journal.at(-1).payload.attempt, failed.payload.attempt);
+                    assert.equal(journal.at(-1).payload.deployment, pages.at(-1).id);
+                    assert.equal(createRequests, calls);
+                    assert.equal((await fetch(url + "/feed/packagesite.pkg")).status, 200);
+                    pages.pop();
+                    sites.pop();
+                    canonicalIndex = undefined;
+                }
                 if (number === 5) {
                     cacheDirectory = await newCache();
                     await cachedClient("cache", "0.0.3", overlap.predecessorCatalogue.packageSha256,
@@ -684,6 +725,27 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 candidateFiles, emptyHistory: true,
             });
             historyAnchor = undefined;
+
+            nextOutcome = "failure";
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            const failed = journal.at(-1);
+            const calls = createRequests;
+            canonicalIndex = null;
+            serveLatest = true;
+            await assert.rejects(run());
+            assert.equal(journal.at(-1), failed);
+            assert.equal(createRequests, calls);
+            serveLatest = false;
+            assert.match((await run()).stdout, /Terminally failed candidate closed/);
+            assert.equal(journal.at(-1).payload.phase, "candidate-failure-closure");
+            assert.equal(journal.at(-1).payload.attempt, failed.payload.attempt);
+            assert.equal(journal.at(-1).payload.deployment, pages.at(-1).id);
+            assert.equal(createRequests, calls);
+            assert.equal((await fetch(url + "/feed/packagesite.pkg")).status, 404);
+            journal.length = 0;
+            sites.length = 0;
+            pages.length = 0;
+            canonicalIndex = undefined;
         }
         rejectCreate = true;
         await assert.rejects(run(), /403/);
@@ -706,6 +768,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(createRequests, beforeUnclassifiedCandidate + 1);
         journal.length = 0;
 
+        dropSubmissionWrite = true;
+        const beforeDroppedSubmission = createRequests;
+        await assert.rejects(run(), /curl: [(]52[)]/);
+        assert.equal(journal.length, 0);
+        assert.equal(pages.length, 0);
+        assert.equal(createRequests, beforeDroppedSubmission);
         loseJournalReply = true;
         await assert.rejects(run());
         await assert.rejects(run(), /unresolved Pages create/);

@@ -29,6 +29,12 @@ Use the provider's private `delivery.lock` with PHP `flock(LOCK_EX | LOCK_NB)` t
 
 Leave the checkpoint withheld across interruptions in package or input replacement. Verify the compatible settings, destination, branch and pending ancestry against the retained checkpoint before restoring it. Keep the older encrypted provider on hold if it cannot enforce the required remote ref update condition. Resume with a compatible provider only after the complete pair is verified. Preserve pending encrypted commits and external credential files throughout.
 
+If the installed older provider lacks the ref protection, keep the checkpoint
+withheld while restoring its settings and persist the provider as disabled
+before restoring any compatible activation file. Both configd and the
+remote-backup runner must still hold delivery if the remote branch advances.
+Leave the provider disabled until the compatible package is ready to resume.
+
 On a supported appliance, root can run `php /usr/local/opnsense/scripts/encryptedgit/rollback.php hold`. The command tries the delivery fence without waiting, records the checkpoint and configuration digests under the native configuration lock, withholds the checkpoint, and polls the native configd delivery workers. Both the native Backups provider and remote-backup runner route delivery through that action. A worker holding the write lock, an enumeration error, or a drain timeout results in a structured `ROLLBACK_HOLD`. Do not proceed with replacement in that state.
 
 Run the same command with `verify` to compare the retained checkpoint and current native configuration against the captured revision. It leaves the checkpoint withheld. An independently retained copy of the matching settings and checkpoint is still required for restore. A passing verification is a read-back and does not authorize an unlocked later replacement.
@@ -42,6 +48,13 @@ When the provider settings changed during the hold, inspect the current configur
 ### Feed publication fixture
 
 The Signed feed workflow runs against ephemeral loopback GitHub Deployment and Cloudflare Pages HTTP fixtures. Fixture runs have independent concurrency groups. The fixed repository concurrency group serializes production publication. The publisher records a submission attempt in a deployment payload before issuing one Pages create request. The request records the exact source SHA and disables GitHub auto-merge. A later run correlates the attempt with the Pages deployment and checks the served generation marker. Missing or duplicate matches hold the operation. The fixture covers lost replies from both APIs. The durable attempt stays open even after a matching terminal live deployment is observed.
+
+A correlated terminal candidate failure can close when the previous deployment
+is still canonical and its approved catalogue and retained packages pass
+verification. First publication requires canonical deployment and catalogue
+absence instead. The closure records the failed deployment and preserves the
+previous generation. An existing recovery-required record continues to control
+the attempt.
 
 GitHub Deployment payloads are a candidate journal under single-workflow ownership. GitHub documents workflow concurrency and deployment creation, but supplies no conditional append for this journal. The fixture does not establish that other credentials or workflows cannot create conflicting records. Previous deployment statuses expire, so the publisher does not use them as the replay ledger. The HTTP fixture does not provision real deployment records or upload Pages assets. Full history, durable bundles, retained packages, native verification and release authorization still precede enabling production mode.
 

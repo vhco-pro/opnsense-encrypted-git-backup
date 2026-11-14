@@ -34,6 +34,16 @@ reduce (.[] | select(.payload.phase != "history-checkpoint")) as $row
          or .latest.payload.attempt != $row.payload.attempt
          or (.rejected | index($row.payload.attempt) == null)
       then error("conflicting rejected candidate closure") else .latest = .closed end
+    elif $row.payload.phase == "candidate-failure-closure" then
+      if .latest == null or .recovery != null or .retirement != null or $row.sha != .latest.sha
+         or .latest.payload.attempt != $row.payload.attempt
+         or .latest.payload.digest != $row.payload.digest
+         or .closed.payload.attempt == $row.payload.attempt
+         or (.rejected | index($row.payload.attempt) != null)
+         or ($row.payload.deployment | type != "string" or length == 0)
+         or $row.payload.predecessor != (.closed.payload.deployment // "")
+         or $row.payload.deployment == $row.payload.predecessor
+      then error("conflicting failed candidate closure") else .latest = .closed end
     elif $row.payload.phase == "trust-finalization-pending" then
       if .retirement != null or .recovery != null or .latest.payload.attempt != $row.payload.attempt
          or .latest.sha != $row.sha or .latest.payload.digest != $row.payload.digest

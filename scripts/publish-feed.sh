@@ -127,6 +127,13 @@ if [[ "$started" != '{}' ]]; then
             .success == true and .result.canonical_deployment.id == $id
         ' >/dev/null
     }
+    canonical_id() {
+        request "${pages_headers[@]}" "$PAGES_API" | jq -er '
+            select(.success == true and (.result | type == "object" and has("canonical_deployment"))) |
+            .result.canonical_deployment |
+            if . == null then "" else .id | strings | select(length > 0) end
+        '
+    }
     terminal_outcome() {
         jq -r '.latest_stage |
             if (.ended_on | type != "string" or length == 0) then "unknown"
@@ -143,17 +150,17 @@ if [[ "$started" != '{}' ]]; then
                 and all(.[]; .deployment_trigger.metadata.commit_message != $message))
         ' "$temp/pages" >/dev/null
     }
-    if rejected "$attempt"; then
-        confirm_rejected "$attempt"
-        [[ "$(jq -r .sha <<< "$started")" == "$GITHUB_SHA" ]]
-        if [[ -n "${FEED_HISTORY:-}" ]]; then
-            [[ "$(jq -er .payload.recovery <<< "$started")" == "${FEED_RECOVERY_DIGEST:?}" ]]
+    prior=$(jq -r '.payload.deployment // ""' <<< "$predecessor")
+    verify_unchanged_feed() {
+        local recovery_dir observed
+        recovery_dir="$(dirname -- "$FEED_DIRECTORY")/recovery"
+        observed=$(canonical_id) || return 1
+        [[ "$observed" == "$prior" ]] || return 1
+        if [[ -n "$prior" ]]; then
+            [[ -f "$recovery_dir/release.json" ]] || return 1
+        else
+            [[ ! -e "$recovery_dir/release.json" ]] || return 1
         fi
-        # Candidate closure preserves the previous verified generation head.
-        request "${pages_headers[@]}" "$PAGES_API" | jq -e --arg prior "$(jq -r '.payload.deployment // ""' <<< "$predecessor")" '
-            .success == true and (.result | has("canonical_deployment"))
-            and (if $prior == "" then .result.canonical_deployment == null else .result.canonical_deployment.id == $prior end)
-        ' >/dev/null
         withdrawn=$(jq -r '.payload.withdrawn // ""' <<< "$predecessor")
         if [[ -n "${FEED_HISTORY:-}" ]]; then
             jq -r 'to_entries[] | [.key, .value] | @tsv' "$temp/checkpoint" > "$temp/advertised"
@@ -162,7 +169,17 @@ if [[ "$started" != '{}' ]]; then
         fi
         if [[ -n "$withdrawn" ]]; then source "$scripts/feed-retirement.sh"; fi
         source "$scripts/feed-recovery.sh"
-        verify_recovery "$(dirname -- "$FEED_DIRECTORY")/recovery"
+        verify_recovery "$recovery_dir" || return 1
+        observed=$(canonical_id) || return 1
+        [[ "$observed" == "$prior" ]]
+    }
+    if rejected "$attempt"; then
+        confirm_rejected "$attempt"
+        [[ "$(jq -r .sha <<< "$started")" == "$GITHUB_SHA" ]]
+        if [[ -n "${FEED_HISTORY:-}" ]]; then
+            [[ "$(jq -er .payload.recovery <<< "$started")" == "${FEED_RECOVERY_DIGEST:?}" ]]
+        fi
+        verify_unchanged_feed
         jq -n --arg attempt "$attempt" '{attempt:$attempt}' > "$temp/rejection-closure"
         source_sha=$(jq -er .sha <<< "$started")
         append_recovery rejection-closure "$(cat "$temp/rejection-closure")"
@@ -196,6 +213,20 @@ if [[ "$started" != '{}' ]]; then
             reconcile_recovery "$id"
             [[ "$id" != "$(jq -r .id <<< "$match")" ]] || exit 0
         else
+            if [[ "$outcome" == failure ]]; then
+                live=$(canonical_id)
+                if [[ "$live" == "$prior" && "$id" != "$prior" ]]; then
+                    [[ "$source_sha" == "$GITHUB_SHA" ]]
+                    [[ "$(jq -r '.closed.payload.attempt // ""' <<< "$generation")" != "$attempt" ]]
+                    verify_unchanged_feed
+                    payload=$(jq -cn --arg attempt "$attempt" --arg deployment "$id" --arg predecessor "$prior" \
+                        --arg digest "$digest" '{attempt:$attempt,deployment:$deployment,predecessor:$predecessor,digest:$digest}')
+                    append_recovery candidate-failure-closure "$payload"
+                    printf '%s\n' 'Terminally failed candidate closed after verifying the unchanged feed.'
+                    exit 0
+                fi
+                [[ "$live" == "$id" ]]
+            fi
             live_id_is "$id"
             request "$FEED_URL/generation.json" | jq -e --arg marker "$marker" '.digest == $marker' >/dev/null
             [[ "$outcome" != unknown ]]
