@@ -63,9 +63,12 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
     }
     const catalogueFiles = [];
     if (previousSite) {
-        const priorVersion = `0.0.${Number(version.split(".").at(-1)) - 1}`;
-        const priorPackage = `os-encrypted-git-backup-${priorVersion}.pkg`;
-        for (const path of await readdir(previousSite)) {
+        const entries = await readdir(previousSite);
+        const priorPackages = entries.filter((name) => /^os-encrypted-git-backup-[0-9.]+[.]pkg$/.test(name));
+        if (priorPackages.length !== 1) throw new Error("Expected one package in the retained catalogue fixture");
+        const [priorPackage] = priorPackages;
+        const priorVersion = priorPackage.slice("os-encrypted-git-backup-".length, -".pkg".length);
+        for (const path of entries) {
             if (!/^(?:meta|packagesite|data)[.](?:conf|pkg|txz)$/.test(path)) continue;
             await copyFile(join(previousSite, path), join(recovery, path));
             catalogueFiles.push(path);

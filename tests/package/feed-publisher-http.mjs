@@ -126,9 +126,9 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let cacheDirectory;
     try {
         const url = `http://127.0.0.1:${server.address().port}`;
-        const cachedClient = (action, version, digest, work = cacheDirectory) => execute("ssh", [
+        const cachedClient = (action, version, digest, work = cacheDirectory, path = "/feed") => execute("ssh", [
             "-o", "BatchMode=yes", "freebsd", "sh", "-x", work + "/feed-cached-client.sh",
-            action, work, url + "/feed", work + "/key.pem", version, digest,
+            action, work, url + path, work + "/key.pem", version, digest,
         ]);
         const newCache = async (key = "key.pem") => {
             const result = await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "mktemp -d /tmp/feed-cache.XXXXXXXX"]);
@@ -383,6 +383,9 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     FEED_PREDECESSOR_PUBLIC_KEY: join(native, "key.pem"),
                 };
                 if (number === 5) {
+                    cacheDirectory = await newCache();
+                    await cachedClient("cache", "0.0.3", overlap.predecessorCatalogue.packageSha256,
+                        cacheDirectory, "/feed/prior-key");
                     const calls = createRequests;
                     await assert.rejects(run());
                     assert.equal(createRequests, calls);
@@ -448,6 +451,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     await attest(clients);
                     assert.match((await run("fixture", evidenceEnv)).stdout, /closure is recorded/);
                     assert.equal(createRequests, calls);
+                    await cachedClient("fetch", "0.0.3", overlap.predecessorCatalogue.packageSha256,
+                        cacheDirectory, "/feed/prior-key");
+                    await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "rm -rf -- " + cacheDirectory]);
+                    cacheDirectory = undefined;
                 } else {
                     assert.match((await run()).stdout, /closure is recorded/);
                 }
