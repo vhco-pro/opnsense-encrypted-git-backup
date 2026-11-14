@@ -316,7 +316,14 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         const firstFixture = fixture;
         if (native) {
             const initial = assets.get(site.get("/os-encrypted-git-backup-0.0.1.pkg"));
-            for (const number of [2, 3, 4]) {
+            let overlap;
+            const operatorKey = join(directory, "operator.pem");
+            const operatorPublic = join(directory, "operator-public.pem");
+            await execute("openssl", ["genrsa", "-out", operatorKey, "2048"]);
+            await execute("openssl", ["pkey", "-in", operatorKey, "-pubout", "-out", operatorPublic]);
+            const keyDigest = async (path) => createHash("sha256").update((await execute("openssl",
+                ["pkey", "-pubin", "-in", path, "-outform", "DER"], { encoding: "buffer" })).stdout).digest("hex");
+            for (const number of [2, 3, 4, 5]) {
                 const next = join(directory, `generation-${number}`);
                 const version = `0.0.${number}`;
                 const packageName = `os-encrypted-git-backup-${version}.pkg`;
@@ -335,10 +342,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     packageSha256: await hashFile(packageName), catalogueSha256: await hashFile("packagesite.pkg"),
                 };
                 if (number === 4) {
-                    const keyDigest = async (name) => createHash("sha256").update((await execute("openssl",
-                        ["pkey", "-pubin", "-in", join(native, name), "-outform", "DER"],
-                        { encoding: "buffer" })).stdout).digest("hex");
-                    release.keySha256 = await keyDigest("next-key.pem");
+                    release.keySha256 = await keyDigest(join(native, "next-key.pem"));
                     await mkdir(join(next, "prior-key"));
                     for (const file of await readdir(join(native, "site-3"))) {
                         const relativePath = "prior-key/" + file;
@@ -348,10 +352,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                         candidateFiles.push(relativePath);
                     }
                     release.predecessorCatalogue = {
-                        path: "prior-key", version: "0.0.3", keySha256: await keyDigest("key.pem"),
+                        path: "prior-key", version: "0.0.3", keySha256: await keyDigest(join(native, "key.pem")),
                         packageSha256: await hashFile("prior-key/os-encrypted-git-backup-0.0.3.pkg"),
                         catalogueSha256: await hashFile("prior-key/packagesite.pkg"),
                     };
+                }
+                if (number === 4) overlap = release;
+                if (number === 5) {
+                    const trust = { before: overlap.predecessorCatalogue.keySha256, after: overlap.keySha256 };
+                    release.retirement = { path: "prior-key", operatorKey: await keyDigest(operatorPublic),
+                        clients: { alpha: trust, beta: trust } };
                 }
                 await writeFile(join(next, "release.json"), JSON.stringify(release));
                 const marker = JSON.stringify({ digest: await hashFile("release.json") });
@@ -361,12 +371,23 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 const previous = journal.at(-1);
                 fixture = await retainFixture({ directory: next, endpoint: url, packageName,
                     candidateFiles, version, predecessor: previous.payload.history,
-                    previousSite: join(native, number === 2 ? "site" : number === 4 ? "site-3-recovery" : "site-2"),
-                    predecessorCatalogue: release.predecessorCatalogue, keySha256: release.keySha256,
+                    previousSite: join(native, number === 2 ? "site" : number >= 4 ? "site-3-recovery" : "site-2"),
+                    predecessorCatalogue: number >= 4 ? overlap.predecessorCatalogue : undefined,
+                    keySha256: number >= 4 ? overlap.keySha256 : undefined,
+                    overlapSite: number === 5 ? join(directory, "generation-4") : undefined,
                 });
                 // Before each dispatch only the controller's predecessor is retained.
                 if (number === 4) nextOutcome = "failure";
-                await assert.rejects(run(), /curl: [(]52[)]/);
+                const retirementEnv = {
+                    FEED_RETIREMENT_AUTHORIZED: "true", FEED_PUBLIC_KEY: join(native, "next-key.pem"),
+                    FEED_PREDECESSOR_PUBLIC_KEY: join(native, "key.pem"),
+                };
+                if (number === 5) {
+                    const calls = createRequests;
+                    await assert.rejects(run());
+                    assert.equal(createRequests, calls);
+                }
+                await assert.rejects(run("fixture", number === 5 ? retirementEnv : {}), /curl: [(]52[)]/);
                 assert.equal(journal.at(-1).payload.predecessor, previous.payload.attempt);
                 assert.equal(journal.at(-1).payload.history, previous.payload.history);
                 if (number === 4) {
@@ -396,6 +417,37 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     await cachedClient("fetch", version, await hashFile(packageName));
                     await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "rm -rf -- " + cacheDirectory]);
                     cacheDirectory = undefined;
+                } else if (number === 5) {
+                    const candidate = journal.at(-1);
+                    const available = sites.at(-1);
+                    const old = "/prior-key/packagesite.pkg";
+                    const earlier = sites.at(-2).get(old);
+                    available.set(old, earlier);
+                    const calls = createRequests;
+                    await assert.rejects(run("fixture", retirementEnv), /withdrawal could not be verified/);
+                    assert.equal(createRequests, calls);
+                    available.delete(old);
+                    await assert.rejects(run("fixture", retirementEnv), /Trust finalization is pending/);
+                    assert.equal(journal.at(-1).payload.phase, "trust-finalization-pending");
+                    const evidence = join(next, "operator-evidence.json");
+                    const signature = join(next, "operator-evidence.sig");
+                    const attest = async (clients, observedAt = Math.floor(Date.now() / 1000)) => {
+                        await writeFile(evidence, JSON.stringify({
+                            attempt: candidate.payload.attempt, deployment: pages.at(-1).id,
+                            digest: candidate.payload.digest, observedAt, clients,
+                        }));
+                        await execute("openssl", ["dgst", "-sha256", "-sign", operatorKey, "-out", signature, evidence]);
+                    };
+                    const evidenceEnv = { ...retirementEnv, FEED_OPERATOR_KEY: operatorPublic,
+                        FEED_OPERATOR_EVIDENCE: evidence, FEED_OPERATOR_SIGNATURE: signature };
+                    await attest({ alpha: overlap.keySha256 });
+                    await assert.rejects(run("fixture", evidenceEnv));
+                    const clients = { alpha: overlap.keySha256, beta: overlap.keySha256 };
+                    await attest(clients, Math.floor(Date.now() / 1000) - 901);
+                    await assert.rejects(run("fixture", evidenceEnv));
+                    await attest(clients);
+                    assert.match((await run("fixture", evidenceEnv)).stdout, /closure is recorded/);
+                    assert.equal(createRequests, calls);
                 } else {
                     assert.match((await run()).stdout, /closure is recorded/);
                 }

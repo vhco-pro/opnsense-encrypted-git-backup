@@ -13,6 +13,10 @@ on:
         description: Approve the retained recovery bundle or one eligible identical-byte retry
         type: boolean
         default: false
+      authorize_retirement:
+        description: Approve catalogue withdrawal under the retained retirement plan
+        type: boolean
+        default: false
       reviewed_source:
         description: Exact approved source SHA (publication only)
         type: string
@@ -132,6 +136,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          FEED_RETIREMENT_AUTHORIZED: ${{ inputs.authorize_retirement }}
+          FEED_OPERATOR_KEY: ${{ vars.SIGNED_FEED_OPERATOR_KEY_PATH }}
           FEED_RECOVERY_AUTHORIZED: ${{ inputs.authorize_recovery }}
           FEED_PRODUCTION_APPROVED: ${{ vars.SIGNED_FEED_PRODUCTION_APPROVED }}
           FEED_ASSET_TOKEN: ${{ secrets.FEED_ASSET_TOKEN }}
@@ -162,6 +168,11 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERSION_RUN/attempts/$VERSION_ATTEMPT" > "$directory/run.json"
           gh release download "$RELEASE" --repo "$GITHUB_REPOSITORY" --pattern "version-$VERSION_RUN-$VERSION_ATTEMPT.json" --dir "$directory"
           gh release download "$RELEASE" --repo "$GITHUB_REPOSITORY" --pattern advertised-packages.json --dir "$directory"
+          if gh release download "$RELEASE" --repo "$GITHUB_REPOSITORY" --pattern operator-evidence.json \
+            --pattern operator-evidence.sig --dir "$directory"; then
+            export FEED_OPERATOR_EVIDENCE="$directory/operator-evidence.json"
+            export FEED_OPERATOR_SIGNATURE="$directory/operator-evidence.sig"
+          fi
           tag_sha=$(git rev-parse --verify "refs/tags/$RELEASE^{commit}")
           bash scripts/feed-dispatch.sh production "$directory/version-$VERSION_RUN-$VERSION_ATTEMPT.json" \
             "$directory/run.json" "$APPROVED_SOURCE" "$tag_sha" "$CANDIDATE" "$RECOVERY" "$directory/advertised-packages.json"

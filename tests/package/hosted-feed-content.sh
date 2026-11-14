@@ -10,7 +10,7 @@ openssl genrsa -out "$out/sign.pem" 2048
 openssl pkey -in "$out/sign.pem" -pubout -out "$out/key.pem"
 openssl genrsa -out "$out/next-sign.pem" 2048
 openssl pkey -in "$out/next-sign.pem" -pubout -out "$out/next-key.pem"
-for generation in 1 2 3 4; do
+for generation in 1 2 3 4 5; do
     version="0.0.$generation"
     site="$out/site-$generation"
     mkdir "$site"
@@ -27,7 +27,7 @@ abi: "FreeBSD:15:amd64"
 MANIFEST
     pkg create -M "$out/+MANIFEST" -r "$out/files" -o "$site"
     key="$out/sign.pem"
-    if [ "$generation" -eq 4 ]; then key="$out/next-sign.pem"; fi
+    if [ "$generation" -ge 4 ]; then key="$out/next-sign.pem"; fi
     pkg repo "$site" "$key"
 done
 mkdir "$out/site-3-recovery"

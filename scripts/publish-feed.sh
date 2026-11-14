@@ -120,6 +120,8 @@ if [[ "$started" != '{}' ]]; then
         source_sha=$(jq -er .sha <<< "$started")
         [[ "$(jq -er .source "$FEED_NATIVE_MANIFEST")" == "$source_sha" ]]
         jq -r 'to_entries[] | [.key, .value] | @tsv' "$temp/history" > "$temp/advertised"
+        source "$scripts/feed-retirement.sh"
+        if [[ "$retirement" != '{}' ]]; then validate_retirement; fi
         if jq -e '.recovery != null' <<< "$generation" >/dev/null; then
             source "$scripts/feed-recovery.sh"
             [[ "$(jq -r .payload.source <<< "$(jq -c .recovery <<< "$generation")")" == "$id" ]]
@@ -131,7 +133,10 @@ if [[ "$started" != '{}' ]]; then
             live_id_is "$id"
             request "$FEED_URL/generation.json" | jq -e --arg marker "$marker" '.digest == $marker' >/dev/null
             [[ "$outcome" != unknown ]]
-            if [[ "$outcome" == failure ]] ||
+            if [[ "$outcome" == success && "$retirement" != '{}' ]]; then
+                bash "$scripts/verify-feed-generation.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
+                verify_retirement
+            elif [[ "$outcome" == failure ]] ||
                 ! bash "$scripts/verify-feed-generation.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
             then
                 # A later verification failure on a closed generation holds
@@ -196,6 +201,12 @@ attempt=$(openssl rand -hex 16)
 package_history='{}'
 marker=$FEED_DIGEST
 if [[ -n "${FEED_HISTORY:-}" ]]; then
+    source "$scripts/feed-retirement.sh"
+    if [[ "$retirement" != '{}' ]]; then
+        validate_retirement
+        [[ "$predecessor" != '{}' ]]
+        [[ "${FEED_RETIREMENT_AUTHORIZED:-}" == true ]]
+    fi
     marker=$(sha256sum -- "$FEED_NATIVE_MANIFEST" | cut -d ' ' -f 1)
     package_history=$(jq -ce --slurpfile manifest "$FEED_NATIVE_MANIFEST" '
         def retain($path; $digest):

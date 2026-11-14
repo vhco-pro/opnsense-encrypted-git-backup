@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const sharedSha = "3b78b04df802ea1592cbe19338d7a882d1888389";
 const workflow = `vhco-pro/version-workflow/.github/workflows/version.yml@${sharedSha}`;
 
-export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor, previousSite, predecessorCatalogue, keySha256 }) {
+export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor, previousSite, predecessorCatalogue, keySha256, overlapSite }) {
     const sha = (await execute("git", ["rev-parse", "HEAD"])).stdout.trim();
     const tag = `v${version}`;
     const repo = join(directory, "repository");
@@ -78,10 +78,14 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
         }));
         catalogueFiles.push("release.json");
         if (predecessorCatalogue) {
-            for (const path of candidateFiles.filter((name) => name.startsWith(predecessorCatalogue.path + "/"))) {
+            const overlapFiles = overlapSite
+                ? (await readdir(join(overlapSite, predecessorCatalogue.path))).map((name) => predecessorCatalogue.path + "/" + name)
+                : candidateFiles.filter((name) => name.startsWith(predecessorCatalogue.path + "/"));
+            for (const path of overlapFiles) {
+                if (catalogueFiles.includes(path) || path in packages) continue;
                 const output = join(recovery, path);
                 await mkdir(dirname(output), { recursive: true });
-                await copyFile(join(directory, path), output);
+                await copyFile(overlapSite ? join(overlapSite, path) : join(directory, path), output);
                 catalogueFiles.push(path);
             }
         }
@@ -104,7 +108,7 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
     await writeFile(shim, `#!/bin/sh
 set -eu
 test "$1" = release
-case "$3" in v0.0.[1-4]) ;; *) exit 1 ;; esac
+case "$3" in v0.0.[1-5]) ;; *) exit 1 ;; esac
 case "$2" in
     upload)
         test "$5 $6" = "--repo fixture/plugin"
