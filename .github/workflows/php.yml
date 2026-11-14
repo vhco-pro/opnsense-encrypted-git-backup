@@ -48,6 +48,9 @@ jobs:
       preview-label: ''
 
   feed-fixture:
+    permissions:
+      actions: read
+      contents: read
     uses: ./.github/workflows/feed.yml
 
   package-plan:
