@@ -294,8 +294,10 @@ Prove the same workflow sequence with fixture keys and owned synthetic staging u
 
 ## Acceptance Criteria
 
-- [ ] AC-01: The package installs and upgrades on the selected supported releases, exposes its provider in the native Backups screen and preserves core and unrelated provider behavior.
-- [ ] AC-02: Complete encrypted exports restore through the native OPNsense interface on an isolated appliance, while all newly created provider Git snapshots and staging exclude plaintext configuration and synthetic secrets.
+- [x] AC-01: The package installs and upgrades on the selected supported releases, exposes its provider in the native Backups screen and preserves core and unrelated provider behavior.
+  - Evidence: R-47 independently returned met at ba5307c.
+- [x] AC-02: Complete encrypted exports restore through the native OPNsense interface on an isolated appliance, while all newly created provider Git snapshots and staging exclude plaintext configuration and synthetic secrets.
+  - Evidence: R-47 independently returned met at ba5307c.
 - [ ] AC-03: Validated configuration and secret custody survive the documented restore/upgrade paths, enforce the selected privilege boundary and permit recovery and credential rotation independently of management services.
 - [ ] AC-04: Manual and scheduled runs produce consistent Git state under overlap, rejection, interrupted response, retry and divergent-remote cases, with success reflecting independently verified remote retention.
 - [ ] AC-05: Native scheduling survives regeneration and upgrade, failure of another provider cannot silently suppress the selected scheduling path, and native status plus independent freshness checking expose stale or failed delivery.
@@ -303,7 +305,8 @@ Prove the same workflow sequence with fixture keys and owned synthetic staging u
 - [ ] AC-07: A second operator can install, configure, observe and recover the provider from versioned documentation and verified package inputs, with supported versions, diff/storage trade-offs and distribution/contribution limits explicit.
 - [ ] AC-08: Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests, with visible coverage and reviewed narrow exceptions. Required security scans and native audits complete with expected coverage and any findings resolved or given an independently reviewed, owner-approved disposition. The runtime package excludes development tooling and private fixtures.
 - [ ] AC-09: The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable prior generation for established feeds through failed publication and signing-key rotation. An unresolved first activation prohibits further publisher mutations while the pending request may still become live. Bootstrap recovery withdraws the first catalogue and retains its packages for cached clients. A terminal live recovery that fails native validation permits one retry of the same approved files per separately authorized dispatch. Newer releases stay blocked until recovery is verified. Production signing and deployment require owner approval, and fixture execution has access only to owned staging and fixture keys.
-- [ ] AC-10: The native settings and status interfaces pass reproducible automated browser journeys for setup, reload persistence, success/failure states and permissions on owned disposable fixtures, with the applicable responsive and accessibility checks and developer tooling excluded from the runtime package.
+- [x] AC-10: The native settings and status interfaces pass reproducible automated browser journeys for setup, reload persistence, success/failure states and permissions on owned disposable fixtures, with the applicable responsive and accessibility checks and developer tooling excluded from the runtime package.
+  - Evidence: R-47 independently returned met at ba5307c.
 
 ## Test Plan
 
@@ -398,6 +401,7 @@ None.
 | 2026-11-14 | R-44 | spec | `e6ca4fe4b22f0f7559c21df660d4f8d1a2bed74e` | n/a | n/a | accepted by owner |
 | 2026-11-14 | R-45 | implementation | `3b785d386e59d55ba3211ab0cbe96b6287a2e315` | unknown | procedural | Three findings and no criteria met. Model identity was not attested. |
 | 2026-11-14 | R-46 | implementation | `3fc566d4800e9d325c96dbae53c5f18ff42d04a9` | unknown | procedural | Two findings. AC-08 not met and nine criteria not verified. Model identity was not attested. |
+| 2026-11-14 | R-47 | implementation | `ba5307c14a1b2e51fa80ba919989a19445f272d6` | unknown | procedural | Three criteria met and four findings. Model identity was not attested. The host added one capture ref during review. |
 
 ### R-1
 
@@ -1707,3 +1711,86 @@ SEVERITY: blocking
 WHERE: docs/specs/native-encrypted-git-backup.md Acceptance Criteria AC-08; docs/compatibility.md:54; docs/compatibility.md:58
 EVIDENCE: Retained native console output reports python313-3.13.18 with CURRENT_NATIVE_AUDIT_EXIT=1 and NEXT_AUDIT_EXIT=1. At the reviewed target, compatibility.md records the unresolved CVE-2025-15367 audit finding and the need for a supported fix or independently reviewed owner disposition. The supplied evidence map confirms no owner waiver. AC-08 requires that disposition or resolution before completion.
 PROPOSAL: Obtain a supported dependency fix and passing native audit, or retain an independently reviewed, owner-approved disposition with its measured exposure limits.
+
+### R-47 criterion evidence
+
+- AC-01 returned met in R-47.
+- AC-02 returned met in R-47.
+- AC-03 returned not met in R-47.
+- AC-04 returned not verified in R-47.
+- AC-05 returned not verified in R-47.
+- AC-06 returned not verified in R-47.
+- AC-07 returned not met in R-47.
+- AC-08 returned not met in R-47.
+- AC-09 returned not met in R-47.
+- AC-10 returned met in R-47.
+
+### R-47
+
+CRITERION: AC-01 The package installs and upgrades on the selected supported releases, exposes its provider in the native Backups screen and preserves core and unrelated provider behavior.
+VERDICT: met
+EVIDENCE: Independently built and installed the exact source on the owned OPNsense 26.7.9_1, FreeBSD 15.1-RELEASE-p6, PHP 8.5.12 guest. Native Backups journeys, lifecycle.sh, feed-client.sh and firmware-feed.sh established provider discovery, removal/reinstallation, signed installation and upgrades through synthetic versions alpha91 to alpha94. Plugin integrity checks passed, other backup-provider file hashes remained unchanged, and the native runner continued encrypted delivery after a synthetic sibling provider failed. Evidence is retained in /tmp/eg-independent.lIu2R6/native.log.
+
+CRITERION: AC-02 Complete encrypted exports restore through the native OPNsense interface on an isolated appliance, while all newly created provider Git snapshots and staging exclude plaintext configuration and synthetic secrets.
+VERDICT: met
+EVIDENCE: On the owned exact-source guest, rotation-smoke.sh restored old and rotated exports through the native restore implementation. Independently retrieved a remote encrypted snapshot, matched its SHA-256 to snapshot metadata, and completed the documented browser upload, decryption and full restore. gui-restore.log records REVIEW_NATIVE_GUI_FULL_RESTORE_OK. Independent inspection verified ten retained snapshots, their digests, native decryption, encrypted-only trees and staging, and absence of the checked plaintext configuration and synthetic password markers. Snapshot validation and round-trip failure tests also passed in exact-source hosted execution.
+
+CRITERION: AC-03 Validated configuration and secret custody survive the documented restore/upgrade paths, enforce the selected privilege boundary and permit recovery and credential rotation independently of management services.
+VERDICT: not met
+EVIDENCE: Native privilege journeys, package transitions, credential rotation and old/new restoration passed against the reviewed source. However, independently executing hold, verify and resume, followed by a normal configuration save and another hold, returned ROLLBACK_HOLD: The prepared rollback pair no longer matches. The completed operation leaves rollback-pair.json active and prevents the next documented recovery cycle. native.log records REVIEW_REPEATED_ROLLBACK_HOLD_EXIT=1. See F-01.
+
+CRITERION: AC-04 Manual and scheduled runs produce consistent Git state under overlap, rejection, interrupted response, retry and divergent-remote cases, with success reflecting independently verified remote retention.
+VERDICT: not verified
+EVIDENCE: Exact-source hosted PHPUnit execution passed 26 tests and 105 assertions, including locking, rejected-push retry, divergence, lost responses, branch deletion and remote read-back. Independently observed native scheduled delivery, rejected browser delivery preserving the previous receipt, and subsequent reconciliation. The complete native overlap and process-termination matrix was not executed. These passing subsets do not establish the composite criterion.
+
+CRITERION: AC-05 Native scheduling survives regeneration and upgrade, failure of another provider cannot silently suppress the selected scheduling path, and native status plus independent freshness checking expose stale or failed delivery.
+VERDICT: not verified
+EVIDENCE: Independently executed post-upgrade-cron.sh after actual signed package upgrades. Regenerated cron advanced the remote and recorded its matching receipt. provider-failure.sh confirmed aggregate failure while encrypted delivery continued. Native activation and credential failures produced target-associated sanitized attempts while preserving the previous receipt. Exact-source freshness tests passed. Deployment-owned monitoring, authenticated target-change scenarios through that monitor, stopped-scheduler handling and owner notification delivery were not independently executed.
+
+CRITERION: AC-06 Migration preserves the verified final legacy history and previous remote ancestor off the firewall, prevents new credentials entering the legacy plaintext capture path and remains recoverable after interruption.
+VERDICT: not verified
+EVIDENCE: Independently executed migration-smoke.sh against a separate fixture remote. Stale export evidence was rejected and cutover preserved the legacy parent with an encrypted-only new tree. Retrieved the encrypted legacy archive off the guest, matched its checkpoint digest, decrypted and imported its complete bundle independently, and verified checkpoint ancestry. Removed the temporary plaintext recovery material afterward. This fixture used the same legacy tip and remote ancestor; concurrent writer draining, distinct unpublished legacy history and the complete interrupted-cutover recovery matrix remain unverified.
+
+CRITERION: AC-07 A second operator can install, configure, observe and recover the provider from versioned documentation and verified package inputs, with supported versions, diff/storage trade-offs and distribution/contribution limits explicit.
+VERDICT: not met
+EVIDENCE: Independently followed the versioned installation, signed-feed, configuration and encrypted browser-restore procedures using verified fixture inputs. Inspected the supported runtime, measured-growth guidance, encrypted-diff trade-off and distribution boundaries. The documented rollback procedure fails on its next cycle after successful resume and a normal configuration save. The guide supplies no supported retirement or renewal procedure for the stale rollback-pair.json. See F-01.
+
+CRITERION: AC-08 Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests, with visible coverage and reviewed narrow exceptions. Required security scans and native audits complete with expected coverage and any findings resolved or given an independently reviewed, owner-approved disposition. The runtime package excludes development tooling and private fixtures.
+VERDICT: not met
+EVIDENCE: Independently retrieved successful exact-source PHP run 43632105195 and its job logs: PHP 8.5.12, passing syntax, PSR-12, PHPStan, PHPUnit with 26 tests and 105 assertions, Psalm, Composer audit, Semgrep over all 36 owned PHP files, and redacted history/source scans. Local actionlint, 63 shell syntax checks, JavaScript syntax checks, feature lint and git diff --check passed. Inspected the native package file list and verified plugin integrity. Final native pkg audit returned exit 1 for python313-3.13.18 and CVE-2025-15367. The advisory database SHA-256 was 0b17cc23a3098cf795947b8016ed8b714bd40d632ea59703c45c6e0718d35011. No owner-approved disposition was supplied. See F-02.
+
+CRITERION: AC-09 The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable prior generation for established feeds through failed publication and signing-key rotation. An unresolved first activation prohibits further publisher mutations while the pending request may still become live. Bootstrap recovery withdraws the first catalogue and retains its packages for cached clients. A terminal live recovery that fails native validation permits one retry of the same approved files per separately authorized dispatch. Newer releases stay blocked until recovery is verified. Production signing and deployment require owner approval, and fixture execution has access only to owned staging and fixture keys.
+VERDICT: not met
+EVIDENCE: Independently passed six package fixture scripts and the loopback publisher test. Inspected successful exact-source hosted FreeBSD feed verification, whose payloads are synthetic. Independently installed and upgraded actual plugin payloads through signed pkg catalogues and the native Firmware launcher, including wrong-key rejection. A separate loopback probe returned a definitive structured HTTP 403 without creating a deployment. The publisher retained submission-started, then rejected reconciliation with unresolved Pages create, with no supported rejection closure or retry path. See F-03. The full accepted scenario matrix and release-eligible GitVersion-to-native-client chain were not independently established; the current branch calculation emits an ineligible feature preview.
+
+CRITERION: AC-10 The native settings and status interfaces pass reproducible automated browser journeys for setup, reload persistence, success/failure states and permissions on owned disposable fixtures, with the applicable responsive and accessibility checks and developer tooling excluded from the runtime package.
+VERDICT: met
+EVIDENCE: Exact-target hosted browser runs 43632104879 and 43632109710 completed successfully. Independently downloaded the push artifact and matched GitHub's SHA-256 a897f6b3e9804898a6efadef1f8491d8a5471a1728dbb735087d2cbe833b13b2. Logs establish ten main checks, two dark-theme checks, two rejection checks, real 200 percent zoom in both engines and encrypted repository growth. Inspected representative screenshots. The independently executed local full driver exited 1 on Chromium ERR_NETWORK_CHANGED; its failures remain retained. Subsequent focused journeys and both unmodified zoom scripts passed on the owned guest, measuring 800 to 400 CSS pixels and DPR 1 to 2 without horizontal overflow. Native package inspection excluded browser tooling and private fixtures. The owned guest was powered off and its QEMU process exited.
+
+FINDING: F-01
+KIND: factual
+SEVERITY: blocking
+WHERE: src/opnsense/scripts/encryptedgit/rollback.php:98-102 and 241-245; docs/recovery.md:32-40; Design / Guarded migration and recovery; Acceptance Criteria AC-03 and AC-07
+EVIDENCE: Independently reproduced against the exact-source installed package. hold, verify and resume succeeded. After a normal browser-theme configuration save, another hold failed with The prepared rollback pair no longer matches. Successful resume restores activation.json but leaves rollback-pair.json containing the completed operation's revision. A subsequent hold compares current state against that obsolete record instead of capturing a new operation. The versioned recovery guide provides no supported way to renew it.
+PROPOSAL: Retire or durably close the completed rollback record and allow a later operation to capture a fresh pair without weakening interrupted-operation checks. Cover successive recovery cycles separated by configuration changes.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: blocking
+WHERE: Acceptance Criteria and Test Plan / AC-08; docs/compatibility.md / Installed runtime audit and CVE-2025-15367 disposition
+EVIDENCE: Independently executed the final installed-runtime audit after package lifecycle verification. pkg audit returned exit 1 with python313-3.13.18 affected by CVE-2025-15367. Final inventory SHA-256 was fe5daf13ec05c7c68ced9e844f44180a22f559d6b13ca6aee195429bbe912ef2. The current [FreeBSD advisory](https://vuxml.freebsd.org/freebsd/6d3488ae-2e0f-11f1-88c7-00a098b42aeb.html) still lists python313 as affected. The supplied documentation explicitly leaves the finding unresolved, without an owner-approved disposition.
+PROPOSAL: Obtain a supported fix and passing native audit, or record an independently reviewed, owner-approved disposition with its measured exposure limits before completing AC-08.
+
+FINDING: F-03
+KIND: factual
+SEVERITY: blocking
+WHERE: scripts/publish-feed.sh:16, 110 and 256-258; scripts/feed-recovery.sh:40-43; Design / Signed-feed promotion and Activation reconciliation and retry eligibility; Test Plan / AC-09
+EVIDENCE: The independent loopback probe in /tmp/eg-independent.lIu2R6/feed-rejection-probe.mjs returned structured HTTP 403 authentication rejection and created zero deployments. The exact publisher exited on HTTP failure without durably classifying rejection. Its next invocation required a matching Pages deployment and failed with unresolved Pages create. The journal remained submission-started despite the definitive rejection and unchanged bootstrap state. Recovery submission uses the same response handling and subsequent mandatory correlation. The accepted definitive-rejection control and permitted reconciliation paths are therefore not implemented.
+PROPOSAL: Durably distinguish definitive create rejection from ambiguous submission results, then apply the accepted unchanged-source closure or retry rules. Preserve fail-closed handling for unclassified responses and cover candidate and recovery rejection paths.
+
+FINDING: F-04
+KIND: factual
+SEVERITY: should-fix
+WHERE: Review execution / source-ref isolation
+EVIDENCE: Baseline and final source-ref inventories differ by the added refs/codex/turn-diffs/captures/1794684825149/0423a039-7872-4dd4-9da9-9c2478d97ee7/base ref. It points to an object already referenced by the initial Codex checkpoint. No review command explicitly created it, and no corrective ref mutation was attempted. HEAD, branch refs, tracked index contents and index SHA-256 remained unchanged, and the source worktree remained clean. Complete ref immutability was therefore not preserved by the surrounding host.
+PROPOSAL: Suppress host capture-ref creation or enforce a read-only source mount for future runs requiring unchanged refs. Retain this execution's procedural isolation limitation.
