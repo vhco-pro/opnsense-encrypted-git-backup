@@ -17,7 +17,8 @@ if [[ ${BROWSER_APPLIANCE_STAGED:-} != 1 ]]; then
 fi
 qemu-img create -f qcow2 "$directory/appliance.qcow2" 18G
 accelerator=tcg
-if [[ -w /dev/kvm ]]; then accelerator=kvm; fi
+if [[ -r /dev/kvm && -w /dev/kvm ]]; then accelerator=kvm; fi
+printf 'Disposable appliance accelerator: %s\n' "$accelerator"
 boot() {
     local phase=$1
     shift

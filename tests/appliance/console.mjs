@@ -11,7 +11,7 @@ const socket = await new Promise((resolve, reject) => {
 socket.on('data', () => {});
 let offset = 0;
 
-async function waitFor(marker, seconds = 240) {
+async function waitFor(marker, seconds = 600) {
   for (let attempt = 0; attempt < seconds * 4; attempt++) {
     const bytes = await fs.readFile(log);
     const index = bytes.indexOf(marker, offset);
@@ -21,7 +21,7 @@ async function waitFor(marker, seconds = 240) {
     }
     await delay(250);
   }
-  throw new Error(`Missing console marker: ${marker}`);
+  throw new Error(`Missing console marker in ${phase}: ${marker}`);
 }
 
 async function send(input) {
@@ -51,7 +51,7 @@ try {
     await send('\r');
     await waitFor('Last Chance!');
     await send('\r');
-    await waitFor('Final Configuration', 480);
+    await waitFor('Final Configuration', 900);
     await send('\x1bOB');
     await send('\r');
     await waitFor('Installation Complete');
