@@ -58,6 +58,11 @@ if [[ -n "${FEED_HISTORY:-}" ]]; then
         anchor=$(jq -er '.payload.digest | select(test("^[a-f0-9]{64}$"))' <<< "$checkpoint")
         release=$(jq -er '.payload.release | select(test("^v[0-9]+[.][0-9]+[.][0-9]+(-(alpha|beta|rc)[.][0-9]+)?$"))' \
             <<< "$checkpoint")
+        requested=$(jq -cS . "$FEED_HISTORY" | sha256sum | cut -d ' ' -f 1)
+        [[ "$requested" == "$anchor" ]] || {
+            echo 'retained history checkpoint changed' >&2
+            exit 1
+        }
         asset="history-$anchor.json"
         gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$temp"
         printf '%s  %s\n' "$anchor" "$temp/$asset" | sha256sum --check --status

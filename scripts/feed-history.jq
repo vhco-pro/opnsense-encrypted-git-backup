@@ -13,7 +13,6 @@ def packages:
 [.[] | select(.payload.phase == "submission-started")] as $started |
 if ($anchors | length) > 1 or ($started | length) > 1 then error("conflicting history journal")
 elif ($checkpoint | packages | not) then error("invalid retained checkpoint")
-elif ($anchors | length) == 0 and $checkpoint != {} then error("missing authoritative history checkpoint")
 elif ($anchors | length) == 1 and ($anchors[0].payload.digest != $digest
     or $anchors[0].payload.packages != $checkpoint) then error("retained history checkpoint changed")
 else

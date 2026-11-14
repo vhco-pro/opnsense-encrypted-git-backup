@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile, copyFile, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
@@ -10,9 +10,8 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const sharedSha = "3b78b04df802ea1592cbe19338d7a882d1888389";
 const workflow = `vhco-pro/version-workflow/.github/workflows/version.yml@${sharedSha}`;
 
-export async function retainFixture({ directory, endpoint, packageName, candidateFiles }) {
+export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor }) {
     const sha = (await execute("git", ["rev-parse", "HEAD"])).stdout.trim();
-    const version = "0.0.1";
     const tag = `v${version}`;
     const repo = join(directory, "repository");
     const assets = join(directory, "bin");
@@ -33,27 +32,45 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
     }));
     const previous = "prior/os-encrypted-git-backup-0.0.0.pkg";
     const previousBytes = "synthetic previously advertised package";
-    await mkdir(join(directory, "prior"));
-    await writeFile(join(directory, previous), previousBytes);
     const previousDigest = createHash("sha256").update(previousBytes).digest("hex");
-    await writeFile(history, JSON.stringify({ [previous]: previousDigest }));
+    let packages;
+    if (predecessor) {
+        const response = await fetch(`${endpoint}/bundles/history-${predecessor}.json`);
+        if (!response.ok) throw new Error("Fixture could not retrieve controller history");
+        packages = await response.json();
+    } else {
+        packages = { [previous]: previousDigest };
+    }
+    await writeFile(history, JSON.stringify(packages));
     const manifest = join(directory, "pages-manifest.json");
     const paths = JSON.parse(await readFile(manifest, "utf8"));
-    paths["/" + previous] = previousDigest.slice(0, 32);
+    for (const [path, digest] of Object.entries(packages)) {
+        const output = join(directory, path);
+        await mkdir(dirname(output), { recursive: true });
+        const bytes = predecessor
+            ? Buffer.from(await (await fetch(`${endpoint}/feed/${path}`)).arrayBuffer())
+            : Buffer.from(previousBytes);
+        await writeFile(output, bytes);
+        paths["/" + path] = digest.slice(0, 32);
+    }
     await writeFile(manifest, JSON.stringify(paths));
     const recovery = join(directory, "recovery");
-    await mkdir(join(recovery, "prior"), { recursive: true });
-    await copyFile(join(directory, previous), join(recovery, previous));
-    await copyFile(join(directory, packageName), join(recovery, packageName));
+    await mkdir(recovery);
+    for (const path of [...Object.keys(packages), packageName]) {
+        const output = join(recovery, path);
+        await mkdir(dirname(output), { recursive: true });
+        await copyFile(join(directory, path), output);
+    }
     await writeFile(join(recovery, "404.html"), "Fixture catalogue unavailable");
     const candidateTar = join(directory, "candidate.tar");
     const recoveryTar = join(directory, "recovery.tar");
-    await execute("tar", ["-cf", candidateTar, "-C", directory, "prior", ...candidateFiles]);
-    await execute("tar", ["-cf", recoveryTar, "-C", recovery, "404.html", "prior", packageName]);
+    await execute("tar", ["-cf", candidateTar, "-C", directory, ...Object.keys(packages), ...candidateFiles]);
+    await execute("tar", ["-cf", recoveryTar, "-C", recovery, "404.html", ...Object.keys(packages), packageName]);
     const shim = join(assets, "gh");
     await writeFile(shim, `#!/bin/sh
 set -eu
-test "$1" = release && test "$3" = v0.0.1
+test "$1" = release
+case "$3" in v0.0.[1-4]) ;; *) exit 1 ;; esac
 case "$2" in
     upload)
         test "$5 $6" = "--repo fixture/plugin"
@@ -76,7 +93,7 @@ esac
     const historyDigest = createHash("sha256").update(historyBytes).digest("hex");
     const historyAsset = join(directory, `history-${historyDigest}.json`);
     await writeFile(historyAsset, historyBytes);
-    await execute(shim, ["release", "upload", tag, historyAsset, "--repo", repository],
+    if (!predecessor) await execute(shim, ["release", "upload", tag, historyAsset, "--repo", repository],
         { env: { ...process.env, ...env }, cwd: repo });
     const [candidate, recoveryDigest] = retained.stdout.trim().split("\n");
     return {

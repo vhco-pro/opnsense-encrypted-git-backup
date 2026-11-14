@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, rm, writeFile, readFile, readdir } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile, readFile, readdir } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -24,6 +24,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     const bundles = new Map();
     const downloaded = [];
     const key = "a".repeat(32);
+    const sites = [];
     const site = new Map([["/generation.json", key]]);
     let loseJournalReply = false;
     let loseClosureReply = false;
@@ -44,10 +45,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             if (path === "/pages/upload-token") return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
             if (path === "/pages/deployments") return reply(200, { success: true, result: pages });
             if (path === "/pages") {
-                return reply(200, { success: true, result: { canonical_deployment: pages[0] ?? null } });
+                return reply(200, { success: true, result: { canonical_deployment: pages.at(-1) ?? null } });
             }
-            if (path.startsWith("/feed/") && pages.length && site.has(path.slice(5))) {
-                return response.writeHead(200).end(assets.get(site.get(path.slice(5))));
+            if (path.startsWith("/feed/") && pages.length && sites.at(-1)?.has(path.slice(5))) {
+                return response.writeHead(200).end(assets.get(sites.at(-1).get(path.slice(5))));
             }
             return reply(404, {});
         }
@@ -90,9 +91,15 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         }
 
         const attempt = body.match(/feed-attempt:[a-f0-9]{32}/)?.[0];
-        if (path !== "/pages/deployments" || !attempt || journal.length !== 1 || !assets.has(key) || !body.includes(key)) return reply(422, {});
+        if (path !== "/pages/deployments" || !attempt) return reply(422, {});
+        const submitted = body.match(/name="manifest"\r\n\r\n([^\r\n]+)\r\n/)?.[1];
+        if (!submitted) return reply(422, {});
+        const paths = new Map(Object.entries(JSON.parse(submitted)));
+        if (![...paths.values()].every((hash) => assets.has(hash))) return reply(422, {});
+        if (!journal.some((entry) => `feed-attempt:${entry.payload.attempt}` === attempt)) return reply(422, {});
+        sites.push(paths);
         pages.push({
-            id: "fixture-deployment",
+            id: `fixture-deployment-${pages.length + 1}`,
             environment: "production",
             deployment_trigger: { metadata: { commit_message: attempt } },
             latest_stage: { name: "deploy", status: "success", ended_on: "2026-01-01" },
@@ -179,7 +186,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             } : {}),
         };
         const run = (mode = "fixture", overrides = {}) => {
-            const options = { env: { ...env, ...overrides } };
+            const options = { env: { ...env, ...fixture?.env, ...overrides } };
             return fixture
                 ? execute("bash", [dispatch, mode, ...fixture.arguments], { ...options, cwd: fixture.repo })
                 : execute("bash", [publisher, mode], options);
@@ -274,8 +281,50 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         pages.push(pages[0]);
         await assert.rejects(run(), /unresolved Pages create/);
         assert.equal(journal.length, native ? 2 : 1);
+        pages.pop();
 
+        const firstFixture = fixture;
+        if (native) {
+            const initial = assets.get(site.get("/os-encrypted-git-backup-0.0.1.pkg"));
+            for (const number of [2, 3, 4]) {
+                const next = join(directory, `generation-${number}`);
+                const version = `0.0.${number}`;
+                const packageName = `os-encrypted-git-backup-${version}.pkg`;
+                const candidateFiles = ["release.json", "generation.json", "pages-manifest.json"];
+                const paths = {};
+                await mkdir(next);
+                for (const file of await readdir(join(native, `site-${number}`))) {
+                    const bytes = await readFile(join(native, `site-${number}`, file));
+                    await writeFile(join(next, file), bytes);
+                    paths["/" + file] = createHash("sha256").update(bytes).digest("hex").slice(0, 32);
+                    candidateFiles.push(file);
+                }
+                const hashFile = async (file) => createHash("sha256").update(await readFile(join(next, file))).digest("hex");
+                await writeFile(join(next, "release.json"), JSON.stringify({
+                    source: fixture.sha, tag: `v${version}`, version, package: packageName,
+                    packageSha256: await hashFile(packageName), catalogueSha256: await hashFile("packagesite.pkg"),
+                }));
+                const marker = JSON.stringify({ digest: await hashFile("release.json") });
+                await writeFile(join(next, "generation.json"), marker);
+                paths["/generation.json"] = createHash("sha256").update(marker).digest("hex").slice(0, 32);
+                await writeFile(join(next, "pages-manifest.json"), JSON.stringify(paths));
+                const previous = journal.at(-1);
+                fixture = await retainFixture({ directory: next, endpoint: url, packageName,
+                    candidateFiles, version, predecessor: previous.payload.history });
+                // Before each dispatch only the controller's predecessor is retained.
+                await assert.rejects(run(), /curl: [(]52[)]/);
+                assert.equal(journal.at(-1).payload.predecessor, previous.payload.attempt);
+                assert.equal(journal.at(-1).payload.history, previous.payload.history);
+                assert.match((await run()).stdout, /closure is recorded/);
+                assert.equal(journal.at(-1).payload.version, version);
+                const cached = await fetch(url + "/feed/os-encrypted-git-backup-0.0.1.pkg");
+                assert.deepEqual(Buffer.from(await cached.arrayBuffer()), initial);
+            }
+        }
+
+        fixture = firstFixture;
         journal.length = 0;
+        sites.length = 0;
         pages.length = 0;
         loseJournalReply = true;
         await assert.rejects(run());
