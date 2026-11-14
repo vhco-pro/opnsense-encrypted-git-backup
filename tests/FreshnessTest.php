@@ -28,4 +28,13 @@ final class FreshnessTest extends TestCase
         self::assertFalse(Freshness::retained($receipt, str_repeat('c', 40), $digest, $now, 3600));
         self::assertFalse(Freshness::retained($receipt, $commit, str_repeat('d', 64), $now, 3600));
     }
+    public function testAttemptOutcomeOnlyBelongsToTheRecordedTarget(): void
+    {
+        $target = str_repeat('a', 64);
+        $status = ['attempt' => ['target' => $target, 'outcome' => 'failed']];
+        self::assertSame('failed', Freshness::attemptOutcome($status, $target));
+        self::assertSame('unknown', Freshness::attemptOutcome($status, str_repeat('b', 64)));
+        self::assertSame('unknown', Freshness::attemptOutcome(null, $target));
+        self::assertSame('unknown', Freshness::attemptOutcome(['attempt' => ['outcome' => 'failed']], $target));
+    }
 }

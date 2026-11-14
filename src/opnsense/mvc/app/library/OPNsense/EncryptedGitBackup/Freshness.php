@@ -8,6 +8,19 @@ use DateTimeImmutable;
 
 final class Freshness
 {
+    public static function attemptOutcome(mixed $status, string $expectedTarget): string
+    {
+        $attempt = is_array($status) ? ($status['attempt'] ?? null) : null;
+        if (!is_array($attempt) || ($attempt['target'] ?? null) !== $expectedTarget) {
+            return 'unknown';
+        }
+        $outcome = $attempt['outcome'] ?? null;
+        return match ($outcome) {
+            'running', 'failed', 'verified' => $outcome,
+            default => 'unknown',
+        };
+    }
+
     public static function retained(
         mixed $receipt,
         string $expectedCommit,
