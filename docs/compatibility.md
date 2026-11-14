@@ -46,3 +46,9 @@ Additional fixture observations on the installed 26.7.9_1 core package and PHP 8
 - Native configd accepted root-owned 0600 credential files and rejected both a mode-0644 password file and a present legacy capture hook.
 - A native model save activated the provider for a synthetic loopback SSH repository. The native configd run returned a commit that matched the remote branch and the verification receipt.
 - Chromium and Firefox each verified anonymous status denial, authenticated settings persistence, and a mobile status page with the seeded failed attempt and previous successful receipt. The tests retained screenshots and checked page errors and keyboard focus. Read-only-account, theme, zoom and successful delivery journeys remain open.
+
+## Installed 26.7.9_1 runtime audit
+
+A separate offline appliance installed to its owned disk and booted FreeBSD 15.1-RELEASE-p6 after applying the signed 26.7.9 base and kernel sets. Native pkg upgraded the staged catalogue package closure and installed OPNsense 26.7.9_1, PHP 8.5.12 (package 8.5.12_2), Git 2.56.1, OpenSSH 10.6.p2,1, OpenSSL 3.5.9 and pkg 2.8.4_1,1. The full inventory and PHP extension output are retained in the fixture evidence.
+
+On that installed runtime, `pkg audit -f /tmp/target-vuln.xml` returned exit 1 with one affected package, `python313-3.13.18`. The selected OPNsense catalogue supplies that same version. Python is an appliance dependency and is outside the plugin's PHP backup path. There is no clean installed-runtime audit at the selected catalogue revision. [FreeBSD VuXML advisory](https://vuxml.freebsd.org/freebsd/6d3488ae-2e0f-11f1-88c7-00a098b42aeb.html)
