@@ -24,7 +24,7 @@ boot() {
     shift
     rm -f "$directory/console.sock"
     : > "$directory/artifacts/$phase.log"
-    qemu-system-x86_64 -nodefaults -display none -monitor none -accel "$accelerator" \
+    qemu-system-x86_64 -nodefaults -display none -monitor none -machine "accel=$accelerator:tcg" \
         -smp 2 -m 3072 \
         -drive "file=$directory/appliance.qcow2,if=none,id=target,format=qcow2" \
         -device "virtio-blk-pci,drive=target,bootindex=2" \
