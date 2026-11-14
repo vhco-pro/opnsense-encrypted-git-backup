@@ -9,6 +9,10 @@ on:
         required: true
         type: choice
         options: [fixture, verify-release, publish]
+      authorize_recovery:
+        description: Approve the retained recovery bundle or one eligible identical-byte retry
+        type: boolean
+        default: false
       reviewed_source:
         description: Exact approved source SHA (publication only)
         type: string
@@ -128,6 +132,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          FEED_RECOVERY_AUTHORIZED: ${{ inputs.authorize_recovery }}
           FEED_PRODUCTION_APPROVED: ${{ vars.SIGNED_FEED_PRODUCTION_APPROVED }}
           FEED_ASSET_TOKEN: ${{ secrets.FEED_ASSET_TOKEN }}
           FEED_JOURNAL_TOKEN: ${{ secrets.FEED_JOURNAL_TOKEN }}

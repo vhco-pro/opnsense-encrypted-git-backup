@@ -27,6 +27,9 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     const sites = [];
     const site = new Map([["/generation.json", key]]);
     let loseJournalReply = false;
+    let nextOutcome = "success";
+    let dropBeforeCreate = false;
+    let createRequests = 0;
     let loseClosureReply = false;
     let loseHistoryReply = false;
 
@@ -97,12 +100,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         const paths = new Map(Object.entries(JSON.parse(submitted)));
         if (![...paths.values()].every((hash) => assets.has(hash))) return reply(422, {});
         if (!journal.some((entry) => `feed-attempt:${entry.payload.attempt}` === attempt)) return reply(422, {});
+        createRequests++;
+        if (dropBeforeCreate) return request.socket.destroy();
+        const status = nextOutcome;
+        nextOutcome = "success";
         sites.push(paths);
         pages.push({
             id: `fixture-deployment-${pages.length + 1}`,
             environment: "production",
             deployment_trigger: { metadata: { commit_message: attempt } },
-            latest_stage: { name: "deploy", status: "success", ended_on: "2026-01-01" },
+            latest_stage: { name: "deploy", status, ended_on: "2026-01-01" },
         });
         request.socket.destroy();
     });
@@ -320,6 +327,45 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 const cached = await fetch(url + "/feed/os-encrypted-git-backup-0.0.1.pkg");
                 assert.deepEqual(Buffer.from(await cached.arrayBuffer()), initial);
             }
+        }
+
+        if (native) {
+            // A separate bootstrap project starts with the same approved retained bytes.
+            fixture = firstFixture;
+            journal.length = 0;
+            pages.length = 0;
+            sites.length = 0;
+            nextOutcome = "failure";
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            const candidate = journal.at(-1).payload.attempt;
+            nextOutcome = "failure";
+            const authorized = { FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "70" };
+            await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
+            assert.equal(journal[1].payload.phase, "recovery-required");
+            assert.equal(journal[1].payload.candidate, candidate);
+            assert.equal(journal[2].payload.phase, "recovery-started");
+            assert.equal((await fetch(url + "/feed/packagesite.pkg")).status, 404);
+            const packagePath = "/os-encrypted-git-backup-0.0.1.pkg";
+            const packageKey = sites.at(-1).get(packagePath);
+            const original = assets.get(packageKey);
+            assert.deepEqual(Buffer.from(await (await fetch(url + "/feed" + packagePath)).arrayBuffer()), original);
+            let requests = createRequests;
+            await assert.rejects(run("fixture", authorized), /manual diagnosis/);
+            assert.equal(createRequests, requests);
+            assets.set(packageKey, Buffer.from("corrupt recovery"));
+            nextOutcome = "failure";
+            await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
+            const retry = journal.at(-1).payload;
+            assert.equal(retry.dispatch, "70");
+            assert.equal(retry.digest, journal[2].payload.digest);
+            assets.set(packageKey, Buffer.from("corrupt recovery"));
+            requests = createRequests;
+            await assert.rejects(run("fixture", authorized), /already consumed/);
+            assert.equal(createRequests, requests);
+            const second = { ...authorized, GITHUB_RUN_ID: "71" };
+            await assert.rejects(run("fixture", second), /curl: [(]52[)]/);
+            assert.equal(journal.at(-1).payload.dispatch, "71");
+            assert.match((await run("fixture", second)).stdout, /closure is recorded/);
         }
 
         fixture = firstFixture;

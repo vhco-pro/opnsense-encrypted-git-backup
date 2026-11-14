@@ -83,30 +83,59 @@ if [[ "$started" != '{}' ]]; then
     attempt=$(jq -er '.payload.attempt | select(test("^[a-f0-9]{32}$"))' <<< "$started")
     digest=$(jq -er '.payload.digest | select(test("^[a-f0-9]{64}$"))' <<< "$started")
     request "${pages_headers[@]}" "$PAGES_API/deployments?env=production&page=1&per_page=100" > "$temp/pages"
-    match=$(jq -ce --arg attempt "feed-attempt:$attempt" '
-        select(.success == true and (.result | length) < 100) |
-        [.result[] | select(.environment == "production"
-            and .deployment_trigger.metadata.commit_message == $attempt)] |
-        if length == 1 then first else error("unresolved Pages create") end
-    ' "$temp/pages")
+    correlate() {
+        jq -ce --arg attempt "feed-attempt:$1" '
+            select(.success == true and (.result | type == "array" and length < 100)) |
+            [.result[] | select(.environment == "production"
+                and .deployment_trigger.metadata.commit_message == $attempt)] |
+            if length == 1 then first else error("unresolved Pages create") end
+        ' "$temp/pages"
+    }
+    live_id_is() {
+        request "${pages_headers[@]}" "$PAGES_API" | jq -e --arg id "$1" '
+            .success == true and .result.canonical_deployment.id == $id
+        ' >/dev/null
+    }
+    terminal_outcome() {
+        jq -r '.latest_stage |
+            if (.ended_on | type != "string" or length == 0) then "unknown"
+            elif .name == "deploy" and .status == "success" then "success"
+            elif .status == "failure" or .status == "canceled" then "failure"
+            else "unknown" end'
+    }
+    match=$(correlate "$attempt")
     id=$(jq -er '.id | strings | select(length > 0)' <<< "$match")
-    request "${pages_headers[@]}" "$PAGES_API" | jq -e --arg id "$id" '
-        .success == true and .result.canonical_deployment.id == $id
-    ' >/dev/null
+    outcome=$(terminal_outcome <<< "$match")
     marker=$(jq -er '.payload.marker // .payload.digest | select(test("^[a-f0-9]{64}$"))' <<< "$started")
-    request "$FEED_URL/generation.json" | jq -e --arg marker "$marker" '.digest == $marker' >/dev/null
-    jq -e '.latest_stage | .name == "deploy" and .status == "success" and (.ended_on | type == "string")' \
-        <<< "$match" >/dev/null
     if [[ -n "${FEED_NATIVE_MANIFEST:-}" ]]; then
         [[ "$(sha256sum -- "$FEED_NATIVE_MANIFEST" | cut -d ' ' -f 1)" == "$marker" ]]
         [[ "${FEED_DIGEST:?}" == "$digest" ]]
-        [[ "${FEED_RECOVERY_DIGEST:?}" == "$(jq -er .payload.recovery <<< "$started")" ]]
-        scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-        bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
+        recovery_digest=$(jq -er .payload.recovery <<< "$started")
+        [[ "${FEED_RECOVERY_DIGEST:?}" == "$recovery_digest" ]]
         version=$(jq -er .version "$FEED_NATIVE_MANIFEST")
         source_sha=$(jq -er .sha <<< "$started")
         [[ "$(jq -er .source "$FEED_NATIVE_MANIFEST")" == "$source_sha" ]]
         jq -r 'to_entries[] | [.key, .value] | @tsv' "$temp/history" > "$temp/advertised"
+        if jq -e '.recovery != null' <<< "$generation" >/dev/null; then
+            source "$scripts/feed-recovery.sh"
+            [[ "$(jq -r .payload.source <<< "$(jq -c .recovery <<< "$generation")")" == "$id" ]]
+            if jq -e '.retries | length == 0' <<< "$generation" >/dev/null; then live_id_is "$id"; fi
+            [[ "${FEED_RECOVERY_AUTHORIZED:-}" == true ]]
+            reconcile_recovery "$outcome" "$id"
+            [[ "$id" != "$(jq -r .id <<< "$match")" ]] || exit 0
+        else
+            live_id_is "$id"
+            request "$FEED_URL/generation.json" | jq -e --arg marker "$marker" '.digest == $marker' >/dev/null
+            [[ "$outcome" != unknown ]]
+            if [[ "$outcome" == failure ]] ||
+                ! bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
+            then
+                [[ "${FEED_RECOVERY_AUTHORIZED:-}" == true ]]
+                source "$scripts/feed-recovery.sh"
+                reconcile_recovery "$outcome" "$id"
+                exit 0
+            fi
+        fi
         while IFS=$'\t' read -r path expected; do
             actual=$(request "$FEED_URL/$path" | sha256sum | cut -d ' ' -f 1)
             [[ "$actual" == "$expected" ]] || {
@@ -138,6 +167,9 @@ if [[ "$started" != '{}' ]]; then
         fi
         printf '%s\n' 'Native client verification passed and closure is recorded.'
     else
+        live_id_is "$id"
+        [[ "$outcome" == success ]]
+        request "$FEED_URL/generation.json" | jq -e --arg marker "$marker" '.digest == $marker' >/dev/null
         printf '%s\n' 'Matching terminal live generation observed; native client verification remains required.'
     fi
     exit 0
