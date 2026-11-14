@@ -22,7 +22,7 @@ if [ -e "$final" ] || [ -L "$final" ]; then
     echo 'The generation already exists.' >&2
     exit 1
 fi
-stage=$(mktemp -d "$root/.build.XXXXXXXX")
+stage=$(mktemp -d "$root/build.XXXXXXXX")
 trap 'rm -rf -- "$stage"' EXIT
 trap 'exit 1' HUP INT TERM
 for package do
