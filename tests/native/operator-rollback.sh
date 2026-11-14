@@ -21,12 +21,16 @@ if php /usr/local/opnsense/scripts/system/remote_backup.php 0; then
 fi
 test "$(git -C "$state/pending" rev-parse HEAD)" = "$pending"
 test "$(git -C "$repo" rev-parse migration)" = "$before"
+tip=$(git -C /conf/backup/git rev-parse HEAD)
+fixture=$(mktemp -d /tmp/encryptedgit-replacement.XXXXXXXX)
+php /tmp/migration-checkpoint.php replacement "$tip" "$before" "$(printf '%064d' 0)" "$fixture"
 root_sha=$(sha256 -q /conf/config.xml)
 php /tmp/cron-smoke.php add
 test "$(sha256 -q /conf/config.xml)" != "$root_sha"
-if php "$operator" verify; then
+if php "$operator" replace; then
     exit 1
 fi
 test ! -e "$state/activation.json"
 test "$(git -C "$state/pending" rev-parse HEAD)" = "$pending"
+test -f "$state/activation.next"
 printf '%s\n' NATIVE_OPERATOR_STALE_PAIR_HELD

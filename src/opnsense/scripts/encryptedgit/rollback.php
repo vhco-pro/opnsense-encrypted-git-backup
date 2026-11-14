@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use OPNsense\Backup\EncryptedGitSettings;
 use OPNsense\Core\Config;
+use OPNsense\EncryptedGitBackup\Activation;
 use OPNsense\EncryptedGitBackup\Credentials;
 use OPNsense\EncryptedGitBackup\Process;
 
@@ -40,6 +42,7 @@ try {
                     $record = json_encode([
                         'checkpoint' => $digest,
                         'configuration' => hash('sha256', (string)$config),
+                        'settings' => $config->object()->system?->backup?->encryptedgit?->asXML(),
                     ], JSON_THROW_ON_ERROR);
                     if (file_exists($pair) || is_link($pair)) {
                         Credentials::privateFile($pair);
@@ -97,7 +100,7 @@ try {
             } while (time() < $deadline);
             throw new RuntimeException('Native delivery workers did not drain.');
         }
-        if ($argv[1] === 'verify') {
+        if (in_array($argv[1], ['verify', 'replace'], true)) {
             if (file_exists($checkpoint) || is_link($checkpoint)) {
                 throw new RuntimeException('The active checkpoint has not been withheld.');
             }
@@ -112,8 +115,33 @@ try {
                     !is_array($record)
                     || ($record['checkpoint'] ?? null) !== hash_file('sha256', $retained)
                     || ($record['configuration'] ?? null) !== hash('sha256', (string)$config)
+                    || ($record['settings'] ?? null) !== $config->object()->system?->backup?->encryptedgit?->asXML()
                 ) {
                     throw new RuntimeException('The checkpoint or native configuration changed.');
+                }
+                if ($argv[1] === 'replace') {
+                    $candidate = $state . '/activation.next';
+                    Credentials::privateFile($candidate);
+                    $contents = file_get_contents($candidate, false, null, 0, 65537);
+                    if ($contents === false || strlen($contents) > 65536) {
+                        throw new RuntimeException('Could not read the replacement checkpoint.');
+                    }
+                    $model = new EncryptedGitSettings();
+                    $destination = $model->getNodeByReference('destination')?->getValue() ?? '';
+                    $branch = $model->getNodeByReference('branch')?->getValue() ?? '';
+                    $saved = $model->getNodeByReference('activation')?->getValue() ?? '';
+                    if (
+                        Activation::validate($contents, $destination, $branch, true) === null
+                        || hash('sha256', $contents) === $saved
+                    ) {
+                        throw new RuntimeException('Replacement requires fresh legacy activation.');
+                    }
+                    Activation::verifyConfigurationDigest($contents, hash('sha256', (string)$config));
+                    if (!rename($candidate, $checkpoint)) {
+                        throw new RuntimeException('Could not install the replacement checkpoint.');
+                    }
+                    echo "REPLACEMENT_STAGED_FOR_NATIVE_SAVE\n";
+                    exit(0);
                 }
                 echo "PAIR_VERIFIED_CHECKPOINT_WITHHELD\n";
                 exit(0);

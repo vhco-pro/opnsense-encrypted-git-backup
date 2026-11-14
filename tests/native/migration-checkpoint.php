@@ -11,7 +11,7 @@ if (!is_file($bootstrap) || !isset($argv) || count($argv) !== 6) {
 }
 require $bootstrap;
 [$command, $mode, $tip, $remote, $archiveDigest, $directory] = $argv;
-if (!in_array($mode, ['stale', 'current'], true) || !is_dir($directory)) {
+if (!in_array($mode, ['stale', 'current', 'replacement'], true) || !is_dir($directory)) {
     throw new RuntimeException('Invalid fixture invocation.');
 }
 $config = Config::getInstance();
@@ -41,7 +41,7 @@ try {
         'exportSha256' => hash('sha256', $retained),
         'configurationSha256' => hash('sha256', $xml),
     ];
-    $path = '/conf/encrypted-git-backup/activation.json';
+    $path = '/conf/encrypted-git-backup/activation.' . ($mode === 'replacement' ? 'next' : 'json');
     $temporary = $path . '.fixture';
     $serialized = json_encode($checkpoint, JSON_THROW_ON_ERROR);
     if (file_put_contents($temporary, $serialized) !== strlen($serialized) || !rename($temporary, $path)) {
