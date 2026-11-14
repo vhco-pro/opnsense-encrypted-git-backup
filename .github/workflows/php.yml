@@ -43,6 +43,9 @@ jobs:
       - name: Audit locked dependencies, scan PHP and scan secrets
         env:
           SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: safe.directory
+          GIT_CONFIG_VALUE_0: ${{ github.workspace }}
         run: |
           export PATH="$PWD/work/security/bin:$PATH"
           bash tests/security/check.sh work/composer.phar "$SCAN_BASE"

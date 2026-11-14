@@ -10,9 +10,25 @@ rules:
           - pattern: system($COMMAND, ...)
           - pattern: passthru($COMMAND, ...)
       - pattern-not: $FUNC("...", ...)
-  - id: php-request-file-or-html
+  - id: php-request-path
     languages: [php]
-    message: Validate request data before file access and escape before HTML output.
+    message: Validate request-controlled filesystem paths.
+    severity: ERROR
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $_GET[...]
+          - pattern: $_POST[...]
+          - pattern: $_REQUEST[...]
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: file_get_contents($PATH, ...)
+              - pattern: file_put_contents($PATH, ...)
+          - focus-metavariable: $PATH
+  - id: php-request-html
+    languages: [php]
+    message: Escape request data before HTML output.
     severity: ERROR
     mode: taint
     pattern-sources:
@@ -24,10 +40,7 @@ rules:
       - pattern: htmlspecialchars(...)
       - pattern: html_safe(...)
     pattern-sinks:
-      - pattern-either:
-          - pattern: file_get_contents(...)
-          - pattern: file_put_contents(...)
-          - pattern: echo $VALUE;
+      - pattern: echo $VALUE;
   - id: php-xml-entity-expansion
     languages: [php]
     message: Keep external entity substitution disabled.
