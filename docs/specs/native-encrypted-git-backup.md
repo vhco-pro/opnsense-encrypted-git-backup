@@ -1,6 +1,7 @@
 ---
-status: planned
-status_description: "Fresh independent spec review and owner acceptance are recorded. The separate implementation session will write tasks, claim the feature and implement through the shared lifecycle."
+status: in-progress
+branch: feat/native-encrypted-git-backup
+status_description: "The implementation session owns the native provider, package and appliance verification."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
 goal: "Administrators configure, run and recover encrypted Git configuration backups through a native OPNsense provider with verifiable delivery and safe migration."
 covers:
