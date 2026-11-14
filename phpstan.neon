@@ -25,3 +25,4 @@ parameters:
         - tests/stubs/BaseField.stub
         - tests/stubs/BackupModel.stub
         - tests/stubs/CoreSingleton.stub
+        - tests/stubs/CoreConfig.stub
