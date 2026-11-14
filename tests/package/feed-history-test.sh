@@ -22,3 +22,7 @@ printf 'changed\n' > "$work/bundle/$path"
 if bash "$checker" "$work/history.json" "$work/bundle"; then
     exit 1
 fi
+root_path=os-encrypted-git-backup-0.0.9.alpha2.pkg
+printf 'fixture\n' > "$work/bundle/$root_path"
+jq --arg path "$root_path" --arg digest "$digest" '{($path):$digest}' "$work/history.json" > "$work/root.json"
+bash "$checker" "$work/root.json" "$work/bundle"

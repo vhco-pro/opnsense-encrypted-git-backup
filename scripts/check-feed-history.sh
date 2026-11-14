@@ -10,7 +10,7 @@ bundle=$(realpath "$2")
 jq -er '
   if type != "object" then error("expected path-to-digest object") else
     to_entries[]? |
-    if (.key | test("^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*/os-encrypted-git-backup-[A-Za-z0-9._-]+[.]pkg$"))
+    if (.key | test("^([A-Za-z0-9_-]+/)*os-encrypted-git-backup-[A-Za-z0-9._-]+[.]pkg$"))
       and (.value | type == "string" and test("^[a-f0-9]{64}$")) then
       [.key, .value] | @tsv
     else error("invalid advertised package entry") end
