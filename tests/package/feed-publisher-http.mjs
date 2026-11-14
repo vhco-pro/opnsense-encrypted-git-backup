@@ -126,9 +126,9 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let cacheDirectory;
     try {
         const url = `http://127.0.0.1:${server.address().port}`;
-        const cachedClient = (action, version, work = cacheDirectory) => execute("ssh", [
+        const cachedClient = (action, version, digest, work = cacheDirectory) => execute("ssh", [
             "-o", "BatchMode=yes", "freebsd", "sh", "-x", work + "/feed-cached-client.sh",
-            action, work, url + "/feed", work + "/key.pem", version,
+            action, work, url + "/feed", work + "/key.pem", version, digest,
         ]);
         const newCache = async () => {
             const result = await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "mktemp -d /tmp/feed-cache.XXXXXXXX"]);
@@ -349,7 +349,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 assert.equal(journal.at(-1).payload.history, previous.payload.history);
                 if (number === 4) {
                     cacheDirectory = await newCache();
-                    await cachedClient("cache", version);
+                    await cachedClient("cache", version, await hashFile(packageName));
                     const calls = createRequests;
                     await assert.rejects(run());
                     assert.equal(createRequests, calls);
@@ -357,7 +357,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
                     assert.equal(journal.at(-2).payload.phase, "recovery-required");
                     assert.match((await run("fixture", authorized)).stdout, /closure is recorded/);
-                    await cachedClient("fetch", version);
+                    await cachedClient("fetch", version, await hashFile(packageName));
                     await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "rm -rf -- " + cacheDirectory]);
                     cacheDirectory = undefined;
                 } else {
@@ -379,7 +379,8 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             await assert.rejects(run(), /curl: [(]52[)]/);
             const candidate = journal.at(-1).payload.attempt;
             cacheDirectory = await newCache();
-            await cachedClient("cache", "0.0.1");
+            const approvedPackage = JSON.parse(await readFile(nativeManifest, "utf8")).packageSha256;
+            await cachedClient("cache", "0.0.1", approvedPackage);
             nextOutcome = "failure";
             const authorized = { FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "70" };
             await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
@@ -387,7 +388,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal[1].payload.candidate, candidate);
             assert.equal(journal[2].payload.phase, "recovery-started");
             assert.equal((await fetch(url + "/feed/packagesite.pkg")).status, 404);
-            await cachedClient("fetch", "0.0.1");
+            await cachedClient("fetch", "0.0.1", approvedPackage);
             const packagePath = "/os-encrypted-git-backup-0.0.1.pkg";
             const packageKey = sites.at(-1).get(packagePath);
             const original = assets.get(packageKey);
