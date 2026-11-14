@@ -57,7 +57,7 @@ test "$1" = release && test "$3" = v0.0.1
 case "$2" in
     upload)
         test "$5 $6" = "--repo fixture/plugin"
-        curl -fsS -X PUT --data-binary "@$4" "$FIXTURE_RELEASE_ENDPOINT/bundles/$(basename "$4")"
+        curl -fsS -o /dev/null -X PUT --data-binary "@$4" "$FIXTURE_RELEASE_ENDPOINT/bundles/$(basename "$4")"
         ;;
     download)
         test "$4 $5 $6 $8" = "--repo fixture/plugin --pattern --dir"

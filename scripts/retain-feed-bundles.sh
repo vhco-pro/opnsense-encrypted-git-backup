@@ -17,7 +17,7 @@ for archive in "$candidate" "$recovery"; do
     path="$temporary/feed-$digest.tar"
     cp -- "$archive" "$path"
     if ! gh release download "$release" --repo "$repo" --pattern "feed-$digest.tar" --dir "$temporary/readback"; then
-        gh release upload "$release" "$path" --repo "$repo"
+        gh release upload "$release" "$path" --repo "$repo" >&2
         gh release download "$release" --repo "$repo" --pattern "feed-$digest.tar" --dir "$temporary/readback"
     fi
     cmp -- "$path" "$temporary/readback/feed-$digest.tar"
