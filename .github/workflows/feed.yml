@@ -142,6 +142,7 @@ jobs:
           PAGES_BRANCH: ${{ vars.CLOUDFLARE_PAGES_BRANCH }}
           FEED_URL: ${{ vars.SIGNED_FEED_URL }}
           FEED_PUBLIC_KEY: ${{ vars.SIGNED_FEED_PUBLIC_KEY_PATH }}
+          FEED_PREDECESSOR_PUBLIC_KEY: ${{ vars.SIGNED_FEED_PREDECESSOR_KEY_PATH }}
           FEED_NATIVE_SSH: freebsd
           FEED_ABI: ${{ vars.SIGNED_FEED_ABI }}
           RELEASE: ${{ inputs.release }}

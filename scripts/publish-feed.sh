@@ -132,7 +132,7 @@ if [[ "$started" != '{}' ]]; then
             request "$FEED_URL/generation.json" | jq -e --arg marker "$marker" '.digest == $marker' >/dev/null
             [[ "$outcome" != unknown ]]
             if [[ "$outcome" == failure ]] ||
-                ! bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
+                ! bash "$scripts/verify-feed-generation.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
             then
                 # A later verification failure on a closed generation holds
                 # for diagnosis; it cannot reopen this activation.

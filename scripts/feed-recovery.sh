@@ -3,7 +3,7 @@
 verify_recovery() {
     local recovery_dir=$1 path expected actual status
     if [[ -f "$recovery_dir/release.json" ]]; then
-        bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$recovery_dir/release.json" "$FEED_PUBLIC_KEY" "$FEED_ABI" ||
+        bash "$scripts/verify-feed-generation.sh" "$FEED_URL" "$recovery_dir/release.json" "$FEED_PUBLIC_KEY" "$FEED_ABI" ||
             return 1
     else
         for path in packagesite.pkg packagesite.txz meta.conf meta.pkg meta.txz data.pkg data.txz; do

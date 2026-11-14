@@ -130,12 +130,13 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             "-o", "BatchMode=yes", "freebsd", "sh", "-x", work + "/feed-cached-client.sh",
             action, work, url + "/feed", work + "/key.pem", version, digest,
         ]);
-        const newCache = async () => {
+        const newCache = async (key = "key.pem") => {
             const result = await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "mktemp -d /tmp/feed-cache.XXXXXXXX"]);
             const work = result.stdout.trim();
             assert.match(work, /^\/tmp\/feed-cache[.][a-zA-Z0-9]+$/);
             await execute("scp", ["-q", fileURLToPath(new URL("./feed-cached-client.sh", import.meta.url)),
-                join(native, "key.pem"), `freebsd:${work}/`]);
+                `freebsd:${work}/`]);
+            await execute("scp", ["-q", join(native, key), `freebsd:${work}/key.pem`]);
             return work;
         };
         const manifest = join(directory, "pages-manifest.json");
@@ -329,10 +330,26 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     candidateFiles.push(file);
                 }
                 const hashFile = async (file) => createHash("sha256").update(await readFile(join(next, file))).digest("hex");
-                await writeFile(join(next, "release.json"), JSON.stringify({
+                const release = {
                     source: fixture.sha, tag: `v${version}`, version, package: packageName,
                     packageSha256: await hashFile(packageName), catalogueSha256: await hashFile("packagesite.pkg"),
-                }));
+                };
+                if (number === 4) {
+                    await mkdir(join(next, "prior-key"));
+                    for (const file of await readdir(join(native, "site-3"))) {
+                        const relativePath = "prior-key/" + file;
+                        const bytes = await readFile(join(native, "site-3", file));
+                        await writeFile(join(next, relativePath), bytes);
+                        paths["/" + relativePath] = createHash("sha256").update(bytes).digest("hex").slice(0, 32);
+                        candidateFiles.push(relativePath);
+                    }
+                    release.predecessorCatalogue = {
+                        path: "prior-key", version: "0.0.3",
+                        packageSha256: await hashFile("prior-key/os-encrypted-git-backup-0.0.3.pkg"),
+                        catalogueSha256: await hashFile("prior-key/packagesite.pkg"),
+                    };
+                }
+                await writeFile(join(next, "release.json"), JSON.stringify(release));
                 const marker = JSON.stringify({ digest: await hashFile("release.json") });
                 await writeFile(join(next, "generation.json"), marker);
                 paths["/generation.json"] = createHash("sha256").update(marker).digest("hex").slice(0, 32);
@@ -348,8 +365,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 assert.equal(journal.at(-1).payload.predecessor, previous.payload.attempt);
                 assert.equal(journal.at(-1).payload.history, previous.payload.history);
                 if (number === 4) {
-                    cacheDirectory = await newCache();
+                    cacheDirectory = await newCache("next-key.pem");
                     await cachedClient("cache", version, await hashFile(packageName));
+                    await execute("bash", [
+                        fileURLToPath(new URL("../../scripts/verify-feed-generation.sh", import.meta.url)),
+                        url + "/feed", join(next, "release.json"), join(native, "next-key.pem"), "FreeBSD:15:amd64",
+                    ], { env: { ...env, FEED_PREDECESSOR_PUBLIC_KEY: join(native, "key.pem") } });
                     const calls = createRequests;
                     await assert.rejects(run());
                     assert.equal(createRequests, calls);
