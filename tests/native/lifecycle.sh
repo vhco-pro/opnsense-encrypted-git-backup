@@ -15,7 +15,21 @@ fi
 pkg add "$artifact"
 test "$(sha256 -q "$state/activation.json")" = "$before"
 service configd restart
-configctl encryptedgit run | php -r '
+ready=
+for attempt in $(jot 15); do
+    if timeout 2 configctl encryptedgit status 2>/dev/null |
+        php -r 'exit(is_array(json_decode(stream_get_contents(STDIN), true)) ? 0 : 1);'; then
+        ready=yes
+        break
+    fi
+    sleep 2
+done
+if [ "$ready" != yes ]; then
+    echo 'configd did not return provider status after restart.' >&2
+    exit 1
+fi
+response=$(configctl encryptedgit run)
+printf '%s\n' "$response" | php -r '
     $response = json_decode(stream_get_contents(STDIN), true, 8, JSON_THROW_ON_ERROR);
     exit(is_string($response["commit"] ?? null) ? 0 : 1);
 '
