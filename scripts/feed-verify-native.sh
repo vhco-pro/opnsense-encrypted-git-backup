@@ -26,8 +26,8 @@ client() {
 fetch -qo "$temp/catalogue" "$url/packagesite.pkg"
 test "$(sha256 -q "$temp/catalogue")" = "$catalogue"
 ASSUME_ALWAYS_YES=no client update -f -r fixture </dev/null
-test "$(client rquery -r fixture '%v' os-encrypted-git-backup)" = "$version"
-client fetch -y -r fixture os-encrypted-git-backup
+test "$(client rquery -U -r fixture '%v' os-encrypted-git-backup)" = "$version"
+client fetch -U -y -r fixture os-encrypted-git-backup
 fetch -qo "$temp/$package" "$url/$package"
 test "$(sha256 -q "$temp/$package")" = "$digest"
 test "$(pkg query -F "$temp/$package" '%n %v')" = "os-encrypted-git-backup $version"
