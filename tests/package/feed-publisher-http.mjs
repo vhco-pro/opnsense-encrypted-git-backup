@@ -8,8 +8,10 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { retainFixture } from "./feed-http-inputs.mjs";
 
 const execute = promisify(execFile);
+const dispatch = fileURLToPath(new URL("../../scripts/feed-dispatch.sh", import.meta.url));
 const publisher = fileURLToPath(new URL("../../scripts/publish-feed.sh", import.meta.url));
 
 test("publisher holds ambiguous responses and reconciles one live deployment", async () => {
@@ -18,6 +20,8 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     const pages = [];
     const digest = createHash("sha256").update("fixture generation").digest("hex");
     const assets = new Map();
+    const bundles = new Map();
+    const downloaded = [];
     const key = "a".repeat(32);
     const site = new Map([["/generation.json", key]]);
     let loseJournalReply = false;
@@ -29,6 +33,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         }).end(JSON.stringify(value));
 
         if (request.method === "GET") {
+            if (bundles.has(path)) {
+                downloaded.push(path);
+                return response.writeHead(200).end(bundles.get(path));
+            }
             if (path === "/repos/fixture/plugin/deployments") return reply(200, journal);
             if (path === "/pages/upload-token") return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
             if (path === "/pages/deployments") return reply(200, { success: true, result: pages });
@@ -43,7 +51,14 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
 
         const chunks = [];
         for await (const chunk of request) chunks.push(chunk);
-        const body = Buffer.concat(chunks).toString();
+        const bytes = Buffer.concat(chunks);
+        if (request.method === "PUT" && /^\/bundles\/feed-[a-f0-9]{64}[.]tar$/.test(path)) {
+            if (bundles.has(path)) return reply(409, {});
+            if (!path.includes(createHash("sha256").update(bytes).digest("hex"))) return reply(422, {});
+            bundles.set(path, bytes);
+            return reply(201, {});
+        }
+        const body = bytes.toString();
         if (path === "/repos/fixture/plugin/deployments") {
             const record = JSON.parse(body);
             if (record.auto_merge !== false || record.environment !== "feed-fixture") return reply(422, {});
@@ -82,23 +97,28 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let forward;
     try {
         const url = `http://127.0.0.1:${server.address().port}`;
-        const manifest = join(directory, "manifest.json");
+        const manifest = join(directory, "pages-manifest.json");
+        let fixture;
         let nativeManifest;
         let effectiveMarker = digest;
+        let candidateFiles;
         if (native) {
             const files = await readdir(join(native, "site"));
+            candidateFiles = ["release.json", "generation.json", "pages-manifest.json"];
             for (const file of files) {
                 if (!/^[a-zA-Z0-9_.-]+$/.test(file)) continue;
                 const bytes = await readFile(join(native, "site", file));
                 const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 32);
                 site.set("/" + file, hash);
                 await writeFile(join(directory, file), bytes);
+                candidateFiles.push(file);
             }
             const name = "os-encrypted-git-backup-0.0.1.pkg";
             const hashFile = async (file) => createHash("sha256").update(await readFile(join(directory, file))).digest("hex");
             nativeManifest = join(directory, "release.json");
             await writeFile(nativeManifest, JSON.stringify({
-                version: "0.0.1", package: name,
+                source: (await execute("git", ["rev-parse", "HEAD"])).stdout.trim(),
+                tag: "v0.0.1", version: "0.0.1", package: name,
                 packageSha256: await hashFile(name),
                 catalogueSha256: await hashFile("packagesite.pkg"),
             }));
@@ -115,6 +135,13 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         }
         await writeFile(manifest, JSON.stringify(Object.fromEntries(site)));
         await writeFile(join(directory, "generation.json"), JSON.stringify({ digest: effectiveMarker }));
+        if (native) {
+            fixture = await retainFixture({
+                directory, endpoint: url, packageName: "os-encrypted-git-backup-0.0.1.pkg", candidateFiles,
+            });
+            site.set("/" + fixture.previous, fixture.previousDigest.slice(0, 32));
+            downloaded.length = 0;
+        }
         const env = {
             ...process.env,
             GITHUB_API_URL: url,
@@ -129,14 +156,15 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             PAGES_BRANCH: "main",
             ...(native ? {
                 FEED_NATIVE_MANIFEST: nativeManifest,
-                FEED_HISTORY: join(directory, "history.json"),
+                ...fixture.env,
                 FEED_PUBLIC_KEY: join(native, "key.pem"),
                 FEED_ABI: "FreeBSD:15:amd64",
                 FEED_NATIVE_SSH: "freebsd",
             } : {}),
         };
-        if (native) await writeFile(env.FEED_HISTORY, "{}");
-        const run = (mode = "fixture") => execute("bash", [publisher, mode], { env });
+        const run = (mode = "fixture") => fixture
+            ? execute("bash", [dispatch, mode, ...fixture.arguments], { env, cwd: fixture.repo })
+            : execute("bash", [publisher, mode], { env });
 
         await assert.rejects(run("production"), /Production publication requires the approved protected workflow/);
         assert.equal(journal.length, 0);
@@ -148,6 +176,15 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         if (native) {
             assert.match(result.stdout, /Native client verification passed and closure is recorded/);
             assert.equal(journal[1].payload.phase, "verified-closure");
+            assert.equal(journal[1].sha, fixture.sha);
+            assert.equal(journal[1].payload.version, fixture.version);
+            assert.equal(journal[1].payload.digest, fixture.candidate);
+            assert.equal(journal[1].payload.deployment, pages[0].id);
+            assert.equal(journal[0].payload.packages[fixture.previous], fixture.previousDigest);
+            assert.equal(downloaded.length, 4);
+            const retained = await fetch(url + "/feed/" + fixture.previous);
+            assert.equal(createHash("sha256").update(Buffer.from(await retained.arrayBuffer())).digest("hex"),
+                fixture.previousDigest);
             await run();
             assert.equal(journal.length, 2);
         } else {

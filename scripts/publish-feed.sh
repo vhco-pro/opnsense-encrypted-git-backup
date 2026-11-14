@@ -47,14 +47,18 @@ if [[ "$started" != '{}' ]]; then
         [[ "${FEED_DIGEST:?}" == "$digest" ]]
         scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
         bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
-        closed=$(jq -er --arg attempt "$attempt" --arg id "$id" --arg digest "$digest" '
+        version=$(jq -er .version "$FEED_NATIVE_MANIFEST")
+        source_sha=$(jq -er .sha <<< "$started")
+        [[ "$(jq -er .source "$FEED_NATIVE_MANIFEST")" == "$source_sha" ]]
+        closed=$(jq -er --arg source "$source_sha" --arg version "$version" --arg attempt "$attempt" --arg id "$id" --arg digest "$digest" '
             [.[] | select(.payload.phase == "verified-closure" and .payload.attempt == $attempt)] |
             if length == 0 then "false"
-            elif length == 1 and .[0].payload.deployment == $id and .[0].payload.digest == $digest then "true"
+            elif length == 1 and .[0].payload.deployment == $id and .[0].payload.digest == $digest
+                and .[0].sha == $source and .[0].payload.version == $version then "true"
             else error("conflicting closure") end
         ' "$temp/journal")
         if [[ "$closed" == false ]]; then
-            bash "$scripts/feed-close.sh" "$1" "$journal" "$(jq -er .sha <<< "$started")" "$attempt" "$id" "$digest"
+            bash "$scripts/feed-close.sh" "$1" "$journal" "$source_sha" "$attempt" "$id" "$digest" "$version"
         fi
         printf '%s\n' 'Native client verification passed and closure is recorded.'
     else
