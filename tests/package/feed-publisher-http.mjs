@@ -95,7 +95,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         };
         const run = (mode = "fixture") => execute("bash", [publisher, mode], { env });
 
-        await assert.rejects(run("production"), /Production publication is disabled/);
+        await assert.rejects(run("production"), /Production publication requires the approved protected workflow/);
         assert.equal(journal.length, 0);
         await assert.rejects(run());
         assert.equal(journal.length, 1);

@@ -33,3 +33,6 @@ for role in candidate recovery; do
     printf '%s  %s\n' "$(jq -er '.packageSha256' "$manifest")" "$directory/$role/$package" | sha256sum -c --status
 done
 printf '%s  %s\n' "$(jq -er '.catalogueSha256' "$manifest")" "$directory/candidate/packagesite.pkg" | sha256sum -c --status
+
+marker=$(sha256sum -- "$manifest" | cut -d ' ' -f 1)
+jq -e --arg marker "$marker" '.digest == $marker' "$directory/candidate/generation.json" >/dev/null

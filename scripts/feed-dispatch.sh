@@ -7,7 +7,12 @@ set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 mode=$1
 shift
-[[ "$mode" == fixture ]]
+if [[ "$mode" == production ]]; then
+    export FEED_NATIVE_MANIFEST=retained-bundle FEED_HISTORY=$7
+    source "$root/feed-publication-mode.sh" "$mode"
+else
+    [[ "$mode" == fixture ]]
+fi
 record=$1
 source=$3
 directory=$(mktemp -d)

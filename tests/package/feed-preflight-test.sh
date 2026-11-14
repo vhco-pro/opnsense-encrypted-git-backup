@@ -49,6 +49,7 @@ jq -n --arg source "$sha" --arg package "$package" --arg packageSha256 "$(hash "
     --arg catalogueSha256 "$(hash "$tmp/candidate/packagesite.pkg")" \
     '{source:$source,package:$package,packageSha256:$packageSha256,catalogueSha256:$catalogueSha256,
       tag:"v1.2.3",version:"1.2.3"}' > "$tmp/candidate/release.json"
+jq -n --arg digest "$(hash "$tmp/candidate/release.json")" '{digest:$digest}' > "$tmp/candidate/generation.json"
 for role in candidate recovery; do
     (cd "$tmp/$role" && tar -cf "$tmp/$role.tar" *)
 done
