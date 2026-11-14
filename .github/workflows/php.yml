@@ -61,6 +61,7 @@ jobs:
           bash tests/package/version-test.sh
           bash tests/package/feed-manifest-test.sh
           bash tests/package/feed-history-test.sh
+          bash tests/package/feed-reconcile-test.sh
       - name: Prepare the native package version
         shell: bash
         env:
