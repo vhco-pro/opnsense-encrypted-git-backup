@@ -21,6 +21,35 @@ final class GitDelivery
     ) {
     }
 
+    /** @param 'activation'|'credentials'|'configuration' $category */
+    public function recordPreconditionFailure(string $destination, string $branch, string $category): void
+    {
+        $lock = fopen($this->directory . '/delivery.lock', 'c');
+        if ($lock === false) {
+            throw new RuntimeException('Could not open the backup lock.');
+        }
+        try {
+            if (!flock($lock, LOCK_EX | LOCK_NB)) {
+                return;
+            }
+            $this->writeStatus($this->attempt($destination, $branch) + [
+                'outcome' => 'failed',
+                'category' => $category,
+            ]);
+        } finally {
+            fclose($lock);
+        }
+    }
+
+    /** @return array{attempt: string, target: string} */
+    private function attempt(string $destination, string $branch): array
+    {
+        return [
+            'attempt' => gmdate(DATE_ATOM),
+            'target' => hash('sha256', json_encode([$destination, $branch], JSON_THROW_ON_ERROR)),
+        ];
+    }
+
     /** @param Closure(): string $capture */
     public function deliver(
         string $destination,
@@ -67,10 +96,7 @@ final class GitDelivery
         string $key,
         Closure $capture
     ): string {
-        $attempt = [
-            'attempt' => gmdate(DATE_ATOM),
-            'target' => hash('sha256', json_encode([$destination, $branch], JSON_THROW_ON_ERROR)),
-        ];
+        $attempt = $this->attempt($destination, $branch);
         $this->writeStatus($attempt + ['outcome' => 'running']);
         try {
             $commit = $this->reconcile($destination, $branch, $revision, $key, $capture);
@@ -95,12 +121,12 @@ final class GitDelivery
             $this->writeStatus($attempt + ['outcome' => 'verified']);
             return $commit;
         } catch (RuntimeException $exception) {
-            $this->writeStatus($attempt + ['outcome' => 'failed']);
+            $this->writeStatus($attempt + ['outcome' => 'failed', 'category' => 'delivery']);
             throw $exception;
         }
     }
 
-    /** @param array{attempt: string, target: string, outcome: string} $status */
+    /** @param array{attempt: string, target: string, outcome: string, category?: string} $status */
     private function writeStatus(array $status): void
     {
         $this->write($this->directory, 'attempt.json', json_encode($status, JSON_THROW_ON_ERROR) . "\n");

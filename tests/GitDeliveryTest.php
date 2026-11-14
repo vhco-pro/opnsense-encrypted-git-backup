@@ -48,6 +48,16 @@ final class GitDeliveryTest extends TestCase
             );
             self::assertFileDoesNotExist($directory . '/pending/config.xml');
             $receipt = file_get_contents($directory . '/verified.json');
+            foreach (['activation', 'credentials', 'configuration'] as $category) {
+                $delivery->recordPreconditionFailure($remote, 'snapshots', $category);
+                $attempt = file_get_contents($directory . '/attempt.json');
+                self::assertIsString($attempt);
+                self::assertMatchesRegularExpression(
+                    '/^{"attempt":"[^"]+","target":"[a-f0-9]{64}","outcome":"failed","category":"' . $category . '"}/',
+                    $attempt
+                );
+                self::assertSame($receipt, file_get_contents($directory . '/verified.json'));
+            }
             $incompatible = new GitDelivery('/usr/bin/git', $directory, [], str_repeat('a', 40));
             try {
                 $incompatible->deliver($remote, 'snapshots', '2.0', 'key', static fn (): string => 'new snapshot');
