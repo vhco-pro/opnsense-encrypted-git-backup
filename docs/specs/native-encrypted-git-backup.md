@@ -299,7 +299,7 @@ Prove the same workflow sequence with fixture keys and owned synthetic staging u
 - [ ] AC-03: Validated configuration and secret custody survive the documented restore/upgrade paths, enforce the selected privilege boundary and permit recovery and credential rotation independently of management services.
 - [x] AC-04: Manual and scheduled runs produce consistent Git state under overlap, rejection, interrupted response, retry and divergent-remote cases, with success reflecting independently verified remote retention.
 - [ ] AC-05: Native scheduling survives regeneration and upgrade, failure of another provider cannot silently suppress the selected scheduling path, and native status plus independent freshness checking expose stale or failed delivery.
-- [ ] AC-06: Migration preserves the verified final legacy history and previous remote ancestor off the firewall, prevents new credentials entering the legacy plaintext capture path and remains recoverable after interruption.
+- [x] AC-06: Migration preserves the verified final legacy history and previous remote ancestor off the firewall, prevents new credentials entering the legacy plaintext capture path and remains recoverable after interruption.
 - [x] AC-07: A second operator can install, configure, observe and recover the provider from versioned documentation and verified package inputs, with supported versions, diff/storage trade-offs and distribution/contribution limits explicit.
 - [ ] AC-08: Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests, with visible coverage and reviewed narrow exceptions. Required security scans and native audits complete with expected coverage and any findings resolved or given an independently reviewed, owner-approved disposition. The runtime package excludes development tooling and private fixtures.
 - [ ] AC-09: The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable prior generation for established feeds through failed publication and signing-key rotation. An unresolved first activation prohibits further publisher mutations while the pending request may still become live. Bootstrap recovery withdraws the first catalogue and retains its packages for cached clients. A terminal live recovery that fails native validation permits one retry of the same approved files per separately authorized dispatch. Newer releases stay blocked until recovery is verified. Production signing and deployment require owner approval, and fixture execution has access only to owned staging and fixture keys.
@@ -400,6 +400,7 @@ None.
 | 2026-11-14 | R-46 | implementation | `3fc566d4800e9d325c96dbae53c5f18ff42d04a9` | unknown | procedural | Two findings. AC-08 not met and nine criteria not verified. Model identity was not attested. |
 | 2026-11-14 | R-47 | implementation | `ba5307c14a1b2e51fa80ba919989a19445f272d6` | unknown | procedural | Three criteria met and four findings. Model identity was not attested. The host added one capture ref during review. |
 | 2026-11-14 | R-48 | implementation | `bf4108dc240e2b149c392cfd5d0ab47dac43d058` | unknown | procedural | Five criteria met, four not verified and one not met. Two blocking findings. Model identity was not attested. |
+| 2026-11-15 | R-49 | implementation | `0888a750d3eefde56458f196f7acb8e7e91dde5b` | unknown | procedural | Six criteria met, three not verified and one not met. Two blocking findings. Model identity was not attested. An added Git ref prevented full ref preservation. |
 
 ### R-1
 
@@ -1863,3 +1864,74 @@ SEVERITY: blocking
 WHERE: tests/native/lifecycle.sh:17-20; Test Plan / AC-01
 EVIDENCE: Two independent executions of the unmodified lifecycle.sh on the owned exact-source TCG guest failed immediately after service configd restart. Both printed configd socket missing, then the fixture attempted to decode empty output and exited 255 with JsonException. Subsequent direct delivery and package integrity checks passed. The fixture invokes delivery before establishing configd readiness, so this automated lifecycle proof fails the working installed package under the supported disposable execution path. The failures remain in native/reboot-console.log and native/lifecycle-retry.log.
 PROPOSAL: Wait for a bounded native configd readiness check before invoking delivery after restart. Preserve a distinct startup failure when readiness never arrives, then rerun the unchanged lifecycle assertions.
+
+### R-49 criterion evidence
+
+- AC-01 returned met in R-49.
+- AC-02 returned met in R-49.
+- AC-03 returned not verified in R-49.
+- AC-04 returned met in R-49.
+- AC-05 returned not verified in R-49.
+- AC-06 returned met in R-49.
+- AC-07 returned met in R-49.
+- AC-08 returned not met in R-49.
+- AC-09 returned not verified in R-49.
+- AC-10 returned met in R-49.
+
+### R-49
+
+TARGET: 0888a750d3eefde56458f196f7acb8e7e91dde5b
+
+CRITERION: AC-01 The package installs and upgrades on the selected supported releases, exposes its provider in the native Backups screen and preserves core and unrelated provider behavior.
+VERDICT: met
+EVIDENCE: Built and installed exact-source packages on FreeBSD 15.1-RELEASE-p6, OPNsense 26.7.9_1 and PHP 8.5.12. Actual signed-plugin installation, wrong-key rejection, upgrade and Firmware launcher installation passed. Native Backups setup, persistence, removal/reinstallation, package integrity and sibling-provider failure isolation passed. Inspected installed file inventory and unique package paths. Logs: /tmp/eg-r49-independent.bi8d4arh/native-remaining/, native-broad/, fresh-v1/ and browser/. The bounded readiness check resolved the previously observed lifecycle startup failure.
+
+CRITERION: AC-02 Complete encrypted exports restore through the native OPNsense interface on an isolated appliance, while all newly created provider Git snapshots and staging exclude plaintext configuration and synthetic secrets.
+VERDICT: met
+EVIDENCE: Independently executed native rotation and full-export recovery. Old and rotated exports passed native decrypt/import, independently retrieved pre-cutover recovery succeeded and encrypted delivery resumed. The fresh-install inspector verified all five remote snapshots, native decryption, ciphertext hashes, encrypted-only trees, synthetic-secret exclusion and Git staging. Snapshot and GitDelivery behavior tests passed. Logs: /tmp/eg-r49-independent.bi8d4arh/native-remaining/, preliminary-restart/, fresh-v1/ and php-quality.log. Inputs were synthetic.
+
+CRITERION: AC-03 Validated configuration and secret custody survive the documented restore/upgrade paths, enforce the selected privilege boundary and permit recovery and credential rotation independently of management services.
+VERDICT: not verified
+EVIDENCE: Independently passed all three checkpoint-replacement cases, off-guest rollback-pair recovery, concurrent-save replacement rejection, both v1 reversal boundaries, older-provider entry-point holds, absent-ref upgrade, ref fault cases, credential rotation, native restoration and browser privilege checks. Results are indexed in /tmp/eg-r49-independent.bi8d4arh/case-evidence.json. The enabled legacy-entry v1 checkpoint upgrade and complete already-admitted older-provider interruption matrix were not independently executed in this pass. Composite coverage remains incomplete; retained R-48 history does not establish these missing executions.
+
+CRITERION: AC-04 Manual and scheduled runs produce consistent Git state under overlap, rejection, interrupted response, retry and divergent-remote cases, with success reflecting independently verified remote retention.
+VERDICT: met
+EVIDENCE: PHP 8.5.12 PHPUnit execution passed 26 tests and 105 assertions. Installed delivery-interrupt.sh passed blocked loopback transport, queued second request, identified worker termination, unchanged pending/remote/receipt assertions and exact retry. Native scheduled delivery passed. Independent overlays passed initial response loss, branch deletion, deletion before push, receipt-persistence interruption and exact versus descendant/unrelated read-back. Logs: /tmp/eg-r49-independent.bi8d4arh/php-quality.log, native-remaining/ and the indexed ref cases. My first interruption invocation omitted its required helper argument; that failure remains in native-broad/. The corrected fresh-overlay execution passed.
+
+CRITERION: AC-05 Native scheduling survives regeneration and upgrade, failure of another provider cannot silently suppress the selected scheduling path, and native status plus independent freshness checking expose stale or failed delivery.
+VERDICT: not verified
+EVIDENCE: Native cron regeneration and a real scheduled delivery passed. A throwing sibling provider preserved encrypted delivery while reporting aggregate failure. Stopped-scheduler and unchanged-source checks verified artifact reuse, stale remote evidence and a synthetic notification sink. Authenticated browser success/failure status checks passed. Logs: /tmp/eg-r49-independent.bi8d4arh/native-broad/ and browser/. The complete authenticated target-A/target-B association scenarios and deployment-owned monitoring/owner-notification delivery were not independently executed in this pass.
+
+CRITERION: AC-06 Migration preserves the verified final legacy history and previous remote ancestor off the firewall, prevents new credentials entering the legacy plaintext capture path and remains recoverable after interruption.
+VERDICT: met
+EVIDENCE: Fresh overlays passed interrupted preliminary writer shutdown, writer drain, drained/final-archive activation holds, missing/v1 export-evidence rejection, save interruption after validation and concurrent-save serialization. Independently retrieved and read back both encrypted artifacts and verified legacy tip/remote ancestry. Export SHA-256: 9fb6ff6f62b9467e17fd52970d4482a032bb7e99651585146c495ba5217c938e. Archive SHA-256: 7981ff9153ac5846498636ee54ceaa77f0fa938c3278078b75048ec4fec3a3c5. Native recovery preserved rejected pending ancestry and resumed delivery with legacy capture disabled and the new password excluded from legacy history. Logs: /tmp/eg-r49-independent.bi8d4arh/preliminary-restart/, cutover-stages/ and cutover-restart/.
+
+CRITERION: AC-07 A second operator can install, configure, observe and recover the provider from versioned documentation and verified package inputs, with supported versions, diff/storage trade-offs and distribution/contribution limits explicit.
+VERDICT: met
+EVIDENCE: Independently followed versioned installation, synthetic trust-bootstrap, activation and recovery procedures using exact-source packages and off-guest recovery material. Fresh null-legacy v1 activation delivered successfully. Signed installation/upgrade, Firmware installation, removal/reinstallation, rollback-pair recovery and native restoration passed. Measured three new 53,648-byte encrypted artifacts and repository growth from 216 to 432 KiB. Inspected supported versions, storage/diff guidance and distribution/contribution limits. Logs: /tmp/eg-r49-independent.bi8d4arh/fresh-v1/, native-remaining/, offguest/ and preliminary-restart/.
+
+CRITERION: AC-08 Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests, with visible coverage and reviewed narrow exceptions. Required security scans and native audits complete with expected coverage and any findings resolved or given an independently reviewed, owner-approved disposition. The runtime package excludes development tooling and private fixtures.
+VERDICT: not met
+EVIDENCE: Native pkg audit returned exit 1 for python313-3.13.18 and CVE-2025-15367. VuXML SHA-256: 0b17cc23a3098cf795947b8016ed8b714bd40d632ea59703c45c6e0718d35011. Inventory SHA-256: cc2027945b8e8d8e48bc54207418a24dc1c3c79490e29dc3375469d05d337395. The finding remains unwaived. Native syntax, development-image PSR-12, maximum-level PHPStan, PHPUnit and Psalm taint checks passed. PHPUnit reported one deprecation; Psalm reported eight informational issues. The initial native development-tool failure from missing tokenizer/xmlwriter remains retained. Gitleaks scanned 245 HEAD-history commits without findings. Actionlint, 80 shell syntax checks, seven JavaScript syntax checks and pinned feature lint passed. Full Composer/Semgrep coverage was not re-executed. Runtime inventory excluded development/private inputs. Logs: /tmp/eg-r49-independent.bi8d4arh/audit/, php-quality.log, replacement-retained/ and gitleaks-history.log.
+
+CRITERION: AC-09 The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable prior generation for established feeds through failed publication and signing-key rotation. An unresolved first activation prohibits further publisher mutations while the pending request may still become live. Bootstrap recovery withdraws the first catalogue and retains its packages for cached clients. A terminal live recovery that fails native validation permits one retry of the same approved files per separately authorized dispatch. Newer releases stay blocked until recovery is verified. Production signing and deployment require owner approval, and fixture execution has access only to owned staging and fixture keys.
+VERDICT: not verified
+EVIDENCE: The actual dispatch/controller suite passed independently in 154.3 seconds using real pkg, synthetic package content, fresh SSH fixture keys and simulated loopback endpoints. It exercised history approval/successor read-back, durable-write loss, ambiguous/intermediate/terminal outcomes, recovery/Q3 replay, admission and trust-finalization cases. All six local package-contract scripts passed. Separately, actual plugin packages passed signed installation, wrong-key rejection, upgrade and Firmware checks. Inspected retained author RED/GREEN logs and independently verified applicable source equivalence. Logs: /tmp/eg-r49-independent.bi8d4arh/history-green/, native-remaining/ and source-equivalence.json. The release-eligible exact-target branch-push GitVersion-to-manifest-to-signed-client chain and hosted owner-dispatched workflow were not observed. No production signing or deployment occurred.
+
+CRITERION: AC-10 The native settings and status interfaces pass reproducible automated browser journeys for setup, reload persistence, success/failure states and permissions on owned disposable fixtures, with the applicable responsive and accessibility checks and developer tooling excluded from the runtime package.
+VERDICT: met
+EVIDENCE: Locked Chromium and Firefox passed ten main checks, two dark-theme checks and two rejected-delivery checks on the fresh exact-source appliance. Rejection checks skipped in the main profile passed in their separate profile. Verified setup, persistence, privilege boundaries, retained receipts, keyboard interaction, reduced motion and widths 1280/640/390/320. Both real 200-percent zoom checks passed with viewport 800 to 400 CSS pixels, DPR 1 to 2 and no horizontal overflow. Inspected mobile, dark-theme and both zoom captures. Runtime inventory excluded browser tooling/private fixtures. Evidence: /tmp/eg-r49-independent.bi8d4arh/browser/. All reviewer guest launchers finished; no reviewer QEMU processes remained.
+
+FINDING: F-01
+KIND: factual
+SEVERITY: blocking
+WHERE: Acceptance Criteria and Test Plan / AC-08; docs/compatibility.md / Installed 26.7.9_1 runtime audit and CVE-2025-15367 disposition
+EVIDENCE: Independently executed pkg audit against the retained full VuXML snapshot on the exact-source installed target. It returned exit 1 for python313-3.13.18 and CVE-2025-15367. Snapshot SHA-256: 0b17cc23a3098cf795947b8016ed8b714bd40d632ea59703c45c6e0718d35011. Inventory SHA-256: cc2027945b8e8d8e48bc54207418a24dc1c3c79490e29dc3375469d05d337395. No independently reviewed owner-approved disposition applies. Evidence: /tmp/eg-r49-independent.bi8d4arh/audit/console.log.
+PROPOSAL: Resolve the affected appliance dependency through a supported fix and repeat the audit, or obtain and record an independently reviewed owner-approved disposition before completing AC-08.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: blocking
+WHERE: R-49 review execution / source and Git-ref preservation requirement
+EVIDENCE: Starting and final snapshots show unchanged target HEAD, clean worktree status and identical index checksum. Every original ref is unchanged, but refs/codex/turn-diffs/captures/1794699313307/f7d0e540-70d5-428b-b43a-deb19320b18b/base appeared at b037bd46399d171c2eef840605dcf5d930f3d756 during this review. Its creation mechanism was not independently established. The added ref was left untouched because source writes are prohibited. This pass cannot attest that all refs were preserved. Evidence: /tmp/eg-r49-independent.bi8d4arh/refs.before, refs.after and preservation.json.
+PROPOSAL: Retain this procedural preservation limitation with R-49. Repeat the review with host-enforced read-only access to both source and Git metadata before asserting full ref preservation.
