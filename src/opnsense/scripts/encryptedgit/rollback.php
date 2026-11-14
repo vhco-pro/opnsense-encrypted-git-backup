@@ -9,7 +9,18 @@ use OPNsense\EncryptedGitBackup\Credentials;
 use OPNsense\EncryptedGitBackup\Process;
 
 $bootstrap = dirname(__DIR__, 2) . '/mvc/script/load_phalcon.php';
-if (!is_file($bootstrap) || !isset($argv) || count($argv) !== 2) {
+if (!is_file($bootstrap) || !isset($argv) || !in_array(count($argv), [2, 3], true)) {
+    exit(64);
+}
+$action = $argv[1];
+$expected = $argv[2] ?? null;
+if (
+    ($expected !== null && (
+        !in_array($action, ['restore-settings', 'resume'], true)
+        || preg_match('/\A[0-9a-f]{64}\z/', $expected) !== 1
+    ))
+    || ($action === 'restore-settings' && $expected === null)
+) {
     exit(64);
 }
 require $bootstrap;
@@ -117,7 +128,7 @@ try {
             echo "HELD_AND_DRAINED\n";
             exit(0);
         }
-        if (in_array($argv[1], ['verify', 'replace', 'resume'], true)) {
+        if (in_array($argv[1], ['verify', 'replace', 'resume', 'restore-settings', 'revision'], true)) {
             if (file_exists($checkpoint) || is_link($checkpoint)) {
                 throw new RuntimeException('The active checkpoint has not been withheld.');
             }
@@ -131,12 +142,49 @@ try {
             try {
                 $bytes = file_get_contents($pair, false, null, 0, 4096);
                 $record = $bytes === false ? null : json_decode($bytes, true, 8, JSON_THROW_ON_ERROR);
+                $revision = hash('sha256', (string)$config);
+                $settings = $captureProviderSettings((string)$config);
+                $savedSettings = is_array($record) ? ($record['settings'] ?? null) : null;
                 if (
-                    !is_array($record)
+                    !is_string($savedSettings)
                     || ($record['checkpoint'] ?? null) !== hash_file('sha256', $retained)
-                    || ($record['configuration'] ?? null) !== hash('sha256', (string)$config)
-                    || ($record['settings'] ?? null) !== $captureProviderSettings((string)$config)
                 ) {
+                    throw new RuntimeException('The retained rollback pair is invalid.');
+                }
+                if ($action === 'revision') {
+                    echo $revision . PHP_EOL;
+                    exit(0);
+                }
+                if ($revision !== ($expected ?? ($record['configuration'] ?? null))) {
+                    throw new RuntimeException('The checkpoint or native configuration changed.');
+                }
+                if ($action === 'restore-settings') {
+                    $xml = new DOMDocument();
+                    if (
+                        !$xml->loadXML($savedSettings, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING)
+                        || $xml->documentElement?->tagName !== 'encryptedgit'
+                    ) {
+                        throw new RuntimeException('The retained provider settings are invalid.');
+                    }
+                    $model = new EncryptedGitSettings();
+                    foreach ($xml->documentElement->childNodes as $field) {
+                        if ($field instanceof DOMElement) {
+                            $node = $model->getNodeByReference($field->tagName);
+                            if ($node === null) {
+                                throw new RuntimeException('The installed model cannot restore the retained settings.');
+                            }
+                            $node->setValue($field->textContent);
+                        }
+                    }
+                    $model->serializeToConfig(true);
+                    if ($captureProviderSettings((string)$config) !== $savedSettings) {
+                        throw new RuntimeException('Native serialization did not reproduce the retained settings.');
+                    }
+                    $config->save();
+                    echo "SETTINGS_RESTORED_CHECKPOINT_WITHHELD\n";
+                    exit(0);
+                }
+                if ($savedSettings !== $settings) {
                     throw new RuntimeException('The checkpoint or native configuration changed.');
                 }
                 if ($argv[1] === 'resume') {
