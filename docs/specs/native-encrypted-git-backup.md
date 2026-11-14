@@ -1,5 +1,5 @@
 ---
-status: draft
+status: planned
 branch: feat/native-encrypted-git-backup
 status_description: "Revising the security and release proof after independent review."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
@@ -395,6 +395,7 @@ None.
 | 2026-11-14 | R-42 | spec | `a6f611f73f581b6349b1178c06585c30fc2e46bb` | unknown | procedural | Five findings on durable history and client trust. |
 | 2026-11-14 | R-43 | spec | `6c591c39289456ab2c9c5328c6193d14822116af` | unknown | procedural | Three factual findings and one nit. |
 | 2026-11-14 | R-44 | spec | `e6ca4fe4b22f0f7559c21df660d4f8d1a2bed74e` | unknown | procedural | NO FINDINGS; model identity not attested. |
+| 2026-11-14 | R-44 | spec | `e6ca4fe4b22f0f7559c21df660d4f8d1a2bed74e` | n/a | n/a | accepted by owner |
 
 ### R-1
 
