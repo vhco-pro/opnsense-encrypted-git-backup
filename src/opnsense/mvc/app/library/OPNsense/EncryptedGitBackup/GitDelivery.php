@@ -49,13 +49,53 @@ final class GitDelivery
                 } else {
                     $this->write($this->directory, 'target.json', $binding);
                 }
-                return $this->reconcile($destination, $branch, $revision, $key, $capture);
+                return $this->recordDelivery($destination, $branch, $revision, $key, $capture);
             } finally {
                 fclose($lock);
             }
         } finally {
             umask($mask);
         }
+    }
+
+    /** @param Closure(): string $capture */
+    private function recordDelivery(
+        string $destination,
+        string $branch,
+        string $revision,
+        string $key,
+        Closure $capture
+    ): string {
+        $attempt = gmdate(DATE_ATOM);
+        $this->writeStatus(['attempt' => $attempt, 'outcome' => 'running']);
+        try {
+            $commit = $this->reconcile($destination, $branch, $revision, $key, $capture);
+            $snapshot = $this->snapshot($this->directory . '/pending', $commit);
+            $verification = [
+                'version' => 1,
+                'commit' => $commit,
+                'observedAt' => gmdate(DATE_ATOM),
+                'revision' => $snapshot['revision'],
+                'key' => $snapshot['key'],
+                'sha256' => $snapshot['sha256'],
+            ];
+            $this->write(
+                $this->directory,
+                'verified.json',
+                json_encode($verification, JSON_THROW_ON_ERROR) . "\n"
+            );
+            $this->writeStatus(['attempt' => $attempt, 'outcome' => 'verified']);
+            return $commit;
+        } catch (RuntimeException $exception) {
+            $this->writeStatus(['attempt' => $attempt, 'outcome' => 'failed']);
+            throw $exception;
+        }
+    }
+
+    /** @param array{attempt: string, outcome: string} $status */
+    private function writeStatus(array $status): void
+    {
+        $this->write($this->directory, 'attempt.json', json_encode($status, JSON_THROW_ON_ERROR) . "\n");
     }
 
     /** @param Closure(): string $capture */
