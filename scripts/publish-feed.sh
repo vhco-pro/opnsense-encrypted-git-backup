@@ -19,13 +19,35 @@ request() {
 # A bounded complete read. Hold if pagination would be required.
 request "${github_headers[@]}" "$journal?environment=$environment&per_page=100" > "$temp/journal"
 jq -e 'type == "array" and length < 100' "$temp/journal" >/dev/null
+generation=$(jq -ce -f "$scripts/feed-journal-generation.jq" "$temp/journal")
+started=$(jq -c '.latest // {}' <<< "$generation")
+predecessor=$(jq -c '.closed // {}' <<< "$generation")
+[[ "$(jq -r .payload.digest <<< "$started")" == "${FEED_DIGEST:-}" || "$started" == '{}' ||
+   "$(jq -r .payload.attempt <<< "$started")" == "$(jq -r .payload.attempt <<< "$predecessor")" ]]
+if [[ "$started" != '{}' && "$(jq -r .payload.digest <<< "$started")" != "${FEED_DIGEST:-}" ]]; then
+    started='{}'
+fi
 history_digest=
 if [[ -n "${FEED_HISTORY:-}" ]]; then
-    history_digest=$(jq -cS . "$FEED_HISTORY" | sha256sum | cut -d ' ' -f 1)
     checkpoint=$(jq -ce '
         [.[] | select(.payload.phase == "history-checkpoint")] |
         if length <= 1 then first // {} else error("conflicting history journal") end
     ' "$temp/journal")
+    # Replay uses the predecessor it originally extended, even after closure.
+    if [[ "$started" != '{}' ]]; then
+        parent=$(jq -r '.payload.predecessor // ""' <<< "$started")
+        if [[ -n "$parent" ]]; then
+            predecessor=$(jq -ce --arg parent "$parent" '
+                [.[] | select(.payload.phase == "verified-closure" and .payload.attempt == $parent)] |
+                if length == 1 then first else error("missing predecessor closure") end
+            ' "$temp/journal")
+        else
+            predecessor='{}'
+        fi
+    fi
+    if [[ "$predecessor" != '{}' ]]; then
+        checkpoint=$(jq -c '{payload:{digest:.payload.history,release:.payload.release}}' <<< "$predecessor")
+    fi
     if [[ "$checkpoint" == '{}' ]]; then
         jq -e '. == {}' "$FEED_HISTORY" >/dev/null || {
             echo 'missing authoritative history checkpoint' >&2
@@ -36,25 +58,22 @@ if [[ -n "${FEED_HISTORY:-}" ]]; then
         anchor=$(jq -er '.payload.digest | select(test("^[a-f0-9]{64}$"))' <<< "$checkpoint")
         release=$(jq -er '.payload.release | select(test("^v[0-9]+[.][0-9]+[.][0-9]+(-(alpha|beta|rc)[.][0-9]+)?$"))' \
             <<< "$checkpoint")
-        [[ "$anchor" == "$history_digest" ]] || {
-            echo 'retained history checkpoint changed' >&2
-            exit 1
-        }
         asset="history-$anchor.json"
         gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$temp"
         printf '%s  %s\n' "$anchor" "$temp/$asset" | sha256sum --check --status
         mv "$temp/$asset" "$temp/checkpoint"
     fi
-    jq -ce --arg digest "$history_digest" --argjson checkpoint "$(jq -c . "$temp/checkpoint")" \
-        -f "$scripts/feed-history.jq" "$temp/journal" > "$temp/history"
+    history_digest=$(jq -cS . "$temp/checkpoint" | sha256sum | cut -d ' ' -f 1)
+    jq -e --slurpfile checkpoint "$temp/checkpoint" '. == $checkpoint[0]' "$FEED_HISTORY" >/dev/null || {
+        echo 'retained history checkpoint changed' >&2
+        exit 1
+    }
+    jq -n --argjson started "$started" '[ $started | select(. != {}) ]' |
+        jq -ce --arg digest "$history_digest" --argjson checkpoint "$(jq -c . "$temp/checkpoint")" \
+            -f "$scripts/feed-history.jq" > "$temp/history"
     bash "$scripts/check-feed-history.sh" "$temp/history" "$FEED_DIRECTORY"
     bash "$scripts/check-feed-history.sh" "$temp/history" "$(dirname -- "$FEED_DIRECTORY")/recovery"
 fi
-started=$(jq -ce '
-    [.[] | select(.payload.phase == "submission-started")] |
-    if length <= 1 then first // {} else error("conflicting journal") end
-' "$temp/journal")
-
 if [[ "$started" != '{}' ]]; then
     attempt=$(jq -er '.payload.attempt | select(test("^[a-f0-9]{32}$"))' <<< "$started")
     digest=$(jq -er '.payload.digest | select(test("^[a-f0-9]{64}$"))' <<< "$started")
@@ -98,8 +117,19 @@ if [[ "$started" != '{}' ]]; then
                 and .[0].payload.history == $history and .[0].sha == $source and .[0].payload.version == $version then "true"
             else error("conflicting closure") end
         ' "$temp/journal")
+        release=$(jq -er .tag "$FEED_NATIVE_MANIFEST")
+        asset="history-$history_head.json"
+        jq -cS . "$temp/history" > "$temp/$asset"
+        mkdir "$temp/readback"
+        if ! gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$temp/readback"; then
+            [[ "$closed" == false ]]
+            GH_TOKEN="${FEED_ASSET_TOKEN:-${GH_TOKEN:-}}" gh release upload "$release" "$temp/$asset" \
+                --repo "$GITHUB_REPOSITORY" >&2
+            gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$temp/readback"
+        fi
+        cmp "$temp/$asset" "$temp/readback/$asset"
         if [[ "$closed" == false ]]; then
-            bash "$scripts/feed-close.sh" "$1" "$journal" "$source_sha" "$attempt" "$id" "$digest" "$version" "$history_head"
+            bash "$scripts/feed-close.sh" "$1" "$journal" "$source_sha" "$attempt" "$id" "$digest" "$version" "$history_head" "$release"
         fi
         printf '%s\n' 'Native client verification passed and closure is recorded.'
     else
@@ -111,7 +141,12 @@ fi
 : "${FEED_MANIFEST:?}" "${FEED_DIGEST:?}" "${PAGES_BRANCH:?}" "${FEED_DIRECTORY:?}"
 [[ "$FEED_DIGEST" =~ ^[a-f0-9]{64}$ ]]
 jq -e 'type == "object" and length > 0' "$FEED_MANIFEST" >/dev/null
-request "${pages_headers[@]}" "$PAGES_API" | jq -e '.success == true and (.result | type == "object" and has("canonical_deployment") and .canonical_deployment == null)' >/dev/null
+prior_id=$(jq -r '.payload.deployment // ""' <<< "$predecessor")
+request "${pages_headers[@]}" "$PAGES_API" | jq -e --arg prior "$prior_id" '
+    .success == true and (.result | type == "object" and has("canonical_deployment")
+    and (if $prior == "" then .canonical_deployment == null else .canonical_deployment.id == $prior end))
+' >/dev/null
+parent=$(jq -r '.payload.attempt // ""' <<< "$predecessor")
 scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 attempt=$(openssl rand -hex 16)
 package_history='{}'
@@ -127,17 +162,17 @@ if [[ -n "${FEED_HISTORY:-}" ]]; then
     ' "$temp/history")
 fi
 jq -n --arg sha "$GITHUB_SHA" --arg environment "$environment" --arg attempt "$attempt" \
-    --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '{
+    --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg parent "$parent" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '{
         ref:$sha, environment:$environment, auto_merge:false, required_contexts:[],
         transient_environment:false, production_environment:false,
-        payload:{phase:"submission-started",attempt:$attempt,digest:$digest,marker:$marker,history:$history,recovery:$recovery,packages:$packages}
+        payload:{phase:"submission-started",attempt:$attempt,digest:$digest,marker:$marker,history:$history,predecessor:$parent,recovery:$recovery,packages:$packages}
     }' > "$temp/record"
 node "$scripts/feed-pages-assets.mjs" "$PAGES_API" "$PAGES_ASSET_API" "$FEED_DIRECTORY" "$FEED_MANIFEST"
 request "${github_headers[@]}" -H 'Content-Type: application/json' --data-binary "@$temp/record" "$journal" > "$temp/record-result"
-jq -e --arg attempt "$attempt" --arg sha "$GITHUB_SHA" --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '
+jq -e --arg attempt "$attempt" --arg sha "$GITHUB_SHA" --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg parent "$parent" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '
     .sha == $sha and .payload.attempt == $attempt and .payload.digest == $digest
     and .payload.phase == "submission-started" and .payload.packages == $packages and .payload.marker == $marker
-    and .payload.history == $history and .payload.recovery == $recovery
+    and .payload.history == $history and .payload.predecessor == $parent and .payload.recovery == $recovery
 ' "$temp/record-result" >/dev/null
 request "${pages_headers[@]}" --form-string "branch=$PAGES_BRANCH" --form-string "commit_hash=$GITHUB_SHA" \
     --form-string "commit_message=feed-attempt:$attempt" -F "manifest=<$FEED_MANIFEST" \

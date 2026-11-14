@@ -129,6 +129,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           FEED_PRODUCTION_APPROVED: ${{ vars.SIGNED_FEED_PRODUCTION_APPROVED }}
+          FEED_ASSET_TOKEN: ${{ secrets.FEED_ASSET_TOKEN }}
           FEED_JOURNAL_TOKEN: ${{ secrets.FEED_JOURNAL_TOKEN }}
           PAGES_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_TOKEN }}
           PAGES_API: ${{ vars.CLOUDFLARE_PAGES_API }}

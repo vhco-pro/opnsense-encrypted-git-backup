@@ -63,7 +63,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         if (path === "/repos/fixture/plugin/deployments") {
             const record = JSON.parse(body);
             if (record.auto_merge !== false || record.environment !== "feed-fixture") return reply(422, {});
-            const entry = { sha: record.ref, payload: record.payload };
+            const entry = { id: journal.length + 1, sha: record.ref, payload: record.payload };
             journal.push(entry);
             if (loseJournalReply) return request.socket.destroy();
             return reply(201, entry);
@@ -214,7 +214,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal[1].payload.history,
                 createHash("sha256").update(JSON.stringify(ordered) + "\n").digest("hex"));
             assert.equal(journal[0].payload.packages[fixture.previous], fixture.previousDigest);
-            assert.equal(downloaded.length, 6);
+            assert.equal(downloaded.length, 7);
             const retained = await fetch(url + "/feed/" + fixture.previous);
             assert.equal(createHash("sha256").update(Buffer.from(await retained.arrayBuffer())).digest("hex"),
                 fixture.previousDigest);

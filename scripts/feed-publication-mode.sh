@@ -12,7 +12,7 @@ case "$1" in
         if [[ "${GITHUB_ACTIONS:-}" != true || "${GITHUB_EVENT_NAME:-}" != workflow_dispatch ||
               "${GITHUB_WORKFLOW_REF:-}" != "${GITHUB_REPOSITORY:-}/.github/workflows/feed.yml@refs/heads/main" ||
               "${FEED_PRODUCTION_APPROVED:-}" != true ||
-              -z "${FEED_JOURNAL_TOKEN:-}" || -z "${PAGES_TOKEN:-}" ]]; then
+              -z "${FEED_ASSET_TOKEN:-}" || -z "${FEED_JOURNAL_TOKEN:-}" || -z "${PAGES_TOKEN:-}" ]]; then
             echo 'Production publication requires the approved protected workflow.' >&2
             exit 64
         fi
