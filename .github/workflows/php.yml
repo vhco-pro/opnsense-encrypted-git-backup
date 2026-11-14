@@ -73,11 +73,17 @@ jobs:
       - name: Test version and source identity
         run: bash tests/package/version-test.sh
       - name: Prepare the native package version
+        shell: bash
         env:
           SEMVER: ${{ needs.version.outputs.version }}
           SOURCE_SHA: ${{ github.sha }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
           test -z "$TAG"
+          if [[ "$GITHUB_REF" != refs/heads/main && "$SEMVER" =~ ^[0-9]+[.][0-9]+[.][0-9]+-[a-zA-Z0-9-]+[.][0-9]+$ ]] &&
+            [[ ! "$SEMVER" =~ -(alpha|beta|rc)[.] ]]; then
+            printf 'GitVersion branch preview %s for %s has no native release package\n' "$SEMVER" "$SOURCE_SHA"
+            exit 0
+          fi
           package_version=$(bash scripts/package-version.sh "$SEMVER" "$SOURCE_SHA")
           printf 'GitVersion %s maps to package version %s for %s\n' "$SEMVER" "$package_version" "$SOURCE_SHA"
