@@ -99,3 +99,6 @@ ec98709cc5222812e906c01a5f126a69bc6b0017a54c74d757f85a5a4d104b82  FreeBSD:15:amd
 c790829c249e9aa209698ca148327f60e64b99dba75c1be5c4b8e3e10963a34e  FreeBSD:15:amd64/26.7/latest/All/opnsense-26.7.9_1.pkg
 dcb544ab7a38a375ac436b950b7e986cf1f3ca8a29f7bb89bb6399f2aa292f40  FreeBSD:15:amd64/26.7/latest/All/php85-8.5.12_2.pkg
 1ae252ba9fce3a2042da417d586250b42e51725226087b154ef2e6c8bd082174  FreeBSD:15:amd64/26.7/latest/All/bash-5.3.20.pkg
+a83845be0e9f885fa213a4fff6f6a9761b1a6a142e72792d20fedd9b7cb46bad  FreeBSD:15:amd64/26.7/latest/All/git-2.56.1.pkg
+29d8ac7989c1b7775f11573e9b177b87cfcc7fbe6190bd2582ed41144cbd33a2  FreeBSD:15:amd64/26.7/latest/All/openssh-portable-10.6.p2,1.pkg
+5ab82aa0f3ea7116a6ebe6c6ce7bd79b0fa77a7ce992521dd8dbe453208ab6dd  FreeBSD:15:amd64/26.7/latest/All/p5-Error-0.17030.pkg
