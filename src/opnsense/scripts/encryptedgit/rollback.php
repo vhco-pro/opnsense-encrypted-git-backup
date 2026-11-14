@@ -7,7 +7,7 @@ use OPNsense\EncryptedGitBackup\Credentials;
 use OPNsense\EncryptedGitBackup\Process;
 
 $bootstrap = dirname(__DIR__, 2) . '/mvc/script/load_phalcon.php';
-if (!is_file($bootstrap) || !isset($argv) || count($argv) !== 2 || posix_geteuid() !== 0) {
+if (!is_file($bootstrap) || !isset($argv) || count($argv) !== 2) {
     exit(64);
 }
 require $bootstrap;
@@ -17,6 +17,10 @@ $checkpoint = $state . '/activation.json';
 $retained = $state . '/rollback.json';
 $pair = $state . '/rollback-pair.json';
 try {
+    [$status, $uid] = Process::run(['/usr/bin/id', '-u'], '/', [], 5);
+    if ($status !== 0 || trim($uid) !== '0') {
+        throw new RuntimeException('Rollback requires root.');
+    }
     Credentials::privateDirectory($state);
     $lock = fopen($state . '/delivery.lock', 'c');
     if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
