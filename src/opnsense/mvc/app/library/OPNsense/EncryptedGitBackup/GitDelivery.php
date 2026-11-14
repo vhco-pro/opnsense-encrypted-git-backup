@@ -67,8 +67,11 @@ final class GitDelivery
         string $key,
         Closure $capture
     ): string {
-        $attempt = gmdate(DATE_ATOM);
-        $this->writeStatus(['attempt' => $attempt, 'outcome' => 'running']);
+        $attempt = [
+            'attempt' => gmdate(DATE_ATOM),
+            'target' => hash('sha256', json_encode([$destination, $branch], JSON_THROW_ON_ERROR)),
+        ];
+        $this->writeStatus($attempt + ['outcome' => 'running']);
         try {
             $commit = $this->reconcile($destination, $branch, $revision, $key, $capture);
             $snapshot = $this->snapshot($this->directory . '/pending', $commit);
@@ -89,15 +92,15 @@ final class GitDelivery
             if (is_file($creation) && !unlink($creation)) {
                 throw new RuntimeException('Could not retire the initial creation attempt.');
             }
-            $this->writeStatus(['attempt' => $attempt, 'outcome' => 'verified']);
+            $this->writeStatus($attempt + ['outcome' => 'verified']);
             return $commit;
         } catch (RuntimeException $exception) {
-            $this->writeStatus(['attempt' => $attempt, 'outcome' => 'failed']);
+            $this->writeStatus($attempt + ['outcome' => 'failed']);
             throw $exception;
         }
     }
 
-    /** @param array{attempt: string, outcome: string} $status */
+    /** @param array{attempt: string, target: string, outcome: string} $status */
     private function writeStatus(array $status): void
     {
         $this->write($this->directory, 'attempt.json', json_encode($status, JSON_THROW_ON_ERROR) . "\n");

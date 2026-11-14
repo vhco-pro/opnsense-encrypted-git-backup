@@ -73,6 +73,10 @@ final class GitDeliveryTest extends TestCase
             $attempt = file_get_contents($directory . '/attempt.json');
             self::assertIsString($attempt);
             self::assertStringContainsString('"outcome":"failed"', $attempt);
+            self::assertStringContainsString(
+                hash('sha256', json_encode([$remote, 'snapshots'], JSON_THROW_ON_ERROR)),
+                $attempt
+            );
             self::assertTrue(unlink($hook));
             $commit = $delivery->deliver(
                 $remote,
