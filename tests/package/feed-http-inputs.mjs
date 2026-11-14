@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const sharedSha = "3b78b04df802ea1592cbe19338d7a882d1888389";
 const workflow = `vhco-pro/version-workflow/.github/workflows/version.yml@${sharedSha}`;
 
-export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor, previousSite, predecessorCatalogue, keySha256, overlapSite }) {
+export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor, previousSite, predecessorCatalogue, keySha256, overlapSite, emptyHistory = false }) {
     const sha = (await execute("git", ["rev-parse", "HEAD"])).stdout.trim();
     const tag = `v${version}`;
     const repo = join(directory, "repository");
@@ -39,7 +39,7 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
         if (!response.ok) throw new Error("Fixture could not retrieve controller history");
         packages = await response.json();
     } else {
-        packages = { [previous]: previousDigest };
+        packages = emptyHistory ? {} : { [previous]: previousDigest };
     }
     await writeFile(history, JSON.stringify(packages));
     const manifest = join(directory, "pages-manifest.json");
@@ -134,7 +134,7 @@ esac
     const historyDigest = createHash("sha256").update(historyBytes).digest("hex");
     const historyAsset = join(directory, `history-${historyDigest}.json`);
     await writeFile(historyAsset, historyBytes);
-    if (!predecessor) await execute(shim, ["release", "upload", tag, historyAsset, "--repo", repository],
+    if (!predecessor && !emptyHistory) await execute(shim, ["release", "upload", tag, historyAsset, "--repo", repository],
         { env: { ...process.env, ...env }, cwd: repo });
     const [candidate, recoveryDigest] = retained.stdout.trim().split("\n");
     return {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile, readFile, readdir } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile, readFile, readdir, copyFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -604,6 +604,19 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         journal.length = 0;
         sites.length = 0;
         pages.length = 0;
+        if (native) {
+            // A genuinely empty feed has no prior package URLs to verify.
+            const bootstrap = join(directory, "empty-bootstrap");
+            await mkdir(bootstrap);
+            for (const path of candidateFiles) {
+                await copyFile(join(directory, path), join(bootstrap, path));
+            }
+            fixture = await retainFixture({
+                directory: bootstrap, endpoint: url, packageName: "os-encrypted-git-backup-0.0.1.pkg",
+                candidateFiles, emptyHistory: true,
+            });
+            historyAnchor = undefined;
+        }
         rejectCreate = true;
         await assert.rejects(run(), /403/);
         assert.equal(pages.length, 0);
