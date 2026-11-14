@@ -46,7 +46,7 @@ if [[ "$started" != '{}' ]]; then
         [[ "$(sha256sum -- "$FEED_NATIVE_MANIFEST" | cut -d ' ' -f 1)" == "$marker" ]]
         [[ "${FEED_DIGEST:?}" == "$digest" ]]
         scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-        bash "$scripts/feed-verify-native.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
+        bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$FEED_NATIVE_MANIFEST" "${FEED_PUBLIC_KEY:?}" "${FEED_ABI:?}"
         closed=$(jq -er --arg attempt "$attempt" --arg id "$id" --arg digest "$digest" '
             [.[] | select(.payload.phase == "verified-closure" and .payload.attempt == $attempt)] |
             if length == 0 then "false"

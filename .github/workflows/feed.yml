@@ -47,6 +47,26 @@ jobs:
       - run: node --test tests/package/feed-publisher-http.mjs
       - run: bash tests/package/feed-preflight-test.sh
 
+  native-verifier:
+    if: github.event_name != 'workflow_dispatch' || inputs.mode == 'fixture'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Boot disposable native verifier
+        uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b # v1.6.0
+        with:
+          release: '15.1'
+          arch: x86_64
+          sync: rsync
+          copyback: false
+          disable-cache: true
+          run: |
+            sh scripts/prepare-feed-verifier.sh
+            test "$(pkg-static config ABI)" = FreeBSD:15:amd64
+
   verify-release:
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'verify-release'
     runs-on: ubuntu-24.04
@@ -72,8 +92,7 @@ jobs:
 
   publish:
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'publish' && github.ref == 'refs/heads/main' && vars.SIGNED_FEED_PRODUCTION_APPROVED == 'true'
-    # A separately provisioned, isolated FreeBSD runner performs native verification.
-    runs-on: [self-hosted, signed-feed-native]
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: signed-feed-production
     permissions:
@@ -89,6 +108,17 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
+      - name: Boot disposable native verifier
+        uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b # v1.6.0
+        with:
+          release: '15.1'
+          arch: x86_64
+          sync: rsync
+          copyback: false
+          disable-cache: true
+          run: |
+            sh scripts/prepare-feed-verifier.sh
+            test "$(pkg-static config ABI)" = FreeBSD:15:amd64
       - name: Verify approved inputs and run the publisher
         shell: bash
         env:
@@ -101,6 +131,7 @@ jobs:
           PAGES_BRANCH: ${{ vars.CLOUDFLARE_PAGES_BRANCH }}
           FEED_URL: ${{ vars.SIGNED_FEED_URL }}
           FEED_PUBLIC_KEY: ${{ vars.SIGNED_FEED_PUBLIC_KEY_PATH }}
+          FEED_NATIVE_SSH: freebsd
           FEED_ABI: ${{ vars.SIGNED_FEED_ABI }}
           RELEASE: ${{ inputs.release }}
           APPROVED_SOURCE: ${{ inputs.reviewed_source }}
