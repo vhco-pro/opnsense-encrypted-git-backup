@@ -110,6 +110,14 @@ test('native status fits narrow layouts and remains usable with reduced motion',
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
+  const theme = process.env.FIXTURE_EXPECT_THEME;
+  if (theme) {
+    await expect(page.locator('link[rel="shortcut icon"]')).toHaveAttribute('href', new RegExp(`/themes/${theme}/`));
+  }
+  // Enlarge the root font without applying a browser-specific CSS zoom transform.
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  await expect(heading).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBeTruthy();
   await link.focus();
   await expect(link).toBeFocused();
