@@ -51,3 +51,34 @@ jobs:
         run: |
           export PATH="$PWD/work/security/bin:$PATH"
           bash tests/security/check.sh work/composer.phar "$SCAN_BASE"
+
+  version:
+    needs: php
+    uses: vhco-pro/version-workflow/.github/workflows/version.yml@3b78b04df802ea1592cbe19338d7a882d1888389
+    permissions:
+      contents: read
+    with:
+      dry-run: true
+      preview-label: ''
+      config-file-path: GitVersion.yml
+
+  package-plan:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Test version and source identity
+        run: bash tests/package/version-test.sh
+      - name: Prepare the native package version
+        env:
+          SEMVER: ${{ needs.version.outputs.version }}
+          SOURCE_SHA: ${{ github.sha }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          test -z "$TAG"
+          package_version=$(bash scripts/package-version.sh "$SEMVER" "$SOURCE_SHA")
+          printf 'GitVersion %s maps to package version %s for %s\n' "$SEMVER" "$package_version" "$SOURCE_SHA"
