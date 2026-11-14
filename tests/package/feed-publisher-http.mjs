@@ -16,6 +16,8 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     const journal = [];
     const pages = [];
     const digest = createHash("sha256").update("fixture generation").digest("hex");
+    const assets = new Map();
+    const key = "a".repeat(32);
     let loseJournalReply = false;
 
     const server = createServer(async (request, response) => {
@@ -26,11 +28,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
 
         if (request.method === "GET") {
             if (path === "/repos/fixture/plugin/deployments") return reply(200, journal);
+            if (path === "/pages/upload-token") return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
             if (path === "/pages/deployments") return reply(200, { success: true, result: pages });
             if (path === "/pages") {
                 return reply(200, { success: true, result: { canonical_deployment: pages[0] ?? null } });
             }
-            if (path === "/feed/generation.json" && pages.length) return reply(200, { digest });
+            if (path === "/feed/generation.json" && pages.length) return reply(200, JSON.parse(assets.get(key)));
             return reply(404, {});
         }
 
@@ -46,8 +49,19 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             return reply(201, entry);
         }
 
+        if (path === "/assets/upload" || path === "/assets/upsert-hashes") {
+            if (request.headers.authorization !== "Bearer fixture-jwt") return reply(403, {});
+            const payload = JSON.parse(body);
+            if (path.endsWith("/upload")) {
+                for (const item of payload) assets.set(item.key, Buffer.from(item.value, "base64").toString());
+            } else if (!payload.hashes.every((hash) => assets.has(hash))) {
+                return reply(422, {});
+            }
+            return reply(200, { success: true });
+        }
+
         const attempt = body.match(/feed-attempt:[a-f0-9]{32}/)?.[0];
-        if (path !== "/pages/deployments" || !attempt || journal.length !== 1) return reply(422, {});
+        if (path !== "/pages/deployments" || !attempt || journal.length !== 1 || !assets.has(key) || !body.includes(key)) return reply(422, {});
         pages.push({
             id: "fixture-deployment",
             environment: "production",
@@ -64,10 +78,13 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     try {
         const url = `http://127.0.0.1:${server.address().port}`;
         const manifest = join(directory, "manifest.json");
-        await writeFile(manifest, JSON.stringify({ "/generation.json": "fixture-hash" }));
+        await writeFile(manifest, JSON.stringify({ "/generation.json": key }));
+        await writeFile(join(directory, "generation.json"), JSON.stringify({ digest }));
         const env = {
             ...process.env,
             GITHUB_API_URL: url,
+            PAGES_ASSET_API: url + "/assets",
+            FEED_DIRECTORY: directory,
             PAGES_API: url + "/pages",
             FEED_URL: url + "/feed",
             GITHUB_REPOSITORY: "fixture/plugin",
@@ -82,6 +99,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(journal.length, 0);
         await assert.rejects(run());
         assert.equal(journal.length, 1);
+        assert.equal(assets.get(key), JSON.stringify({ digest }));
         assert.equal(pages.length, 1);
         assert.match((await run()).stdout, /native client verification remains required/);
         assert.equal(pages.length, 1);

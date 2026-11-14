@@ -64,6 +64,7 @@ jobs:
           bash tests/package/version-test.sh
           bash tests/package/feed-manifest-test.sh
           bash tests/package/feed-release-identity-test.sh
+          bash tests/package/feed-bundles-test.sh
           bash tests/package/feed-history-test.sh
           bash tests/package/feed-reconcile-test.sh
           bash tests/package/feed-attempt-test.sh

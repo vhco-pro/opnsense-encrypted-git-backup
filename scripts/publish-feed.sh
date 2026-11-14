@@ -6,8 +6,8 @@ set -euo pipefail
 [[ $# == 1 ]]
 case "$1" in
     fixture)
-        : "${GITHUB_API_URL:?}" "${PAGES_API:?}" "${FEED_URL:?}"
-        for url in "$GITHUB_API_URL" "$PAGES_API" "$FEED_URL"; do
+        : "${GITHUB_API_URL:?}" "${PAGES_API:?}" "${PAGES_ASSET_API:?}" "${FEED_URL:?}"
+        for url in "$GITHUB_API_URL" "$PAGES_API" "$PAGES_ASSET_API" "$FEED_URL"; do
             [[ "$url" =~ ^http://127[.]0[.]0[.]1:[0-9]+(/[A-Za-z0-9/_-]*)?$ ]]
         done
         environment=feed-fixture
@@ -53,10 +53,12 @@ if [[ "$started" != '{}' ]]; then
     exit 0
 fi
 
-: "${FEED_MANIFEST:?}" "${FEED_DIGEST:?}" "${PAGES_BRANCH:?}"
+: "${FEED_MANIFEST:?}" "${FEED_DIGEST:?}" "${PAGES_BRANCH:?}" "${FEED_DIRECTORY:?}"
 [[ "$FEED_DIGEST" =~ ^[a-f0-9]{64}$ ]]
 jq -e 'type == "object" and length > 0' "$FEED_MANIFEST" >/dev/null
 request "$PAGES_API" | jq -e '.success == true and (.result | type == "object" and has("canonical_deployment") and .canonical_deployment == null)' >/dev/null
+scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+node "$scripts/feed-pages-assets.mjs" "$PAGES_API" "$PAGES_ASSET_API" "$FEED_DIRECTORY" "$FEED_MANIFEST"
 attempt=$(openssl rand -hex 16)
 jq -n --arg sha "$GITHUB_SHA" --arg environment "$environment" --arg attempt "$attempt" \
     --arg digest "$FEED_DIGEST" '{
