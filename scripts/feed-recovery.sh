@@ -36,9 +36,7 @@ submit_recovery() {
     append_recovery recovery-started "$(jq -cn --arg candidate "$attempt" --arg attempt "$new_attempt" \
         --arg digest "$recovery_digest" --arg dispatch "$dispatch" --arg source "$source_id" \
         '{candidate:$candidate,attempt:$attempt,digest:$digest,dispatch:$dispatch,source:$source}')"
-    request "${pages_headers[@]}" --form-string "branch=$PAGES_BRANCH" --form-string "commit_hash=$source_sha" \
-        --form-string "commit_message=feed-attempt:$new_attempt" -F "manifest=<$recovery_dir/pages-manifest.json" \
-        "$PAGES_API/deployments" | jq -e '.success == true and (.result.id | type == "string")' >/dev/null
+    create_pages "$source_sha" "$new_attempt" "$recovery_dir/pages-manifest.json"
 }
 
 reconcile_recovery() {
@@ -59,6 +57,23 @@ reconcile_recovery() {
         fi
         submit_recovery "" "$candidate_id" "$recovery_dir"
         return
+    fi
+    local rejected_attempt
+    rejected_attempt=$(jq -er .payload.attempt <<< "$latest")
+    if rejected "$rejected_attempt"; then
+        confirm_rejected "$rejected_attempt" || return 1
+        latest=$(jq -c --arg candidate "$attempt" --argjson rejected "$(jq -c .rejected <<< "$generation")" '
+            [.[] | select(.payload.phase == "recovery-started" and .payload.candidate == $candidate
+                and (.payload.attempt as $attempt | $rejected | index($attempt) == null))]
+            | sort_by(.id) | last // {}
+        ' "$temp/journal")
+        if [[ "$latest" == '{}' ]]; then
+            live_id_is "$candidate_id" || return 1
+            request "$FEED_URL/generation.json" | jq -e --arg marker "$marker" '.digest == $marker' >/dev/null ||
+                return 1
+            submit_recovery "" "$candidate_id" "$recovery_dir"
+            return
+        fi
     fi
     recovery_match=$(correlate "$(jq -er .payload.attempt <<< "$latest")")
     recovery_id=$(jq -er '.id | strings | select(length > 0)' <<< "$recovery_match")

@@ -16,6 +16,33 @@ request() {
     curl --silent --show-error --fail --max-time 15 --retry 0 "$@"
 }
 
+# Classify only a complete, structured Pages authentication rejection. A lost
+# response or any other response stays unresolved until provider correlation.
+create_pages() {
+    local create_source=$1 submission=$2 manifest=$3 status
+    status=$(request --no-fail --output "$temp/create-response" --write-out '%{http_code}' \
+        "${pages_headers[@]}" --form-string "branch=$PAGES_BRANCH" --form-string "commit_hash=$create_source" \
+        --form-string "commit_message=feed-attempt:$submission" -F "manifest=<$manifest" \
+        "$PAGES_API/deployments") || return 1
+    if [[ "$status" == 403 ]] && jq -es '
+        length == 1 and (.[0] | .success == false and .result == null
+        and (.errors | type == "array" and length == 1 and .[0].code == 10000))
+    ' "$temp/create-response" >/dev/null; then
+        jq -n --arg environment "$environment" --arg source "$create_source" --arg attempt "$submission" '{
+            ref:$source, environment:$environment, auto_merge:false, required_contexts:[],
+            transient_environment:false, production_environment:false,
+            payload:{phase:"create-rejected",attempt:$attempt,category:"authentication"}
+        }' > "$temp/rejection"
+        request "${github_headers[@]}" -H 'Content-Type: application/json' --data-binary "@$temp/rejection" "$journal" |
+            jq -e --slurpfile sent "$temp/rejection" '.sha == $sent[0].ref and .payload == $sent[0].payload' >/dev/null ||
+            return 1
+        echo 'Pages create rejected (HTTP 403 authentication).' >&2
+        return 1
+    fi
+    [[ "$status" =~ ^2[0-9]{2}$ ]] &&
+        jq -e '.success == true and (.result.id | strings | length > 0)' "$temp/create-response" >/dev/null
+}
+
 # A bounded complete read. Hold if pagination would be required.
 request "${github_headers[@]}" -D "$temp/journal-headers" "$journal?environment=$environment&per_page=100" > "$temp/journal"
 if grep -Ei '^link:' "$temp/journal-headers" | grep -Eq 'rel="next"'; then
@@ -107,6 +134,41 @@ if [[ "$started" != '{}' ]]; then
             elif .status == "failure" or .status == "canceled" then "failure"
             else "unknown" end'
     }
+    rejected() {
+        jq -e --arg attempt "$1" '.rejected | index($attempt) != null' <<< "$generation" >/dev/null
+    }
+    confirm_rejected() {
+        jq -e --arg message "feed-attempt:$1" '
+            .success == true and (.result | type == "array" and length < 100
+                and all(.[]; .deployment_trigger.metadata.commit_message != $message))
+        ' "$temp/pages" >/dev/null
+    }
+    if rejected "$attempt"; then
+        confirm_rejected "$attempt"
+        [[ "$(jq -r .sha <<< "$started")" == "$GITHUB_SHA" ]]
+        if [[ -n "${FEED_HISTORY:-}" ]]; then
+            [[ "$(jq -er .payload.recovery <<< "$started")" == "${FEED_RECOVERY_DIGEST:?}" ]]
+        fi
+        # Candidate closure preserves the previous verified generation head.
+        request "${pages_headers[@]}" "$PAGES_API" | jq -e --arg prior "$(jq -r '.payload.deployment // ""' <<< "$predecessor")" '
+            .success == true and (.result | has("canonical_deployment"))
+            and (if $prior == "" then .result.canonical_deployment == null else .result.canonical_deployment.id == $prior end)
+        ' >/dev/null
+        withdrawn=$(jq -r '.payload.withdrawn // ""' <<< "$predecessor")
+        if [[ -n "${FEED_HISTORY:-}" ]]; then
+            jq -r 'to_entries[] | [.key, .value] | @tsv' "$temp/checkpoint" > "$temp/advertised"
+        else
+            : > "$temp/advertised"
+        fi
+        if [[ -n "$withdrawn" ]]; then source "$scripts/feed-retirement.sh"; fi
+        source "$scripts/feed-recovery.sh"
+        verify_recovery "$(dirname -- "$FEED_DIRECTORY")/recovery"
+        jq -n --arg attempt "$attempt" '{attempt:$attempt}' > "$temp/rejection-closure"
+        source_sha=$(jq -er .sha <<< "$started")
+        append_recovery rejection-closure "$(cat "$temp/rejection-closure")"
+        printf '%s\n' 'Rejected candidate closed after verifying the unchanged feed.'
+        exit 0
+    fi
     match=$(correlate "$attempt")
     id=$(jq -er '.id | strings | select(length > 0)' <<< "$match")
     outcome=$(terminal_outcome <<< "$match")
@@ -253,7 +315,5 @@ jq -e --arg attempt "$attempt" --arg sha "$GITHUB_SHA" --arg digest "$FEED_DIGES
     and .payload.phase == "submission-started" and .payload.packages == $packages and .payload.marker == $marker
     and .payload.history == $history and .payload.predecessor == $parent and .payload.recovery == $recovery
 ' "$temp/record-result" >/dev/null
-request "${pages_headers[@]}" --form-string "branch=$PAGES_BRANCH" --form-string "commit_hash=$GITHUB_SHA" \
-    --form-string "commit_message=feed-attempt:$attempt" -F "manifest=<$FEED_MANIFEST" \
-    "$PAGES_API/deployments" | jq -e '.success == true and (.result.id | type == "string")' >/dev/null
+create_pages "$GITHUB_SHA" "$attempt" "$FEED_MANIFEST"
 printf '%s\n' 'Submission recorded. Reconcile the live generation on the next invocation.'

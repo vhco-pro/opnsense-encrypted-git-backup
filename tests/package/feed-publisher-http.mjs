@@ -30,6 +30,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let truncatedJournal = false;
     let nextOutcome = "success";
     let dropBeforeCreate = false;
+    let rejectCreate = false;
     let createRequests = 0;
     let loseClosureReply = false;
     let loseHistoryReply = false;
@@ -106,6 +107,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         if (!journal.some((entry) => `feed-attempt:${entry.payload.attempt}` === attempt)) return reply(422, {});
         createRequests++;
         if (dropBeforeCreate) return request.socket.destroy();
+        if (rejectCreate) {
+            rejectCreate = false;
+            return reply(403, { success: false, errors: [{ code: 10000, message: "Authentication error" }] });
+        }
         const status = nextOutcome;
         nextOutcome = "success";
         sites.push(paths);
@@ -527,9 +532,38 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             await assert.rejects(run("fixture", authorized), /already consumed/);
             assert.equal(createRequests, requests);
             const second = { ...authorized, GITHUB_RUN_ID: "71" };
-            await assert.rejects(run("fixture", second), /curl: [(]52[)]/);
-            assert.equal(journal.at(-1).payload.dispatch, "71");
-            assert.match((await run("fixture", second)).stdout, /closure is recorded/);
+            rejectCreate = true;
+            await assert.rejects(run("fixture", second), /403/);
+            assert.equal(journal.at(-2).payload.dispatch, "71");
+            assert.equal(journal.at(-1).payload.phase, "create-rejected");
+            requests = createRequests;
+            await assert.rejects(run("fixture", second), /already consumed/);
+            await assert.rejects(run("fixture", authorized), /already consumed/);
+            assert.equal(createRequests, requests);
+            const third = { ...authorized, GITHUB_RUN_ID: "72" };
+            await assert.rejects(run("fixture", third), /curl: [(]52[)]/);
+            assert.match((await run("fixture", third)).stdout, /closure is recorded/);
+        }
+
+        if (native) {
+            fixture = firstFixture;
+            journal.length = 0;
+            pages.length = 0;
+            sites.length = 0;
+            nextOutcome = "failure";
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            const authorized = { FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "80" };
+            rejectCreate = true;
+            await assert.rejects(run("fixture", authorized), /403/);
+            assert.equal(journal.at(-1).payload.phase, "create-rejected");
+            assert.equal(journal[1].payload.phase, "recovery-required");
+            assert.equal(pages.length, 1);
+            const requests = createRequests;
+            await assert.rejects(run());
+            assert.equal(createRequests, requests);
+            await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
+            assert.equal(pages.length, 2);
+            assert.match((await run("fixture", authorized)).stdout, /closure is recorded/);
         }
 
         if (native) {
@@ -564,6 +598,17 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         journal.length = 0;
         sites.length = 0;
         pages.length = 0;
+        rejectCreate = true;
+        await assert.rejects(run(), /403/);
+        assert.equal(pages.length, 0);
+        assert.equal(journal.at(-1).payload.phase, "create-rejected");
+        const rejectedRequests = createRequests;
+        assert.match((await run()).stdout, /Rejected candidate closed/);
+        assert.equal(journal.at(-1).payload.phase, "rejection-closure");
+        assert.equal(createRequests, rejectedRequests);
+        assert.equal(pages.length, 0);
+        journal.length = 0;
+
         loseJournalReply = true;
         await assert.rejects(run());
         await assert.rejects(run(), /unresolved Pages create/);
