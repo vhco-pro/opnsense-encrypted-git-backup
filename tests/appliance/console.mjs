@@ -51,10 +51,10 @@ try {
     await send('\r');
     await waitFor('Last Chance!');
     await send('\r');
-    await waitFor('Complete Install', 480);
+    await waitFor('Final Configuration', 480);
     await send('\x1bOB');
     await send('\r');
-    await waitFor('Halt now');
+    await waitFor('Installation Complete');
     await send('\x1bOB');
     await send('\r');
     await waitFor('Powering system off');
