@@ -6,7 +6,7 @@ verify_recovery() {
         bash "$scripts/run-feed-verifier.sh" "$FEED_URL" "$recovery_dir/release.json" "$FEED_PUBLIC_KEY" "$FEED_ABI" ||
             return 1
     else
-        for path in packagesite.pkg packagesite.txz meta.conf meta.txz; do
+        for path in packagesite.pkg packagesite.txz meta.conf meta.pkg meta.txz data.pkg data.txz; do
             status=$(request --no-fail -o /dev/null -w '%{http_code}' "$FEED_URL/$path") || return 1
             [[ "$status" == 404 ]] || return 1
         done
