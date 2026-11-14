@@ -1,0 +1,1 @@
+# Scan owned PHP source and tests without Semgrep’s built-in test exclusions.
