@@ -234,6 +234,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             await assert.rejects(run());
             assert.equal(journal.length, 1);
             assets.set(packageKey, original);
+            const previousKey = site.get("/" + fixture.previous);
+            const retainedBytes = assets.get(previousKey);
+            assets.delete(previousKey);
+            await assert.rejects(run());
+            assert.equal(journal.length, 1);
+            assets.set(previousKey, retainedBytes);
             journal.push(closure);
         } else {
             assert.match(result.stdout, /native client verification remains required/);

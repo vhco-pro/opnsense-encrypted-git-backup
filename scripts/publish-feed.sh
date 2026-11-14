@@ -82,6 +82,14 @@ if [[ "$started" != '{}' ]]; then
         version=$(jq -er .version "$FEED_NATIVE_MANIFEST")
         source_sha=$(jq -er .sha <<< "$started")
         [[ "$(jq -er .source "$FEED_NATIVE_MANIFEST")" == "$source_sha" ]]
+        jq -r 'to_entries[] | [.key, .value] | @tsv' "$temp/history" > "$temp/advertised"
+        while IFS=$'\t' read -r path expected; do
+            actual=$(request "$FEED_URL/$path" | sha256sum | cut -d ' ' -f 1)
+            [[ "$actual" == "$expected" ]] || {
+                echo 'Served package history does not match the journal.' >&2
+                exit 1
+            }
+        done < "$temp/advertised"
         history_head=$(jq -cS . "$temp/history" | sha256sum | cut -d ' ' -f 1)
         closed=$(jq -er --arg source "$source_sha" --arg history "$history_head" --arg version "$version" --arg attempt "$attempt" --arg id "$id" --arg digest "$digest" '
             [.[] | select(.payload.phase == "verified-closure" and .payload.attempt == $attempt)] |
