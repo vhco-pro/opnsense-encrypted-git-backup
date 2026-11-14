@@ -14,8 +14,6 @@ use RuntimeException;
 
 final class EncryptedGit extends Base implements IBackupProvider
 {
-    private const LEGACY_HOOK = '/usr/local/etc/rc.syshook.d/config/10-git-backup';
-
     /** @return list<array{name: string, type: string, label: string, value: string}> */
     public function getConfigurationFields()
     {
@@ -91,9 +89,13 @@ final class EncryptedGit extends Base implements IBackupProvider
             }
             $values['freshnessHours'] = $freshness;
             if ($enabled === '1') {
-                self::assertLegacyHookAbsent();
-                if (!is_file('/conf/encrypted-git-backup/activation.json')) {
-                    throw new RuntimeException('Complete the encrypted backup activation checkpoint first.');
+                $response = (new Backend())->configdpRun(
+                    'encryptedgit check',
+                    [$values['destination'], $values['branch'], $values['identity'],
+                        $values['hostTrust'], $values['encryptionKey']]
+                );
+                if (trim($response) !== 'ready') {
+                    throw new RuntimeException('Backup activation or credential validation failed.');
                 }
             }
         } catch (InvalidArgumentException | RuntimeException $exception) {
@@ -133,7 +135,6 @@ final class EncryptedGit extends Base implements IBackupProvider
 
     public function runConfigured(): string
     {
-        self::assertLegacyHookAbsent();
         $model = new EncryptedGitSettings();
         if ($this->readField($model, 'enabled') !== '1') {
             throw new RuntimeException('Encrypted Git backup is disabled.');
@@ -158,13 +159,5 @@ final class EncryptedGit extends Base implements IBackupProvider
         $node = $model->getNodeByReference($name);
 
         return $node?->getValue() ?? '';
-    }
-
-    private static function assertLegacyHookAbsent(): void
-    {
-        clearstatcache(true, self::LEGACY_HOOK);
-        if (file_exists(self::LEGACY_HOOK) || is_link(self::LEGACY_HOOK)) {
-            throw new RuntimeException('Remove and drain the legacy Git capture hook before enabling backups.');
-        }
     }
 }

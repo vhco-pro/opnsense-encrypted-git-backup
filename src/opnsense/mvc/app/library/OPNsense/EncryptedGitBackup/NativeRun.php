@@ -19,6 +19,7 @@ final class NativeRun
         string $trust,
         string $key
     ): string {
+        Activation::check($destination, $branch);
         Settings::validateDestination($destination);
         $identityPath = Credentials::file('identity', $identity);
         $trustPath = Credentials::file('hosts', $trust);

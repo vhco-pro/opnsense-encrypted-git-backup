@@ -26,6 +26,12 @@ final class Credentials
         self::privateDirectory(self::DIRECTORY);
         self::privateDirectory($directory);
         $file = $directory . '/' . $kind . '-' . $reference;
+        self::privateFile($file);
+        return $file;
+    }
+
+    public static function privateFile(string $file): void
+    {
         clearstatcache(true, $file);
         $stat = is_link($file) || !is_file($file) ? false : stat($file);
         if (
@@ -36,6 +42,5 @@ final class Credentials
         ) {
             throw new RuntimeException('A required encrypted backup credential is missing or has unsafe permissions.');
         }
-        return $file;
     }
 }
