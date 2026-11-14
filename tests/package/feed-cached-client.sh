@@ -19,17 +19,22 @@ esac
 client() {
     pkg -o "REPOS_DIR=$work/repos" -o "PKG_DBDIR=$work/db" -o "PKG_CACHEDIR=$work/cache" "$@"
 }
+snapshot_catalogue() {
+    (cd "$work/db" && find . -type f ! -name local.sqlite -print | sort | while IFS= read -r path; do
+        printf '%s %s\n' "$path" "$(sha256 -q "$path")"
+    done)
+}
 if [ "$action" = cache ]; then
     client update -f -r fixture </dev/null
-    find "$work/db" -type f -name '*.sqlite' ! -name local.sqlite -print > "$work/catalogue.path"
-    test "$(wc -l < "$work/catalogue.path")" -eq 1
-    sha256 -q "$(cat "$work/catalogue.path")" > "$work/catalogue.sha256"
+    snapshot_catalogue > "$work/catalogue.sha256"
+    test -s "$work/catalogue.sha256"
 fi
-catalogue=$(cat "$work/catalogue.path")
 assert_catalogue() {
-    test "$(sha256 -q "$catalogue")" = "$(cat "$work/catalogue.sha256")"
+    snapshot_catalogue > "$work/current.sha256"
+    cmp "$work/catalogue.sha256" "$work/current.sha256"
     test "$(client -o REPO_AUTOUPDATE=false rquery -U -r fixture '%v' os-encrypted-git-backup)" = "$version"
-    test "$(sha256 -q "$catalogue")" = "$(cat "$work/catalogue.sha256")"
+    snapshot_catalogue > "$work/current.sha256"
+    cmp "$work/catalogue.sha256" "$work/current.sha256"
 }
 assert_catalogue
 if [ "$action" = fetch ]; then
