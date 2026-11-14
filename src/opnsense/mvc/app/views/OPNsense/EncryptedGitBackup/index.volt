@@ -7,7 +7,7 @@
             <dt>{{ lang._('Outcome') }}</dt><dd id="backup-outcome" data-unavailable="{{ lang._('Unavailable') | e }}">—</dd>
             <dt>{{ lang._('Failure category') }}</dt><dd id="backup-category">—</dd>
             <dt>{{ lang._('Last verified success') }}</dt><dd id="backup-verified">—</dd>
-            <dt>{{ lang._('Remote commit') }}</dt><dd id="backup-commit"><code>—</code></dd>
+            <dt>{{ lang._('Remote commit') }}</dt><dd id="backup-commit"><code style="white-space: normal; overflow-wrap: anywhere">—</code></dd>
         </dl>
     </div>
 </div>

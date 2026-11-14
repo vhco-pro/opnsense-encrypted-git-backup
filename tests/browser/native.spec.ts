@@ -98,6 +98,7 @@ test('native status fits narrow layouts and remains usable with reduced motion',
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/ui/encrypted_git_backup');
   const heading = page.getByRole('heading', { name: 'Encrypted Git backup status' });
+  await expect(page.locator("#backup-commit")).toHaveText(/^[a-f0-9]{40,64}$/);
   const link = page.getByRole('link', { name: 'Backups settings' });
   for (const width of [1280, 640, 390, 320]) {
     await page.setViewportSize({ width, height: 844 });
