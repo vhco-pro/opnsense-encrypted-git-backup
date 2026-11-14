@@ -20,6 +20,7 @@ for role in candidate recovery; do
     mkdir "$directory/$role"
     bash "$root/feed-payload.sh" "$directory/feed-$digest.tar" "$digest" "$directory/$role"
     bash "$root/check-feed-history.sh" "$history" "$directory/$role"
+    node "$root/feed-pages-assets.mjs" --validate "$directory/$role" "$directory/$role/pages-manifest.json"
 done
 manifest="$directory/candidate/release.json"
 jq -e --arg source "$source" --arg tag "$release" --arg version "$version" '

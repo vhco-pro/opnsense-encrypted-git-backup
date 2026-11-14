@@ -50,6 +50,8 @@ jq -n --arg source "$sha" --arg package "$package" --arg packageSha256 "$(hash "
     '{source:$source,package:$package,packageSha256:$packageSha256,catalogueSha256:$catalogueSha256,
       tag:"v1.2.3",version:"1.2.3"}' > "$tmp/candidate/release.json"
 jq -n --arg digest "$(hash "$tmp/candidate/release.json")" '{digest:$digest}' > "$tmp/candidate/generation.json"
+jq -n --arg path "/$package" '{($path):"0123456789abcdef0123456789abcdef"}' > "$tmp/candidate/pages-manifest.json"
+jq -n '{"/404.html":"fedcba9876543210fedcba9876543210"}' > "$tmp/recovery/pages-manifest.json"
 for role in candidate recovery; do
     (cd "$tmp/$role" && tar -cf "$tmp/$role.tar" *)
 done
@@ -72,3 +74,35 @@ grep -E 'GITHUB_API_URL|PAGES_API' "$tmp/dispatch.log"
 rm "$tmp/assets/feed-${digests[1]}.tar"
 if preflight "$tmp/missing"; then exit 1; fi
 test -z "$(ls -A "$tmp/missing")"
+
+truncate -s $((25 * 1024 * 1024 + 1)) "$tmp/recovery/oversize"
+# Reuse a key to ensure that validation checks every advertised path's size.
+jq '.["/oversize"] = .["/404.html"]' "$tmp/recovery/pages-manifest.json" > "$tmp/new-manifest.json"
+mv "$tmp/new-manifest.json" "$tmp/recovery/pages-manifest.json"
+(cd "$tmp/recovery" && tar -cf "$tmp/oversize.tar" *)
+retained=$(bash "$root/scripts/retain-feed-bundles.sh" v1.2.3 "$tmp/candidate.tar" "$tmp/oversize.tar")
+mapfile -t digests <<< "$retained"
+if env -u PAGES_API -u FEED_URL bash "$root/scripts/feed-dispatch.sh" fixture \
+    "$tmp/version.json" "$tmp/run.json" "$sha" "$sha" "${digests[@]}" "$tmp/history.json" > "$tmp/oversize.log" 2>&1
+then
+    exit 1
+fi
+grep -F 'Invalid Pages asset size' "$tmp/oversize.log"
+
+# A retirement deployment also uses the candidate role. Its entire asset
+# set must fit before the publisher can reach either platform.
+truncate -s $((25 * 1024 * 1024 + 1)) "$tmp/candidate/oversize"
+jq '.["/oversize"] = first(.[])' "$tmp/candidate/pages-manifest.json" > "$tmp/new-manifest.json"
+mv "$tmp/new-manifest.json" "$tmp/candidate/pages-manifest.json"
+jq '.retirement = {path:"prior-key"}' "$tmp/candidate/release.json" > "$tmp/new-release.json"
+mv "$tmp/new-release.json" "$tmp/candidate/release.json"
+jq -n --arg digest "$(hash "$tmp/candidate/release.json")" '{digest:$digest}' > "$tmp/candidate/generation.json"
+(cd "$tmp/candidate" && tar -cf "$tmp/oversize-retirement.tar" *)
+retained=$(bash "$root/scripts/retain-feed-bundles.sh" v1.2.3 "$tmp/oversize-retirement.tar" "$tmp/recovery.tar")
+mapfile -t digests <<< "$retained"
+if env -u PAGES_API -u FEED_URL bash "$root/scripts/feed-dispatch.sh" fixture \
+    "$tmp/version.json" "$tmp/run.json" "$sha" "$sha" "${digests[@]}" "$tmp/history.json" > "$tmp/retirement.log" 2>&1
+then
+    exit 1
+fi
+grep -F 'Invalid Pages asset size' "$tmp/retirement.log"
