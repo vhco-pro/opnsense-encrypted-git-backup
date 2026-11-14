@@ -53,7 +53,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         const chunks = [];
         for await (const chunk of request) chunks.push(chunk);
         const bytes = Buffer.concat(chunks);
-        if (request.method === "PUT" && /^\/bundles\/feed-[a-f0-9]{64}[.]tar$/.test(path)) {
+        if (request.method === "PUT" && /^\/bundles\/(?:feed-[a-f0-9]{64}[.]tar|history-[a-f0-9]{64}[.]json)$/.test(path)) {
             if (bundles.has(path)) return reply(409, {});
             if (!path.includes(createHash("sha256").update(bytes).digest("hex"))) return reply(422, {});
             bundles.set(path, bytes);
@@ -144,7 +144,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             const packages = { [fixture.previous]: fixture.previousDigest };
             const canonical = JSON.stringify(packages) + "\n";
             historyAnchor = { sha: fixture.sha, payload: {
-                phase: "history-checkpoint", packages,
+                phase: "history-checkpoint", packages, release: "v0.0.1",
                 digest: createHash("sha256").update(canonical).digest("hex"),
             } };
             downloaded.length = 0;
@@ -185,6 +185,11 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             historyAnchor = { ...anchor, payload: { ...anchor.payload, digest: "0".repeat(64) } };
             await assert.rejects(run(), /retained history checkpoint changed/);
             historyAnchor = anchor;
+            const historyPath = `/bundles/history-${fixture.historyDigest}.json`;
+            const history = bundles.get(historyPath);
+            bundles.set(historyPath, Buffer.from("{}"));
+            await assert.rejects(run());
+            bundles.set(historyPath, history);
             assert.equal(journal.length, 0);
             assert.equal(assets.size, 0);
             downloaded.length = 0;
@@ -205,7 +210,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal[1].payload.digest, fixture.candidate);
             assert.equal(journal[1].payload.deployment, pages[0].id);
             assert.equal(journal[0].payload.packages[fixture.previous], fixture.previousDigest);
-            assert.equal(downloaded.length, 4);
+            assert.equal(downloaded.length, 6);
             const retained = await fetch(url + "/feed/" + fixture.previous);
             assert.equal(createHash("sha256").update(Buffer.from(await retained.arrayBuffer())).digest("hex"),
                 fixture.previousDigest);

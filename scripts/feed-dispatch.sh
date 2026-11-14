@@ -24,6 +24,7 @@ export FEED_NATIVE_MANIFEST="$FEED_DIRECTORY/release.json"
 export FEED_DIGEST=$5
 export FEED_RECOVERY_DIGEST=$6
 export FEED_HISTORY=$7
+export FEED_RELEASE_TAG=$(jq -er .tag "$record")
 export GITHUB_SHA=$source
 jq -e --arg sha "$source" '.source == $sha' "$record" >/dev/null
 bash "$root/publish-feed.sh" "$mode"

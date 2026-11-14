@@ -22,10 +22,31 @@ jq -e 'type == "array" and length < 100' "$temp/journal" >/dev/null
 history_digest=
 if [[ -n "${FEED_HISTORY:-}" ]]; then
     history_digest=$(jq -cS . "$FEED_HISTORY" | sha256sum | cut -d ' ' -f 1)
-    jq -ce --arg digest "$history_digest" --slurpfile retained "$FEED_HISTORY" '
-        if ($retained | length) == 1 then . else error("invalid history input") end
-    ' "$temp/journal" | jq -ce --arg digest "$history_digest" \
-        --argjson checkpoint "$(jq -c . "$FEED_HISTORY")" -f "$scripts/feed-history.jq" > "$temp/history"
+    checkpoint=$(jq -ce '
+        [.[] | select(.payload.phase == "history-checkpoint")] |
+        if length <= 1 then first // {} else error("conflicting history journal") end
+    ' "$temp/journal")
+    if [[ "$checkpoint" == '{}' ]]; then
+        jq -e '. == {}' "$FEED_HISTORY" >/dev/null || {
+            echo 'missing authoritative history checkpoint' >&2
+            exit 1
+        }
+        printf '{}\n' > "$temp/checkpoint"
+    else
+        anchor=$(jq -er '.payload.digest | select(test("^[a-f0-9]{64}$"))' <<< "$checkpoint")
+        release=$(jq -er '.payload.release | select(test("^v[0-9]+[.][0-9]+[.][0-9]+(-(alpha|beta|rc)[.][0-9]+)?$"))' \
+            <<< "$checkpoint")
+        [[ "$anchor" == "$history_digest" ]] || {
+            echo 'retained history checkpoint changed' >&2
+            exit 1
+        }
+        asset="history-$anchor.json"
+        gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$temp"
+        printf '%s  %s\n' "$anchor" "$temp/$asset" | sha256sum --check --status
+        mv "$temp/$asset" "$temp/checkpoint"
+    fi
+    jq -ce --arg digest "$history_digest" --argjson checkpoint "$(jq -c . "$temp/checkpoint")" \
+        -f "$scripts/feed-history.jq" "$temp/journal" > "$temp/history"
     bash "$scripts/check-feed-history.sh" "$temp/history" "$FEED_DIRECTORY"
     bash "$scripts/check-feed-history.sh" "$temp/history" "$(dirname -- "$FEED_DIRECTORY")/recovery"
 fi

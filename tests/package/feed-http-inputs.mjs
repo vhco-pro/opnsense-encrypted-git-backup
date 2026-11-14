@@ -72,9 +72,15 @@ esac
     const retained = await execute("bash", [
         join(root, "scripts/retain-feed-bundles.sh"), tag, candidateTar, recoveryTar,
     ], { env: { ...process.env, ...env }, cwd: repo });
+    const historyBytes = JSON.stringify({ [previous]: previousDigest }) + "\n";
+    const historyDigest = createHash("sha256").update(historyBytes).digest("hex");
+    const historyAsset = join(directory, `history-${historyDigest}.json`);
+    await writeFile(historyAsset, historyBytes);
+    await execute(shim, ["release", "upload", tag, historyAsset, "--repo", repository],
+        { env: { ...process.env, ...env }, cwd: repo });
     const [candidate, recoveryDigest] = retained.stdout.trim().split("\n");
     return {
         arguments: [record, run, sha, sha, candidate, recoveryDigest, history],
-        candidate, env, repo, sha, version, previous, previousDigest,
+        candidate, env, repo, sha, version, previous, previousDigest, historyDigest,
     };
 }
