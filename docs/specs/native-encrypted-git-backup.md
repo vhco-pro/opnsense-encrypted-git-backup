@@ -1,6 +1,6 @@
 ---
-status: draft
-status_description: "The owner approved end-to-end implementation after the PHP guidance merged. Managed Cloudflare Pages is the selected static feed direction. The final merged-pin and hosting clarification awaits a fresh spec review before claiming implementation."
+status: planned
+status_description: "Fresh independent spec review and owner acceptance are recorded. The separate implementation session will write tasks, claim the feature and implement through the shared lifecycle."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
 goal: "Administrators configure, run and recover encrypted Git configuration backups through a native OPNsense provider with verifiable delivery and safe migration."
 covers:
@@ -286,6 +286,8 @@ None. The public hostname, publication credentials and trusted signing identity 
 | 2026-11-14 | R-2 | spec | `60850674d58ac855a509af22132174201972ffd2` | unknown | procedural | NO FINDINGS; model identity not attested. |
 | 2026-11-14 | R-3 | spec | `ab93ef6d9f5a6dcd9c47f1b452cc978665adc027` | unknown | procedural | Blocking strict-typing clarification and missing browser proof identified; model identity not attested. |
 | 2026-11-14 | R-4 | spec | `30e0b629bfdc280f80404cf6fbd6af993ba287ca` | unknown | procedural | NO FINDINGS; authoritative PHP guidance and browser proof rechecked, model identity not attested. |
+| 2026-11-14 | R-5 | spec | `bd68964bd5f20998d28af78743413123b24f6f01` | unknown | procedural | NO FINDINGS; merged guidance and managed-feed clarification rechecked, model identity not attested. |
+| 2026-11-14 | R-5 | spec | `bd68964bd5f20998d28af78743413123b24f6f01` | n/a | n/a | accepted by owner |
 
 ### R-1
 
@@ -317,6 +319,10 @@ EVIDENCE: At reviewed plugin commit ab93ef6d9f5a6dcd9c47f1b452cc978665adc027, th
 PROPOSAL: Add the applicable frontend-testing requirement to the feature design and observable proof. Use synthetic state on a disposable appliance to exercise settings/setup, reload persistence, successful and failed status, and access permissions through the real browser interface. Include the resulting owned browser test paths in covers and retain the existing boundary between disposable tests and live deployment.
 
 ### R-4
+
+NO FINDINGS
+
+### R-5
 
 NO FINDINGS
 
