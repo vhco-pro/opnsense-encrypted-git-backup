@@ -30,7 +30,13 @@ test('native settings persist and the status page renders', async ({ page }, tes
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/encrypted_git_backup');
   await expect(page.getByRole('heading', { name: 'Encrypted Git backup status' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Backups settings' })).toBeVisible();
+  const settingsLink = page.getByRole('link', { name: 'Backups settings' });
+  await expect(settingsLink).toBeVisible();
+  await expect(page.locator('#backup-outcome')).toHaveText('failed');
+  await expect(page.locator('#backup-verified')).toHaveText('2026-11-14T11:00:00+00:00');
+  await expect(page.locator('#backup-commit')).toHaveText('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+  await settingsLink.focus();
+  await expect(settingsLink).toBeFocused();
   await page.screenshot({ path: testInfo.outputPath('status-mobile.png'), fullPage: true });
   expect(errors).toEqual([]);
 });
