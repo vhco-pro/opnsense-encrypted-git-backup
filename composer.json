@@ -8,7 +8,8 @@
     "require-dev": {
         "phpstan/phpstan": "2.3.5",
         "phpunit/phpunit": "13.4.7",
-        "squizlabs/php_codesniffer": "4.0.4"
+        "squizlabs/php_codesniffer": "4.0.4",
+        "vimeo/psalm": "7.5.0"
     },
     "scripts": {
         "style": "phpcs",

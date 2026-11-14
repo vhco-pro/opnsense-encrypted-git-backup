@@ -1,0 +1,23 @@
+<?php
+
+namespace Fixture;
+
+
+/** @psalm-taint-source input */
+function frameworkBackupField(): string
+{
+    // The native Backups form supplies a request field to setConfiguration().
+    return (string) $_POST['fixture'];
+}
+
+function readBackupFile(string $path): void
+{
+    file_get_contents($path);
+}
+
+function processBackupField(string $field): void
+{
+    readBackupFile($field);
+}
+
+processBackupField(frameworkBackupField());

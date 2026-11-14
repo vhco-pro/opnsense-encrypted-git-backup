@@ -19,6 +19,16 @@ final class Credentials
         }
     }
 
+    /**
+     * The basename is constrained to a credential kind and a separator-free identifier.
+     * The returned path is a single-link regular file under validated root-owned directories.
+     *
+     * @param 'identity'|'hosts'|'password' $kind
+     * @psalm-taint-escape file
+     * @psalm-taint-escape url
+     * @psalm-taint-escape url_component
+     * @psalm-taint-escape url_path
+     */
     public static function file(string $kind, string $reference): string
     {
         Settings::validateCredentialReference($reference);

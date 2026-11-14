@@ -15,6 +15,7 @@ use RuntimeException;
 final class EncryptedGit extends Base implements IBackupProvider
 {
     /** @return list<array{name: string, type: string, label: string, value: string}> */
+    #[\Override]
     public function getConfigurationFields()
     {
         $model = new EncryptedGitSettings();
@@ -43,6 +44,7 @@ final class EncryptedGit extends Base implements IBackupProvider
      * @param mixed $conf
      * @return list<string>
      */
+    #[\Override]
     public function setConfiguration($conf)
     {
         $username = $_SESSION['Username'] ?? null;
@@ -113,12 +115,14 @@ final class EncryptedGit extends Base implements IBackupProvider
     }
 
     /** @return string */
+    #[\Override]
     public function getName()
     {
         return gettext('Encrypted Git');
     }
 
     /** @return list<string> */
+    #[\Override]
     public function backup()
     {
         if (!$this->isEnabled()) {
@@ -149,6 +153,7 @@ final class EncryptedGit extends Base implements IBackupProvider
     }
 
     /** @return bool */
+    #[\Override]
     public function isEnabled()
     {
         return $this->readField(new EncryptedGitSettings(), 'enabled') === '1';

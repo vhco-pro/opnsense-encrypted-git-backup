@@ -38,6 +38,8 @@ jobs:
           vendor/bin/phpcs
           vendor/bin/phpstan analyse --no-progress
           vendor/bin/phpunit
+      - name: Check cross-function PHP taint
+        run: bash tests/security/check-psalm.sh
       - name: Install pinned security scanners
         run: bash tests/security/install.sh
       - name: Audit locked dependencies, scan PHP and scan secrets
