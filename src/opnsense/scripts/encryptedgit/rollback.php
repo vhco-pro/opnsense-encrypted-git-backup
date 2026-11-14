@@ -42,7 +42,7 @@ try {
                     $record = json_encode([
                         'checkpoint' => $digest,
                         'configuration' => hash('sha256', (string)$config),
-                        'settings' => $config->object()->system?->backup?->encryptedgit?->asXML(),
+                        'settings' => captureProviderSettings((string)$config),
                     ], JSON_THROW_ON_ERROR);
                     if (file_exists($pair) || is_link($pair)) {
                         Credentials::privateFile($pair);
@@ -115,7 +115,7 @@ try {
                     !is_array($record)
                     || ($record['checkpoint'] ?? null) !== hash_file('sha256', $retained)
                     || ($record['configuration'] ?? null) !== hash('sha256', (string)$config)
-                    || ($record['settings'] ?? null) !== $config->object()->system?->backup?->encryptedgit?->asXML()
+                    || ($record['settings'] ?? null) !== captureProviderSettings((string)$config)
                 ) {
                     throw new RuntimeException('The checkpoint or native configuration changed.');
                 }
@@ -156,4 +156,19 @@ try {
 } catch (Throwable $error) {
     fwrite(STDERR, "ROLLBACK_HOLD: " . $error->getMessage() . PHP_EOL);
     exit(1);
+}
+
+function captureProviderSettings(string $xml): string
+{
+    $document = new DOMDocument();
+    if (!$document->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING)) {
+        throw new RuntimeException('The native configuration could not be read.');
+    }
+    $settings = (new DOMXPath($document))->query('/opnsense/system/backup/encryptedgit');
+    $provider = $settings === false ? null : $settings->item(0);
+    $serialized = $provider === null ? false : $document->saveXML($provider);
+    if ($serialized === false) {
+        throw new RuntimeException('The native provider settings could not be retained.');
+    }
+    return $serialized;
 }
