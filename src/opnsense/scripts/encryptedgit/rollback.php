@@ -21,7 +21,7 @@ $captureProviderSettings = static function (string $xml): string {
     }
     $settings = (new DOMXPath($document))->query('/opnsense/system/backup/encryptedgit');
     $provider = $settings === false ? null : $settings->item(0);
-    $serialized = $provider === null ? false : $document->saveXML($provider);
+    $serialized = $provider instanceof DOMElement ? $document->saveXML($provider) : false;
     if ($serialized === false) {
         throw new RuntimeException('The native provider settings could not be retained.');
     }
