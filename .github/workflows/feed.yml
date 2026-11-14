@@ -1,0 +1,29 @@
+name: Signed feed
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Run the disconnected HTTP publication fixture
+        required: true
+        type: choice
+        options: [fixture]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-package-pages-publisher
+  cancel-in-progress: false
+
+jobs:
+  fixture:
+    if: github.event_name != 'workflow_dispatch' || inputs.mode == 'fixture'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - run: python3 tests/package/feed-publisher-http.py

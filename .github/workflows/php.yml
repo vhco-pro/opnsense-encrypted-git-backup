@@ -47,6 +47,9 @@ jobs:
       dry-run: true
       preview-label: ''
 
+  feed-fixture:
+    uses: ./.github/workflows/feed.yml
+
   package-plan:
     needs: version
     runs-on: ubuntu-latest
