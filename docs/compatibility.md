@@ -18,3 +18,11 @@ The catalogue inspected on 2026-11-14 had SHA-256 `5fa24685f220b51c042c9cebf29ee
 - Native restore calls `Base::decrypt()` with the default `config.xml` tag. The native `Base` implementation creates plaintext and password files in its application temporary directory, so provider calls must establish a private umask before encryption and round-trip verification.
 
 These observations come from source inspection. Appliance verification will record installed versions, package lifecycle, cron execution, privileges and native restore.
+
+## Disposable appliance observations
+
+A QEMU guest with no network adapter booted the official 26.7 serial image. Its compressed SHA-256 matched `259b441646f1b0d77075a7281e368fe7f4c980360498ed6bc23740bd83c67e32`. The image reported FreeBSD 15.1-RELEASE-p1 and PHP 8.5.8.
+
+At source revision `1753e0bd6ee1c142b7844ad5d2874dada3609b6b`, the pinned plugins framework ran `make package`. The framework warned that the staged archive lacked Git metadata. The build supplied `PLUGIN_HASH` with the source revision and produced `os-encrypted-git-backup-0.1.pkg`. `pkg add` installed the package and migrated its model to 1.0.0. `pkg info -l` showed 12 runtime files and version metadata entries in total. The native factory discovered the disabled provider, and a synthetic XML export passed byte-for-byte decryption using the appliance's native library. `pkg repo` generated a signed catalogue with a disposable local key. The package SHA-256 was `9d0856adc47932f82a95f60b2dcf15661762465377b69fbea069b17447a9c209`.
+
+The pinned hotfix, native restore import, upgrade and removal, signed client install and update, and browser journeys remain open.
