@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: native-package-pages-publisher
+  group: ${{ inputs.mode == 'verify-release' && 'native-package-pages-publisher' || format('native-package-pages-fixture-{0}-{1}', github.run_id, github.run_attempt) }}
   cancel-in-progress: false
 
 jobs:
