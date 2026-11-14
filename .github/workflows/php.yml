@@ -14,8 +14,10 @@ jobs:
     container: php@sha256:50956f094e90a716d43bea28087d447555ad80510e386ab8c9c10d8c70d781a9
     steps:
       - name: Install tool prerequisites
-        run: apt-get update && apt-get install -y --no-install-recommends git unzip
+        run: apt-get update && apt-get install -y --no-install-recommends git unzip python3-venv
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
       - name: Fetch pinned platform symbols
         run: |
           git init work/upstream/core
@@ -36,3 +38,11 @@ jobs:
           vendor/bin/phpcs
           vendor/bin/phpstan analyse --no-progress
           vendor/bin/phpunit
+      - name: Install pinned security scanners
+        run: bash tests/security/install.sh
+      - name: Audit locked dependencies, scan PHP and scan secrets
+        env:
+          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          export PATH="$PWD/work/security/bin:$PATH"
+          bash tests/security/check.sh work/composer.phar "$SCAN_BASE"
