@@ -357,7 +357,8 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 const previous = journal.at(-1);
                 fixture = await retainFixture({ directory: next, endpoint: url, packageName,
                     candidateFiles, version, predecessor: previous.payload.history,
-                    previousSite: number === 2 ? join(native, "site") : join(native, `site-${number - 1}`),
+                    previousSite: join(native, number === 2 ? "site" : number === 4 ? "site-3-recovery" : "site-2"),
+                    predecessorCatalogue: release.predecessorCatalogue,
                 });
                 // Before each dispatch only the controller's predecessor is retained.
                 if (number === 4) nextOutcome = "failure";
@@ -371,10 +372,18 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                         fileURLToPath(new URL("../../scripts/verify-feed-generation.sh", import.meta.url)),
                         url + "/feed", join(next, "release.json"), join(native, "next-key.pem"), "FreeBSD:15:amd64",
                     ], { env: { ...env, FEED_PREDECESSOR_PUBLIC_KEY: join(native, "key.pem") } });
+                    await assert.rejects(execute("bash", [
+                        fileURLToPath(new URL("../../scripts/verify-feed-generation.sh", import.meta.url)),
+                        url + "/feed", join(next, "release.json"), join(native, "key.pem"), "FreeBSD:15:amd64",
+                    ], { env: { ...env, FEED_PREDECESSOR_PUBLIC_KEY: join(native, "key.pem") } }));
                     const calls = createRequests;
                     await assert.rejects(run());
                     assert.equal(createRequests, calls);
-                    const authorized = { FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "60" };
+                    const authorized = {
+                        FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "60",
+                        FEED_PUBLIC_KEY: join(native, "next-key.pem"),
+                        FEED_PREDECESSOR_PUBLIC_KEY: join(native, "key.pem"),
+                    };
                     await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
                     assert.equal(journal.at(-2).payload.phase, "recovery-required");
                     assert.match((await run("fixture", authorized)).stdout, /closure is recorded/);

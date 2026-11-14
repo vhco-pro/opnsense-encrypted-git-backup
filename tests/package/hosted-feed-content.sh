@@ -30,5 +30,8 @@ MANIFEST
     if [ "$generation" -eq 4 ]; then key="$out/next-sign.pem"; fi
     pkg repo "$site" "$key"
 done
+mkdir "$out/site-3-recovery"
+cp "$out/site-3/$name-0.0.3.pkg" "$out/site-3-recovery/"
+pkg repo "$out/site-3-recovery" "$out/next-sign.pem"
 mv "$out/site-1" "$out/site"
 rm "$out/sign.pem" "$out/next-sign.pem"
