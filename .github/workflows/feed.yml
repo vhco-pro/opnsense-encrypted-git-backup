@@ -8,7 +8,16 @@ on:
         description: Run the disconnected HTTP publication fixture
         required: true
         type: choice
-        options: [fixture]
+        options: [fixture, verify-release]
+      release:
+        description: Exact retained release tag for read-only verification
+        type: string
+      candidate:
+        description: SHA-256 of the independently retained candidate archive
+        type: string
+      recovery:
+        description: SHA-256 of the independently retained recovery archive
+        type: string
 
 permissions:
   contents: read
@@ -27,3 +36,26 @@ jobs:
         with:
           persist-credentials: false
       - run: node --test tests/package/feed-publisher-http.mjs
+
+  verify-release:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'verify-release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: signed-feed-production
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Retrieve independently retained bundle bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+          CANDIDATE: ${{ inputs.candidate }}
+          RECOVERY: ${{ inputs.recovery }}
+        run: |
+          destination=$(mktemp -d)
+          bash scripts/feed-bundles.sh "$RELEASE" "$CANDIDATE" "$RECOVERY" "$destination"
+          for digest in "$CANDIDATE" "$RECOVERY"; do
+            mkdir "$destination/$digest"
+            bash scripts/feed-payload.sh "$destination/feed-$digest.tar" "$digest" "$destination/$digest"
+          done
