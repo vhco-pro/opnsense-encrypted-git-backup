@@ -19,6 +19,8 @@ jq -n --arg environment "$environment" --arg source "$source" --arg attempt "$at
     payload:{phase:"verified-closure",attempt:$attempt,deployment:$deployment,digest:$digest,version:$version}
 }' | curl --silent --show-error --fail --max-time 15 --retry 0 \
     "${github_headers[@]}" -H 'Content-Type: application/json' --data-binary @- "$journal" |
-    jq -e --arg attempt "$attempt" --arg digest "$digest" --arg version "$version" '
-        .payload.phase == "verified-closure" and .payload.attempt == $attempt and .payload.digest == $digest and .payload.version == $version
+    jq -e --arg attempt "$attempt" --arg digest "$digest" --arg version "$version" \
+        --arg source "$source" --arg deployment "$deployment" '
+        .sha == $source and .payload.deployment == $deployment
+        and .payload.phase == "verified-closure" and .payload.attempt == $attempt and .payload.digest == $digest and .payload.version == $version
     ' >/dev/null

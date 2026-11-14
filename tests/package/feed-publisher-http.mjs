@@ -162,13 +162,19 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 FEED_NATIVE_SSH: "freebsd",
             } : {}),
         };
-        const run = (mode = "fixture") => fixture
-            ? execute("bash", [dispatch, mode, ...fixture.arguments], { env, cwd: fixture.repo })
-            : execute("bash", [publisher, mode], { env });
+        const run = (mode = "fixture", overrides = {}) => {
+            const options = { env: { ...env, ...overrides } };
+            return fixture
+                ? execute("bash", [dispatch, mode, ...fixture.arguments], { ...options, cwd: fixture.repo })
+                : execute("bash", [publisher, mode], options);
+        };
 
         await assert.rejects(run("production"), /Production publication requires the approved protected workflow/);
         assert.equal(journal.length, 0);
-        await assert.rejects(run());
+        await assert.rejects(run(), (error) => {
+            assert.match(error.stderr, /curl: [(]52[)]/, error.stderr);
+            return true;
+        });
         assert.equal(journal.length, 1);
         assert.equal(assets.get(key).toString(), JSON.stringify({ digest: effectiveMarker }));
         assert.equal(pages.length, 1);
@@ -187,6 +193,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 fixture.previousDigest);
             await run();
             assert.equal(journal.length, 2);
+            const closure = journal.pop();
+            await assert.rejects(run("fixture", { FEED_ABI: "FreeBSD:15:aarch64" }));
+            assert.equal(journal.length, 1);
+            const packageKey = site.get("/os-encrypted-git-backup-0.0.1.pkg");
+            const original = assets.get(packageKey);
+            assets.set(packageKey, Buffer.concat([original, Buffer.from("mutation")]));
+            await assert.rejects(run());
+            assert.equal(journal.length, 1);
+            assets.set(packageKey, original);
+            journal.push(closure);
         } else {
             assert.match(result.stdout, /native client verification remains required/);
         }
