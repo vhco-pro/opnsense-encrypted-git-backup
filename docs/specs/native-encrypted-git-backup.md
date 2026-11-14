@@ -1,7 +1,7 @@
 ---
 status: draft
 status_description: "The owner selected a separate native provider, a private design repository and BSD-2-Clause. Compatibility, secret custody and distribution choices await design review."
-issue: null
+issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
 goal: "Administrators configure, run and recover encrypted Git configuration backups through a native OPNsense provider with verifiable delivery and safe migration."
 covers:
   - Makefile
@@ -53,7 +53,8 @@ Core `BackupFactory.php:43-58` discovers providers in its own library directory 
 That interface supplies configuration fields, validation/save, provider name, backup execution and enabled state.
 Core `diag_backup.php:183-187,374-395` renders discovered fields and dispatches the selected provider's setup/test action.
 The remote backup runner dispatches enabled providers and the native scheduler already invokes it.
-Provider exceptions can stop the shared runner before later providers execute, so scheduling failure isolation needs proof.
+At that core revision, the remote runner catches each provider's ordinary exception, continues subsequent providers and reports aggregate failure after the loop.
+Older release behavior must be assessed separately through the compatibility matrix.
 Core `Backup/Base.php` provides encrypted export and decryption, while `opnsense-crypt` calls that same implementation.
 
 The current Git provider is 1.1_5, with its latest directory change on 2026-09-08.
@@ -108,9 +109,9 @@ flowchart LR
 ### Scheduling and failure isolation
 
 The native provider is callable through setup/test and the existing Remote Backup command.
-Validate shared-runner behavior when another enabled provider fails before this provider.
-If shared-runner failure isolation is insufficient, expose a dedicated configd action calling the same PHP implementation for a native cron entry.
-Assign one daily scheduling owner and verify it through native cron regeneration and package upgrade.
+Reuse native Remote Backup scheduling and verify that an earlier provider's ordinary exception allows this provider to execute while the shared run reports failure.
+Assign the existing daily job as scheduling owner and verify it through native cron regeneration and package upgrade.
+Any older runtime target must prove equivalent behavior or return through design review before adding a separate scheduling path.
 Keep overlap locking and bounded execution in the provider, including manual versus scheduled calls.
 The plugin supplies no background daemon or external management-service prerequisite.
 
@@ -248,10 +249,21 @@ None yet; written after design acceptance.
 
 | Date | Review | Kind | Commit | Model | Isolation | Outcome |
 | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-14 | R-1 | spec | `fe017181fab3d0a407d53708757f720adb32b947` | unknown | procedural | Blocking current-core scheduling claim corrected; model identity not attested. |
+
+### R-1
+
+FINDING: F-01
+KIND: factual
+SEVERITY: blocking
+WHERE: Context / Verified upstream behavior; Design / Scheduling and failure isolation; Test Plan / AC-05
+EVIDENCE: At reviewed commit fe017181fab3d0a407d53708757f720adb32b947, the spec attributes possible suppression of later providers to the cited current core and conditionally proposes a dedicated configd scheduling action. I fetched src/opnsense/scripts/system/remote_backup.php at the cited core commit d20f63c7f7e73c062a623953690c0668070a8d94. Its provider loop wraps each backup() call in try/catch(Exception), accumulates errors, continues subsequent providers and returns failure after the loop. Ordinary provider exceptions therefore have isolation in this version. The spec's premise could lead to an unnecessary second scheduling path.
+PROPOSAL: Describe the current runner's observed exception isolation and identify any older-release behavior separately. Reuse native Remote Backup scheduling for the current baseline, with regression proof for an earlier provider throwing an exception. Retain a dedicated scheduling action only if a supported release or a specifically reproduced failure requires it.
 
 ## Sources
 
 - [Core provider discovery](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/mvc/app/library/OPNsense/Backup/BackupFactory.php) and [provider interface](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/mvc/app/library/OPNsense/Backup/IBackupProvider.php) define discovery and provider entry points.
+- [Current remote backup runner](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/scripts/system/remote_backup.php) isolates ordinary provider exceptions and reports aggregate failure after processing enabled providers.
 - [Core Backups screen](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/www/diag_backup.php) defines form rendering, setup/test and native decrypt/import.
 - [Native backup encryption](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/mvc/app/library/OPNsense/Backup/Base.php) and [opnsense-crypt](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/sbin/opnsense-crypt) define the reusable encryption implementation.
 - [Existing Git provider](https://github.com/opnsense/plugins/tree/77648fd1a9ed4f9e99a4997336e30bc33949e629/sysutils/git-backup) supplies current transport/capture behavior and its 1.1_5 package metadata.
