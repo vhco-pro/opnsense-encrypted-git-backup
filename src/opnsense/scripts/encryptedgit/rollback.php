@@ -27,12 +27,16 @@ require $bootstrap;
 umask(0077);
 $captureProviderSettings = static function (string $xml): string {
     $document = new DOMDocument();
-    if (!$document->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING)) {
+    if (!$document->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_NOBLANKS)) {
         throw new RuntimeException('The native configuration could not be read.');
     }
     $settings = (new DOMXPath($document))->query('/opnsense/system/backup/encryptedgit');
     $provider = $settings === false ? null : $settings->item(0);
-    $serialized = $provider instanceof DOMElement ? $document->saveXML($provider) : false;
+    if ($provider instanceof DOMElement) {
+        // Native model serialization updates bookkeeping on every save.
+        $provider->removeAttribute('persisted_at');
+    }
+    $serialized = $provider instanceof DOMElement ? $provider->C14N() : false;
     if ($serialized === false) {
         throw new RuntimeException('The native provider settings could not be retained.');
     }
