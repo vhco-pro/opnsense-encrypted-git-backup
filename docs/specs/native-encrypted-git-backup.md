@@ -243,6 +243,12 @@ Revisit existing discussions before proposing a new upstream issue and request o
 Separate generic upstream changes from private deployment instructions and custom distribution infrastructure.
 Upstream acceptance remains an external decision.
 
+### GitVersion and release preparation
+
+Use the shared `version-workflow` to calculate the checked source's version and retain dry-run CI evidence. Map stable SemVer directly into the native package version. Map numbered alpha, beta and release candidate labels to FreeBSD's dotted prerelease form. Reject other labels and ambiguous tag/source identities before building. The prepared package and signed catalogue must advertise that exact mapped version. Keep fixture versions separate from release versions.
+
+The shared `gh-release-workflow` assumes that its tag is the released artifact. This plugin instead requires a verified native package and signed catalogue. The dry-run workflow therefore calculates the version without tagging, and the native preparation command consumes that result to build the artifact. Remote release and feed publication require separate approval.
+
 ## Acceptance Criteria
 
 - [ ] AC-01: The package installs and upgrades on the selected supported releases, exposes its provider in the native Backups screen and preserves core and unrelated provider behavior.
