@@ -24,7 +24,7 @@ final class Activation
         if ($contents === false || strlen($contents) > 65536) {
             throw new RuntimeException('Could not read the encrypted backup activation checkpoint.');
         }
-        $legacy = self::validate(
+        $legacy = self::validateRuntimeCheckpoint(
             $contents,
             $destination,
             $branch,
@@ -49,14 +49,42 @@ final class Activation
     }
 
     /** @return array{tip: string, remote: string, archiveSha256: string}|null */
+    private static function validateRuntimeCheckpoint(
+        string $contents,
+        string $destination,
+        string $branch,
+        bool $legacyExists
+    ): ?array {
+        $checkpoint = json_decode($contents, true, 8);
+        if (!is_array($checkpoint) || ($checkpoint['version'] ?? null) !== 1) {
+            throw new RuntimeException('This checkpoint requires the native activation save path.');
+        }
+        return self::parseCheckpoint($checkpoint, $destination, $branch, $legacyExists, 1);
+    }
+
+    /** @return array{tip: string, remote: string, archiveSha256: string}|null */
     public static function validate(string $contents, string $destination, string $branch, bool $legacyExists): ?array
     {
         $checkpoint = json_decode($contents, true, 8);
+        if (!is_array($checkpoint)) {
+            throw new RuntimeException('A verified activation checkpoint is required for this backup target.');
+        }
+        return self::parseCheckpoint($checkpoint, $destination, $branch, $legacyExists, 2);
+    }
+
+    /**
+     * @param array<array-key, mixed> $checkpoint
+     * @return array{tip: string, remote: string, archiveSha256: string}|null
+     */
+    private static function parseCheckpoint(
+        array $checkpoint,
+        string $destination,
+        string $branch,
+        bool $legacyExists,
+        int $legacyVersion
+    ): ?array {
         if (
-            !is_array($checkpoint)
-            || count($checkpoint) !== 4
-            || ($checkpoint['version'] ?? null) !== 1
-            || ($checkpoint['destination'] ?? null) !== $destination
+            ($checkpoint['destination'] ?? null) !== $destination
             || ($checkpoint['branch'] ?? null) !== $branch
             || !array_key_exists('legacy', $checkpoint)
             || ($checkpoint['legacy'] === null) === $legacyExists
@@ -64,11 +92,17 @@ final class Activation
             throw new RuntimeException('A verified activation checkpoint is required for this backup target.');
         }
         $legacy = $checkpoint['legacy'];
-        if ($legacy === null) {
+        if ($legacy === null && count($checkpoint) === 4 && ($checkpoint['version'] ?? null) === 1) {
             return null;
         }
         if (
-            !is_array($legacy) || count($legacy) !== 3
+            ($checkpoint['version'] ?? null) !== $legacyVersion
+            || count($checkpoint) !== ($legacyVersion === 2 ? 6 : 4)
+            || ($legacyVersion === 2 && (
+                !self::isDigest($checkpoint['exportSha256'] ?? null, '/\A[0-9a-f]{64}\z/')
+                || !self::isDigest($checkpoint['configurationSha256'] ?? null, '/\A[0-9a-f]{64}\z/')
+            ))
+            || !is_array($legacy) || count($legacy) !== 3
             || !self::isDigest($legacy['tip'] ?? null, '/\A(?:[0-9a-f]{40}|[0-9a-f]{64})\z/')
             || !self::isDigest($legacy['remote'] ?? null, '/\A(?:[0-9a-f]{40}|[0-9a-f]{64})\z/')
             || !self::isDigest($legacy['archiveSha256'] ?? null, '/\A[0-9a-f]{64}\z/')
