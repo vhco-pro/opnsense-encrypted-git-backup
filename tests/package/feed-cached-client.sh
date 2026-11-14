@@ -19,11 +19,13 @@ esac
 client() {
     pkg -o "REPOS_DIR=$work/repos" -o "PKG_DBDIR=$work/db" -o "PKG_CACHEDIR=$work/cache" "$@"
 }
-catalogue="$work/db/repo-fixture.sqlite"
 if [ "$action" = cache ]; then
     client update -f -r fixture </dev/null
-    sha256 -q "$catalogue" > "$work/catalogue.sha256"
+    find "$work/db" -type f -name '*.sqlite' ! -name local.sqlite -print > "$work/catalogue.path"
+    test "$(wc -l < "$work/catalogue.path")" -eq 1
+    sha256 -q "$(cat "$work/catalogue.path")" > "$work/catalogue.sha256"
 fi
+catalogue=$(cat "$work/catalogue.path")
 assert_catalogue() {
     test "$(sha256 -q "$catalogue")" = "$(cat "$work/catalogue.sha256")"
     test "$(client -o REPO_AUTOUPDATE=false rquery -U -r fixture '%v' os-encrypted-git-backup)" = "$version"
