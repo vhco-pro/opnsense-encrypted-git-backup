@@ -209,6 +209,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal[1].payload.version, fixture.version);
             assert.equal(journal[1].payload.digest, fixture.candidate);
             assert.equal(journal[1].payload.deployment, pages[0].id);
+            const packages = journal[0].payload.packages;
+            const ordered = Object.fromEntries(Object.entries(packages).sort(([a], [b]) => a < b ? -1 : 1));
+            assert.equal(journal[1].payload.history,
+                createHash("sha256").update(JSON.stringify(ordered) + "\n").digest("hex"));
             assert.equal(journal[0].payload.packages[fixture.previous], fixture.previousDigest);
             assert.equal(downloaded.length, 6);
             const retained = await fetch(url + "/feed/" + fixture.previous);
@@ -216,6 +220,11 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 fixture.previousDigest);
             await run();
             assert.equal(journal.length, 2);
+            const previousDigest = journal[0].payload.packages[fixture.previous];
+            delete journal[0].payload.packages[fixture.previous];
+            await assert.rejects(run(), /submission history does not extend/);
+            assert.equal(journal.length, 2);
+            journal[0].payload.packages[fixture.previous] = previousDigest;
             const closure = journal.pop();
             await assert.rejects(run("fixture", { FEED_ABI: "FreeBSD:15:aarch64" }));
             assert.equal(journal.length, 1);
