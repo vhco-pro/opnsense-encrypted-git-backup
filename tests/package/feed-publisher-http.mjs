@@ -389,6 +389,21 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     const calls = createRequests;
                     await assert.rejects(run());
                     assert.equal(createRequests, calls);
+                    const start = journal.length;
+                    const live = pages.length;
+                    const failed = { ...retirementEnv, FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "61" };
+                    nextOutcome = "failure";
+                    await assert.rejects(run("fixture", retirementEnv), /curl: [(]52[)]/);
+                    await assert.rejects(run("fixture", failed), /curl: [(]52[)]/);
+                    assert.equal(journal.at(-2).payload.phase, "recovery-required");
+                    assert.match((await run("fixture", failed)).stdout, /closure is recorded/);
+                    assert.equal(journal.at(-1).payload.withdrawn, "");
+                    assert.equal((await fetch(url + "/feed/prior-key/packagesite.pkg")).status, 200);
+                    // Rewind only this owned mock project to exercise successful
+                    // retirement from the identical authenticated overlap state.
+                    journal.length = start;
+                    pages.length = live;
+                    sites.length = live;
                 }
                 await assert.rejects(run("fixture", number >= 5 ? retirementEnv : {}), /curl: [(]52[)]/);
                 assert.equal(journal.at(-1).payload.predecessor, previous.payload.attempt);
