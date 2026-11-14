@@ -7,7 +7,6 @@ namespace OPNsense\EncryptedGitBackup;
 use DOMDocument;
 use DOMXPath;
 use OPNsense\Backup\Local;
-use OPNsense\Core\Config;
 use RuntimeException;
 
 final class NativeRun
@@ -18,7 +17,8 @@ final class NativeRun
         string $identity,
         string $trust,
         string $key,
-        string $activation
+        string $activation,
+        string $xml
     ): string {
         $legacyParent = Activation::check($destination, $branch, $activation)['parent'];
         Settings::validateDestination($destination);
@@ -30,13 +30,6 @@ final class NativeRun
             throw new RuntimeException('Could not read the encryption credential.');
         }
         $password = str_ends_with($password, "\n") ? substr($password, 0, -1) : $password;
-        $config = Config::getInstance();
-        $config->lock();
-        try {
-            $xml = (string)$config;
-        } finally {
-            $config->unlock();
-        }
         $document = new DOMDocument();
         if (!$document->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING)) {
             throw new RuntimeException('The captured configuration is invalid.');

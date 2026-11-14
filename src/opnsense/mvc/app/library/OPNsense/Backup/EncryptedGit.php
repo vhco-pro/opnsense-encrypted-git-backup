@@ -149,18 +149,25 @@ final class EncryptedGit extends Base implements IBackupProvider
 
     public function runConfigured(): string
     {
-        $model = new EncryptedGitSettings();
-        if ($this->readField($model, 'enabled') !== '1') {
-            throw new RuntimeException('Encrypted Git backup is disabled.');
+        $config = Config::getInstance();
+        $config->lock();
+        try {
+            $model = new EncryptedGitSettings();
+            if ($this->readField($model, 'enabled') !== '1') {
+                throw new RuntimeException('Encrypted Git backup is disabled.');
+            }
+            return NativeRun::run(
+                $this->readField($model, 'destination'),
+                $this->readField($model, 'branch'),
+                $this->readField($model, 'identity'),
+                $this->readField($model, 'hostTrust'),
+                $this->readField($model, 'encryptionKey'),
+                $this->readField($model, 'activation'),
+                (string)$config
+            );
+        } finally {
+            $config->unlock();
         }
-        return NativeRun::run(
-            $this->readField($model, 'destination'),
-            $this->readField($model, 'branch'),
-            $this->readField($model, 'identity'),
-            $this->readField($model, 'hostTrust'),
-            $this->readField($model, 'encryptionKey'),
-            $this->readField($model, 'activation')
-        );
     }
 
     /** @return bool */
