@@ -1,0 +1,229 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OPNsense\EncryptedGitBackup;
+
+use Closure;
+use RuntimeException;
+
+final class GitDelivery
+{
+    private const ARTIFACT = 'config.xml.enc';
+    private const METADATA = 'snapshot.json';
+
+    /** @param array<string, string> $environment */
+    public function __construct(
+        private string $git,
+        private string $directory,
+        private array $environment
+    ) {
+    }
+
+    /** @param Closure(): string $capture */
+    public function deliver(
+        string $destination,
+        string $branch,
+        string $revision,
+        string $key,
+        Closure $capture
+    ): string {
+        Settings::validateBranch($branch);
+        Settings::validateCredentialReference($key);
+        $mask = umask(0077);
+        try {
+            $lock = fopen($this->directory . '/delivery.lock', 'c');
+            if ($lock === false) {
+                throw new RuntimeException('Could not open the backup lock.');
+            }
+            try {
+                if (!flock($lock, LOCK_EX | LOCK_NB)) {
+                    throw new RuntimeException('Another encrypted backup is running.');
+                }
+                return $this->reconcile($destination, $branch, $revision, $key, $capture);
+            } finally {
+                fclose($lock);
+            }
+        } finally {
+            umask($mask);
+        }
+    }
+
+    /** @param Closure(): string $capture */
+    private function reconcile(
+        string $destination,
+        string $branch,
+        string $revision,
+        string $key,
+        Closure $capture
+    ): string {
+        $repository = $this->directory . '/pending';
+        if (!is_dir($repository . '/.git')) {
+            $this->requireGit(['init', '--initial-branch=encrypted-backup', $repository]);
+        }
+        $ref = 'refs/heads/' . $branch;
+        $remote = $this->fetch($repository, $destination, $ref);
+        [$exit, $headOutput] = $this->git(['rev-parse', '--verify', 'HEAD'], $repository);
+        $head = $exit === 0 ? $this->objectId(trim($headOutput)) : null;
+        if ($head === null && $remote !== null) {
+            throw new RuntimeException('An existing remote needs an explicit migration checkpoint.');
+        }
+        if ($head !== null) {
+            if (
+                $remote !== null && $head !== $remote
+                && $this->git(['merge-base', '--is-ancestor', $remote, $head], $repository)[0] !== 0
+            ) {
+                throw new RuntimeException('The remote backup branch has diverged.');
+            }
+            $previous = $this->snapshot($repository, $head);
+            if ($remote !== $head) {
+                $this->pushAndVerify($repository, $destination, $ref, $head, $previous['sha256']);
+            }
+            if ($previous['revision'] === $revision && $previous['key'] === $key) {
+                return $head;
+            }
+        }
+
+        $artifact = $capture();
+        if ($artifact === '') {
+            throw new RuntimeException('The encrypted export is empty.');
+        }
+        $digest = hash('sha256', $artifact);
+        $metadata = json_encode([
+            'version' => 1,
+            'revision' => $revision,
+            'key' => $key,
+            'capturedAt' => gmdate('Y-m-d\TH:i:s\Z'),
+            'sha256' => $digest,
+        ], JSON_THROW_ON_ERROR) . "\n";
+        $this->write($repository, self::ARTIFACT, $artifact);
+        $this->write($repository, self::METADATA, $metadata);
+        $this->requireGit(['add', '--', self::ARTIFACT, self::METADATA], $repository);
+        $this->requireGit(
+            ['commit', '-m', 'Encrypted configuration snapshot', '--', self::ARTIFACT, self::METADATA],
+            $repository
+        );
+        $commit = $this->objectId(trim($this->requireGit(['rev-parse', 'HEAD'], $repository)));
+        $this->pushAndVerify($repository, $destination, $ref, $commit, $digest);
+
+        return $commit;
+    }
+
+    private function fetch(string $repository, string $destination, string $ref): ?string
+    {
+        [$exit, $list] = $this->git(['ls-remote', '--exit-code', '--refs', '--', $destination, $ref], $repository);
+        if ($exit === 2 && $list === '') {
+            return null;
+        }
+        if ($exit !== 0 || !str_ends_with($list, "\t" . $ref . "\n")) {
+            throw new RuntimeException('Could not read the remote backup branch.');
+        }
+        $commit = $this->objectId(substr($list, 0, -strlen($ref) - 2));
+        $this->requireGit(['fetch', '--no-tags', '--', $destination, $ref], $repository);
+        if (trim($this->requireGit(['rev-parse', 'FETCH_HEAD'], $repository)) !== $commit) {
+            throw new RuntimeException('The remote branch changed while being verified.');
+        }
+        return $commit;
+    }
+
+    private function pushAndVerify(
+        string $repository,
+        string $destination,
+        string $ref,
+        string $commit,
+        string $digest
+    ): void {
+        try {
+            $this->git(['push', '--', $destination, 'HEAD:' . $ref], $repository);
+        } catch (RuntimeException) {
+            // A transport failure may arrive after the server accepted the update.
+        }
+        if (
+            $this->fetch($repository, $destination, $ref) !== $commit
+            || $this->snapshot($repository, $commit)['sha256'] !== $digest
+        ) {
+            throw new RuntimeException('The remote did not retain the expected encrypted backup.');
+        }
+    }
+
+    /** @return array{revision: string, key: string, sha256: string} */
+    private function snapshot(string $repository, string $commit): array
+    {
+        $snapshot = json_decode(
+            $this->requireGit(['show', $commit . ':' . self::METADATA], $repository),
+            true,
+            8,
+            JSON_THROW_ON_ERROR
+        );
+        $artifact = $this->requireGit(['show', $commit . ':' . self::ARTIFACT], $repository, 32 * 1024 * 1024);
+        if (
+            !is_array($snapshot)
+            || ($snapshot['version'] ?? null) !== 1
+            || !is_string($snapshot['revision'] ?? null)
+            || !is_string($snapshot['key'] ?? null)
+            || ($snapshot['sha256'] ?? null) !== hash('sha256', $artifact)
+        ) {
+            throw new RuntimeException('The retained backup metadata is invalid.');
+        }
+        return ['revision' => $snapshot['revision'], 'key' => $snapshot['key'], 'sha256' => $snapshot['sha256']];
+    }
+
+    private function write(string $repository, string $file, string $content): void
+    {
+        $temporary = tempnam($repository, '.backup-');
+        if ($temporary === false) {
+            throw new RuntimeException('Could not create a backup staging file.');
+        }
+        try {
+            if (file_put_contents($temporary, $content) !== strlen($content)) {
+                throw new RuntimeException('Could not write the encrypted backup.');
+            }
+            if (!rename($temporary, $repository . '/' . $file)) {
+                throw new RuntimeException('Could not publish the encrypted staging file.');
+            }
+        } finally {
+            if (is_file($temporary)) {
+                unlink($temporary);
+            }
+        }
+    }
+
+    private function objectId(string $value): string
+    {
+        if (preg_match('/\A(?:[0-9a-f]{40}|[0-9a-f]{64})\z/', $value) !== 1) {
+            throw new RuntimeException('Git returned an invalid backup object identifier.');
+        }
+        return $value;
+    }
+
+    /**
+     * @param list<string> $arguments
+     * @return array{int, string}
+     */
+    private function git(array $arguments, ?string $repository = null, int $limit = 65536): array
+    {
+        return Process::run(
+            [
+                $this->git,
+                '-c', 'core.hooksPath=/dev/null',
+                '-c', 'user.name=OPNsense encrypted backup',
+                '-c', 'user.email=encrypted-backup@localhost',
+                ...$arguments,
+            ],
+            $repository ?? $this->directory,
+            $this->environment,
+            30,
+            $limit
+        );
+    }
+
+    /** @param list<string> $arguments */
+    private function requireGit(array $arguments, ?string $repository = null, int $limit = 65536): string
+    {
+        [$exit, $output] = $this->git($arguments, $repository, $limit);
+        if ($exit !== 0) {
+            throw new RuntimeException('A required Git backup operation failed.');
+        }
+        return $output;
+    }
+}
