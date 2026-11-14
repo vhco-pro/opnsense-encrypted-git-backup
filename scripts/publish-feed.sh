@@ -56,7 +56,7 @@ fi
 : "${FEED_MANIFEST:?}" "${FEED_DIGEST:?}" "${PAGES_BRANCH:?}"
 [[ "$FEED_DIGEST" =~ ^[a-f0-9]{64}$ ]]
 jq -e 'type == "object" and length > 0' "$FEED_MANIFEST" >/dev/null
-request "$PAGES_API" | jq -e '.success == true and .result.canonical_deployment == null' >/dev/null
+request "$PAGES_API" | jq -e '.success == true and (.result | type == "object" and has("canonical_deployment") and .canonical_deployment == null)' >/dev/null
 attempt=$(openssl rand -hex 16)
 jq -n --arg sha "$GITHUB_SHA" --arg environment "$environment" --arg attempt "$attempt" \
     --arg digest "$FEED_DIGEST" '{
