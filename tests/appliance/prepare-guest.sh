@@ -36,7 +36,7 @@ case "$1" in
         service configd restart
         ifconfig em0 inet 10.0.2.15/24 up
         pfctl -d
-        sh tests/native/ssh-fixture.sh
+        sh tests/native/ssh-fixture.sh migration
         php tests/native/activation-smoke.php migration
         php tests/native/browser-users.php "$input/browser-password"
         php tests/native/browser-theme.php opnsense

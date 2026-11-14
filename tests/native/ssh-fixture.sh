@@ -5,6 +5,8 @@ umask 077
 state=/conf/encrypted-git-backup
 credentials=$state/credentials
 repo=/tmp/fixture.git
+branch=${1:-snapshots}
+case "$branch" in snapshots|migration) ;; *) exit 64 ;; esac
 test ! -e "$repo"
 test ! -e /tmp/encryptedgit-fixture-host
 install -d -m 700 "$state" "$credentials"
@@ -18,5 +20,5 @@ git init --bare "$repo"
     -o ListenAddress=127.0.0.1 -p 22222 -o PermitRootLogin=prohibit-password \
     -o AuthorizedKeysFile=/tmp/encryptedgit-fixture-authorized -o StrictModes=no \
     -o PidFile=/tmp/encryptedgit-fixture-sshd.pid
-printf '%s\n' '{"version":1,"destination":"ssh://root@127.0.0.1:22222/tmp/fixture.git","branch":"snapshots","legacy":null}' \
+printf '{"version":1,"destination":"ssh://root@127.0.0.1:22222/tmp/fixture.git","branch":"%s","legacy":null}\n' "$branch" \
     > "$state/activation.json"
