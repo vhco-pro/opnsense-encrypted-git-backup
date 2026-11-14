@@ -224,4 +224,40 @@ SH;
             Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
         }
     }
+    public function testBranchDeletedBetweenObservationAndPushIsNotRecreated(): void
+    {
+        $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
+        self::assertTrue(mkdir($directory, 0700));
+        try {
+            $remote = $directory . '/remote';
+            self::assertSame(0, Process::run(['/usr/bin/git', 'init', '--bare', $remote], $directory, [], 5)[0]);
+            $delivery = new GitDelivery('/usr/bin/git', $directory, []);
+            $first = $delivery->deliver($remote, 'snapshots', '1.0', 'key', static fn (): string => 'first');
+            try {
+                $delivery->deliver($remote, 'snapshots', '2.0', 'key', static function () use ($remote): string {
+                    self::assertSame(0, Process::run(
+                        ['/usr/bin/git', 'update-ref', '-d', 'refs/heads/snapshots'],
+                        $remote,
+                        [],
+                        5
+                    )[0]);
+                    return 'second';
+                });
+                self::fail('A deleted remote branch was recreated.');
+            } catch (RuntimeException $exception) {
+                self::assertSame('The remote did not retain the expected encrypted backup.', $exception->getMessage());
+            }
+            self::assertSame(1, Process::run(
+                ['/usr/bin/git', 'show-ref', '--verify', '--quiet', 'refs/heads/snapshots'],
+                $remote,
+                [],
+                5
+            )[0]);
+            $receipt = file_get_contents($directory . '/verified.json');
+            self::assertIsString($receipt);
+            self::assertStringContainsString($first, $receipt);
+        } finally {
+            Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
+        }
+    }
 }

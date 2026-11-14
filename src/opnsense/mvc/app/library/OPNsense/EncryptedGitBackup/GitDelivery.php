@@ -127,7 +127,8 @@ final class GitDelivery
             }
             $previous = $this->snapshot($repository, $head);
             if ($remote !== $head) {
-                $this->pushAndVerify($repository, $destination, $ref, $head, $previous['sha256']);
+                $this->pushAndVerify($repository, $destination, $ref, $head, $previous['sha256'], $remote);
+                $remote = $head;
                 if ($previous['revision'] === $revision && $previous['key'] === $key) {
                     return $head;
                 }
@@ -167,7 +168,7 @@ final class GitDelivery
         $commit = $this->objectId(trim($this->requireGit($commitArgs, $repository)));
         $old = $head ?? str_repeat('0', strlen($commit));
         $this->requireGit(['update-ref', 'HEAD', $commit, $old], $repository);
-        $this->pushAndVerify($repository, $destination, $ref, $commit, $digest);
+        $this->pushAndVerify($repository, $destination, $ref, $commit, $digest, $remote);
 
         return $commit;
     }
@@ -193,7 +194,7 @@ final class GitDelivery
             $repository
         )));
         $this->requireGit(['update-ref', 'HEAD', $commit, $head], $repository);
-        $this->pushAndVerify($repository, $destination, $ref, $commit, $digest);
+        $this->pushAndVerify($repository, $destination, $ref, $commit, $digest, $head);
         return $commit;
     }
 
@@ -219,10 +220,13 @@ final class GitDelivery
         string $destination,
         string $ref,
         string $commit,
-        string $digest
+        string $digest,
+        ?string $expected
     ): void {
+        // Callers only create the branch or advance an observed ancestor.
+        $lease = '--force-with-lease=' . $ref . ':' . ($expected ?? '');
         try {
-            $this->git(['push', '--', $destination, 'HEAD:' . $ref], $repository);
+            $this->git(['push', $lease, '--', $destination, $commit . ':' . $ref], $repository);
         } catch (RuntimeException) {
             // A transport failure may arrive after the server accepted the update.
         }
