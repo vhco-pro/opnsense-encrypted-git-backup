@@ -34,8 +34,9 @@ their separate design, review and owner approvals.
 
 ## Verification
 
-The PHP guidance is adopted from the merged revision in
-https://github.com/vhco-pro/docs/pull/37.
+The PHP guidance was introduced in https://github.com/vhco-pro/docs/pull/37.
+The pinned revision includes the security requirements from
+https://github.com/vhco-pro/docs/pull/38.
 Use the verified vh-adlc binary for feature-document lint and review checks.
 Run `git diff --check` before committing.
 After installing the locked development dependencies and fetching the pinned core
