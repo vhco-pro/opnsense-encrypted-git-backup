@@ -12,4 +12,3 @@ php -r '
 $issues = json_decode(file_get_contents($argv[1]), true, flags: JSON_THROW_ON_ERROR);
 exit(array_column($issues, "type") === ["TaintedSSRF", "TaintedFile"] ? 0 : 1);
 ' "$fixture/result.json"
-vendor/bin/psalm "${flags[@]}"

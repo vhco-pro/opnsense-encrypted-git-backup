@@ -10,49 +10,6 @@ permissions:
 
 jobs:
   php:
-    runs-on: ubuntu-latest
-    container: php@sha256:50956f094e90a716d43bea28087d447555ad80510e386ab8c9c10d8c70d781a9
-    steps:
-      - name: Install tool prerequisites
-        run: apt-get update && apt-get install -y --no-install-recommends git unzip python3-venv
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-      - name: Fetch pinned platform symbols
-        run: |
-          git init work/upstream/core
-          git -C work/upstream/core fetch --depth=1 https://github.com/opnsense/core.git e1020455a7bbb8a94ecdcec4fa94cd2ee3bdbbc1
-          git -C work/upstream/core checkout --detach FETCH_HEAD
-      - name: Install locked tools
-        run: |
-          curl -fsSL https://getcomposer.org/download/2.11.2/composer.phar -o work/composer.phar
-          sha256sum -c <<'SUM'
-          dd158c0afd41d15fac89e1b4e47b5d42911fe316c3687cd5edac98319b25d028  work/composer.phar
-          SUM
-          php work/composer.phar install --no-interaction --prefer-dist
-          php work/composer.phar check-platform-reqs
-      - name: Check syntax
-        run: find src tests -name '*.php' -print0 | xargs -0 -n1 php -l
-      - name: Check style, types and behavior
-        run: |
-          vendor/bin/phpcs
-          vendor/bin/phpstan analyse --no-progress
-          vendor/bin/phpunit
-      - name: Check cross-function PHP taint
-        run: bash tests/security/check-psalm.sh
-      - name: Install pinned security scanners
-        run: bash tests/security/install.sh
-      - name: Audit locked dependencies, scan PHP and scan secrets
-        env:
-          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-          GIT_CONFIG_COUNT: 1
-          GIT_CONFIG_KEY_0: safe.directory
-          GIT_CONFIG_VALUE_0: ${{ github.workspace }}
-        run: |
-          export PATH="$PWD/work/security/bin:$PATH"
-          bash tests/security/check.sh work/composer.phar "$SCAN_BASE"
-
-  shared-php:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -64,7 +21,7 @@ jobs:
           git init work/upstream/core
           git -C work/upstream/core fetch --depth=1 https://github.com/opnsense/core.git e1020455a7bbb8a94ecdcec4fa94cd2ee3bdbbc1
           git -C work/upstream/core checkout --detach FETCH_HEAD
-      - uses: vhco-pro/php-ci-action@932407b5c0ee5d0619fbf2d0b813013f0fb274c8
+      - uses: vhco-pro/php-ci-action@d60489c9d9296708889f219297c8a603c60ae424
         with:
           php-version: '8.5.12'
           php-paths: |
@@ -76,9 +33,13 @@ jobs:
           psalm-config: psalm.xml
           semgrep-config: tests/security/php.yml
           secret-scan-base: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - name: Verify plugin security rules and scanner exits
+        run: bash tests/security/probe.sh
+      - name: Verify OPNsense cross-function taint probe
+        run: bash tests/security/check-psalm.sh
 
   version:
-    needs: [php, shared-php]
+    needs: php
     uses: vhco-pro/version-workflow/.github/workflows/version.yml@3b78b04df802ea1592cbe19338d7a882d1888389
     permissions:
       contents: read
