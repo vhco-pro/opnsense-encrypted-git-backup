@@ -32,7 +32,7 @@ jobs:
           phpunit-config: phpunit.xml.dist
           psalm-config: psalm.xml
           semgrep-config: tests/security/php.yml
-          secret-scan-base: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # Scan complete HEAD history on every event, including a branch's first push.
       - name: Verify plugin security rules and scanner exits
         run: bash tests/security/probe.sh
       - name: Verify OPNsense cross-function taint probe

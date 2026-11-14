@@ -61,10 +61,9 @@ Retain independently recoverable encrypted history and test a real native restor
 Shared PHP conventions now define typing, small effect boundaries, PSR-12, secure resources and explicit development checks.
 The implementation must pass style, static analysis and behavior tests with recorded coverage of owned files.
 Development tools are kept in the build/test environment.
-The owner requires managed static hosting for the signed repository and approved implementation after the Cloudflare Pages clarification.
-The selected direction is a static Cloudflare Pages feed with managed HTTPS and an operator-configured public hostname.
-This design phase produces a reviewed specification and installation/recovery design.
-Implementation and live rollout follow acceptance of the revised design.
+The owner selected an owner-dispatched GitHub Actions workflow for a signed Cloudflare Pages feed. The selection authorizes fixture verification. Production dispatch, signing material, Pages credentials, hostname and publication require separate owner approval.
+The installed fixture demonstrated signed package installation, key rotation for backup encryption and native restoration. The release workflow and native feed promotion and rollback tests remain open.
+The pinned PHP action and shared GitVersion dry run passed consumer CI. Native package auditing still reports an upstream Python advisory on the selected catalogue. The revised specification needs independent review and renewed acceptance.
 
 ### Verified upstream behavior
 
@@ -87,7 +86,6 @@ Upstream encryption request https://github.com/opnsense/plugins/issues/5833 rema
 Earlier https://github.com/opnsense/plugins/pull/3574 was closed without merge after maintainers suggested a separate provider.
 The current contribution guide requires BSD-2-Clause, a discussion before a new plugin submission, a small initial contribution and disclosure of AI tool/model use.
 
-The revised proof includes dependency auditing, PHP security analysis, redacted secret scanning and native package auditing. Exact-source GitVersion output supplies the native package version. Public promotion receives separate approval.
 
 ## Scope
 
@@ -104,8 +102,8 @@ Deployment-specific credentials, real configuration exports, external-monitor cr
 
 ### PHP quality and compatibility
 
-Follow the shared [PHP convention](https://github.com/vhco-pro/docs/blob/d59008a3d135dfac17e93033a854dc67065d7a40/conventions/php.md), pinned by AGENTS.md.
-That immutable revision merged through https://github.com/vhco-pro/docs/pull/37 and preserves the PHP and browser guidance independently reviewed in R-4.
+Follow the shared [PHP convention](https://github.com/vhco-pro/docs/blob/1edeb5f32d868bbe761ef3221f350634cd6ff022/conventions/php.md), pinned by AGENTS.md.
+That revision incorporates the security requirements merged in [shared docs PR #38](https://github.com/vhco-pro/docs/pull/38).
 Use OPNsense's PSR-12 style and preserve its exact provider/model interface signatures.
 Use native types and strict typing for owned implementation where compatible with those signatures and actual framework callers.
 Validate model/XML/request input before conversion and confine unavoidable dynamic types to tested integration boundaries.
@@ -117,7 +115,7 @@ Any measured interoperability gap needs a narrow documented exception and indepe
 An empty analysis target, missing framework symbols, broad baseline or suppressed runtime failure cannot satisfy quality acceptance.
 Record actual interpreter/extension versions, tool versions, source/test inclusions and exact commands in the repository after observing them.
 Native package contents exclude developer dependencies and private fixtures.
-Run syntax and style checks, static analysis and behavior tests in CI, plus package/integration tests on a compatible disposable OPNsense/FreeBSD environment.
+Run syntax and style checks, static analysis, behavior tests, Composer auditing, PHP security analysis and secret scanning in CI. Run native package auditing and integration tests on a compatible disposable OPNsense/FreeBSD environment. Resolve security findings or record an independently reviewed, owner-approved disposition. Scanner failure or unexpectedly empty coverage leaves verification incomplete.
 Native browser settings and status pages also follow the pinned frontend-testing standard.
 Provide owned repeatable synthetic appliance fixtures and an automated Playwright suite for settings/setup, reload persistence, success/failure status and permission boundaries.
 Run Chromium journeys and Firefox for authentication, redirects and state-sensitive flows, plus the applicable responsive, keyboard, zoom and supported-theme checks.
@@ -255,6 +253,22 @@ Use the shared `version-workflow` to calculate the checked source's version and 
 
 The shared `gh-release-workflow` assumes that its tag is the released artifact. This plugin instead requires a verified native package and signed catalogue. The dry-run workflow therefore calculates the version without tagging, and the native preparation command consumes that result to build the artifact. Remote release and feed publication require separate approval.
 
+### Signed-feed promotion (Q1)
+
+The owner selected an owner-dispatched GitHub Actions workflow on 2026-11-14. That selection authorizes fixture verification. Production dispatch, signing material, Pages credentials, hostname and first publication require separate owner approval.
+
+The workflow uses these steps:
+
+1. Resolve the approved tag to a full commit SHA and verify that it matches the reviewed source and the recorded successful shared GitVersion run. Verify the tag version and derive the native version from that run. Reject a mismatched tag, SHA, run or version before preparing artifacts.
+2. Build against the pinned native inputs. Record the ABI, native version and package SHA-256 in a release manifest alongside the tag, commit and GitVersion result. Create and sign a complete feed generation and record its catalogue and generation digests in the manifest. Verify the package hash and version against the signed catalogue.
+3. Stage the exact generation for native client verification. Record the staged deployment and current production deployment identities before promotion. Verify trust, upgrade, and package retrieval during a generation change. Carry forward immutable packages needed by clients holding older catalogues.
+4. Prepare a recovery generation containing the previous signed catalogue and the immutable packages advertised by both catalogues. Verify its catalogue and package retrieval in staging before changing the live deployment.
+5. Promote the same verified generation through Cloudflare Pages and check the served manifest, catalogue and native package retrieval. Keep the previous deployment available for rollback. If promotion is interrupted, reconcile the live deployment before taking another action. If the new generation fails verification, restore the previous signed catalogue using the verified recovery generation and verify client retrieval again.
+
+Require production environment approval from the authorized owner before any production signing or deployment step. Give fixture execution access only to fixture keys and owned staging resources. Serialize promotions per feed. A retry must recover the same approved manifest and artifacts, or resume verification of an already deployed matching generation. Stop on a different digest for an existing version or generation, or an unexpected live deployment. Keep the approval and deployment records so a retry after an ambiguous response can distinguish completion from a conflict.
+
+Prove the same workflow sequence with fixture keys and owned synthetic staging using free CI tools, including wrong identity, conflicting digest, interrupted promotion, and retry after a successful promotion with a lost response. No persistent publisher host is required.
+
 ## Acceptance Criteria
 
 - [ ] AC-01: The package installs and upgrades on the selected supported releases, exposes its provider in the native Backups screen and preserves core and unrelated provider behavior.
@@ -264,8 +278,8 @@ The shared `gh-release-workflow` assumes that its tag is the released artifact. 
 - [ ] AC-05: Native scheduling survives regeneration and upgrade, failure of another provider cannot silently suppress the selected scheduling path, and native status plus independent freshness checking expose stale or failed delivery.
 - [ ] AC-06: Migration preserves the verified final legacy history and previous remote ancestor off the firewall, prevents new credentials entering the legacy plaintext capture path and remains recoverable after interruption.
 - [ ] AC-07: A second operator can install, configure, observe and recover the provider from versioned documentation and verified package inputs, with supported versions, diff/storage trade-offs and distribution/contribution limits explicit.
-- [ ] AC-08: Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests with visible file coverage and reviewed narrow exceptions, while the runtime package excludes development tooling and private fixtures.
-- [ ] AC-09: The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable repository generation through failed publication and signing-key rotation.
+- [ ] AC-08: Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests, with visible coverage and reviewed narrow exceptions. Required security scans and native audits complete with expected coverage and any findings resolved or given an independently reviewed, owner-approved disposition, while the runtime package excludes development tooling and private fixtures.
+- [ ] AC-09: The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable repository generation through failed publication and signing-key rotation. Production signing and deployment require owner approval, and fixture execution has access only to owned staging and fixture keys.
 - [ ] AC-10: The native settings and status interfaces pass reproducible automated browser journeys for setup, reload persistence, success/failure states and permissions on owned disposable fixtures, with the applicable responsive and accessibility checks and developer tooling excluded from the runtime package.
 
 ## Test Plan
@@ -274,13 +288,13 @@ The shared `gh-release-workflow` assumes that its tag is the released artifact. 
 | --- | --- |
 | AC-01 | On each selected release, build/install the package, inspect provider discovery and native form rendering, exercise setup/test, upgrade and remove/reinstall. Compare core/unrelated file ownership and backup behavior. |
 | AC-02 | Use synthetic complete configurations with nested secrets and malformed/encryption-failure inputs. Inspect every newly staged/tracked snapshot, perform native decrypt/import in an isolated appliance and verify the restored fields. Compare a real deployment export only during its separately approved deployment test. |
-| AC-03 | Test administrator, read-only and unauthorized access. Verify secret persistence and filesystem modes under the selected custody contract, recovery with independent credentials, failed/complete rotation and old/new snapshot retrieval. Inspect browser/API/log/process outputs for synthetic secret leakage. |
+| AC-03 | Test administrator, read-only and unauthorized access. Verify secret persistence and filesystem modes under the selected custody contract, recovery with independent credentials, failed/complete rotation and old/new snapshot retrieval. After native configuration restore and again after package upgrade, verify persisted settings, credential references, key identifiers and protected file modes. Reprovision external credentials independently where required and prove successful delivery after each transition. Inspect browser/API/log/process outputs for synthetic secret leakage. |
 | AC-04 | Inject concurrent manual/cron calls, rejected push, completed push with lost response, process termination and remote branch advance/divergence. Verify exact remote objects, retained pending state, no false success and repeatable recovery. Test non-master local branches and invalid destinations/refs. |
 | AC-05 | Regenerate native cron and upgrade the package, then observe a real scheduled run. Make an earlier provider throw an ordinary exception. Verify that the encrypted provider runs and the native runner reports aggregate failure. Exercise normal, stale, unchanged-source and stopped-scheduler receipts with matching pass/fail expectations. Verify the deployment's owner notification delivery separately. |
 | AC-06 | Exercise an old hook appending during the preliminary archive, then stop/drain it and verify the final independently downloaded bundle against the checkpoint tip and remote ancestor. Interrupt each cutover stage and repeat safely. Attempt enablement while the old hook remains active and require rejection before new secrets are saved. |
 | AC-07 | Follow the native install/setup/recovery guide from a fresh compatible disposable appliance using only retained package provenance and independent recovery material. Verify package authenticity, document measured repository growth and reproduce upgrade/removal behavior. |
-| AC-08 | On the pinned target interpreter, run syntax checks, PHP_CodeSniffer PSR-12, PHPStan at the declared maximum-level target with platform symbols/stubs, and PHPUnit over actual owned source/tests. Run `composer audit --locked` including developer and transitive dependencies, Semgrep CE on owned PHP source and tests, Psalm taint analysis on owned source with pinned framework symbols, and fully redacted Gitleaks scans over the feature Git range and runtime source. Exercise synthetic findings and scanner errors in CI. Run native `pkg audit` on the installed disposable target and record its package inventory and advisory database identity. Record resolved versions, scanned files, exclusions and any independently reviewed exception. Scanner errors and unexpectedly empty coverage leave the criterion open. Resolve findings or record their independently reviewed, owner-approved disposition before marking the criterion met. Inspect the built package for development dependencies and private fixtures. Verify real platform interfaces separately through AC-01 to AC-07. |
-| AC-09 | Carry an exact branch-push SHA and GitVersion output through native build, manifest, signed catalogue and client upgrade. Verify native prerelease ordering and reject mismatched source, tag or version. Bootstrap repository trust on a fresh compatible appliance, install through native firmware/package administration and update a version. Reject an unsigned/wrong-key catalogue, a changed artifact and incompatible ABI. Execute the owner-dispatched workflow against owned staging with fixture keys. Interrupt it before and after promotion, retry identical inputs and reject conflicting digests. Verify that rollback restores a previous generation that still installs and that clients holding an older catalogue can retrieve the named package. Exercise signing-key rotation, revoked-key rejection and recovery using independent signing/recovery material without exposing keys. |
+| AC-08 | On the pinned target interpreter, run syntax checks, PHP_CodeSniffer PSR-12, PHPStan at the declared maximum-level target with platform symbols/stubs, and PHPUnit over actual owned source/tests. Run `composer audit --locked` including developer and transitive dependencies, Semgrep CE on owned PHP source and tests, Psalm taint analysis on owned source with pinned framework symbols, and fully redacted Gitleaks scans over complete HEAD history and owned PHP source paths. Exercise synthetic findings and scanner errors in CI. Run native `pkg audit` on the installed disposable target and record its package inventory and advisory database identity. Record resolved versions, scanned files, exclusions and any independently reviewed exception. Scanner errors and unexpectedly empty coverage leave the criterion open. Resolve findings or record their independently reviewed, owner-approved disposition before marking the criterion met. Inspect the built package for development dependencies and private fixtures. Verify real platform interfaces separately through AC-01 to AC-07. |
+| AC-09 | Carry an exact branch-push SHA and GitVersion output through native build, manifest, signed catalogue and client upgrade. Verify native prerelease ordering and reject mismatched source, tag or version. Bootstrap repository trust on a fresh compatible appliance, install through native firmware/package administration and update a version. Reject an unsigned/wrong-key catalogue, a changed artifact and incompatible ABI. Execute the owner-dispatched workflow against owned staging with fixture keys. Interrupt it before and after promotion, retry identical inputs and reject conflicting digests. Require unauthorized dispatch to fail before production effects and prove fixture execution cannot access production keys or deployments. Verify the previous catalogue still installs after rollback. Fetch the older catalogue before promotion and retrieve its package afterward, then fetch the newer catalogue before rollback and retrieve its package afterward. Exercise signing-key rotation, revoked-key rejection and recovery using independent signing/recovery material without exposing keys. |
 | AC-10 | Prepare and repeat owned synthetic appliance fixtures without duplicating users or triggering external effects. Run Playwright through native settings/setup, reload persistence, normal/failed status and administrator/read-only/unauthorized cases. Exercise applicable Chromium/Firefox, responsive, keyboard, zoom and supported-theme coverage through real UI actions, with retained screenshots and console checks. Verify cleanup ownership and package exclusion of browser tools and private fixtures. |
 
 ## Tasks
@@ -298,29 +312,12 @@ The shared `gh-release-workflow` assumes that its tag is the released artifact. 
 - [ ] T6 `src/`, `tests/` - pass migration tests for verified off-appliance archives, interrupted cutover and no-checkout preservation of remote history (AC-06)
 - [ ] T7 `src/`, `tests/` - verify native ACLs, sanitized status, freshness checks and recovery across credential rotation (AC-03, AC-05, AC-10)
 - [ ] T8 `Makefile`, `pkg-descr`, `tests/` - build native install and upgrade artifacts and verify package contents, ownership and removal behavior on the pinned appliance (AC-01, AC-07, AC-08)
-- [ ] T9 `tests/`, `docs/installation.md`, `docs/recovery.md` - verify native signed-feed generation, trusted installation, negative trust and ABI cases, retained generations and key rotation in isolated scope (AC-07, AC-09)
+- [ ] T9 `.github/workflows/`, `scripts/`, `tests/`, `docs/installation.md`, `docs/recovery.md` - verify native signed-feed generation, trusted installation, negative trust and ABI cases, retained generations and key rotation in isolated scope. Verify dispatch authorization, fixture isolation, interruption, idempotent retry, conflict rejection and recovery across promotion and rollback (AC-07, AC-09)
 - [ ] T10 `tests/`, `playwright.config.ts`, `package.json`, `bun.lock` - run synthetic appliance journeys in Chromium and Firefox and retain responsive and accessibility evidence (AC-10)
 - [ ] T11 `tests/`, `docs/compatibility.md`, `docs/installation.md`, `docs/recovery.md`, `.github/workflows/` - reproduce installation, native restore and scheduling, record measured growth and tool coverage, and verify that CI runs the declared checks (AC-01, AC-02, AC-03, AC-05, AC-07, AC-08)
 
 - [ ] T12 `tests/security/`, `.github/workflows/`, `docs/compatibility.md` - verify scanner coverage and exits and disposition the installed native audit findings (AC-08)
 - [ ] T13 `scripts/`, `tests/package/` - verify the exact GitVersion source, native ordering, signed catalogue identity and client upgrade with the prepared artifact (AC-01, AC-07, AC-09)
-
-## Resolved Decisions
-
-### Q1. Who owns signed-feed promotion?
-
-The owner selected an owner-dispatched GitHub Actions workflow on 2026-11-14. That selection authorizes fixture verification. Production dispatch, signing material, Pages credentials, hostname and first publication require separate owner approval.
-
-The workflow uses these steps:
-
-1. Resolve the approved tag to a full commit SHA and verify that it matches the reviewed source and the recorded successful shared GitVersion run. Verify the tag version and derive the native version from that run. Reject a mismatched tag, SHA, run or version before preparing artifacts.
-2. Build against the pinned native inputs. Record the ABI, native version and package SHA-256 in a release manifest alongside the tag, commit and GitVersion result. Create and sign a complete feed generation and record its catalogue and generation digests in the manifest. Verify the package hash and version against the signed catalogue.
-3. Stage the exact generation for native client verification. Record the staged deployment and current production deployment identities before promotion. Verify trust, upgrade, and package retrieval during a generation change. Carry forward immutable packages needed by clients holding older catalogues.
-4. Promote the same verified generation through Cloudflare Pages and check the served manifest, catalogue and native package retrieval. Keep the previous deployment available for rollback. If promotion is interrupted, reconcile the live deployment before taking another action. If the new generation fails verification, restore the previous deployment and verify client retrieval again.
-
-Serialize promotions per feed. A retry must recover the same approved manifest and artifacts, or resume verification of an already deployed matching generation. Stop on a different digest for an existing version or generation, or an unexpected live deployment. Keep the approval and deployment records so a retry after an ambiguous response can distinguish completion from a conflict.
-
-Prove the same workflow sequence with fixture keys and owned synthetic staging using free CI tools, including wrong identity, conflicting digest, interrupted promotion, and retry after a successful promotion with a lost response. No persistent publisher host is required.
 
 ## Open Questions
 
@@ -518,7 +515,7 @@ PROPOSAL: Add explicit restore and upgrade scenarios that verify settings, crede
 
 ## Sources
 
-- [Shared PHP convention](https://github.com/vhco-pro/docs/blob/d59008a3d135dfac17e93033a854dc67065d7a40/conventions/php.md) supplies the implementation and verification rules, with primary-source links for each subject.
+- [Shared PHP convention](https://github.com/vhco-pro/docs/blob/1edeb5f32d868bbe761ef3221f350634cd6ff022/conventions/php.md) supplies the implementation and verification rules, with primary-source links for each subject.
 - [Shared browser verification standard](https://github.com/vhco-pro/docs/blob/d59008a3d135dfac17e93033a854dc67065d7a40/conventions/frontend-testing.md) supplies the owned-fixture and automated browser proof requirements.
 - [Cloudflare Pages static hosting](https://developers.cloudflare.com/pages/framework-guides/deploy-anything/) and [limits](https://developers.cloudflare.com/pages/platform/limits/) describe the proposed managed hosting model and the limits to verify before feed publication.
 - [FreeBSD pkg repository tooling](https://man.freebsd.org/cgi/man.cgi?query=pkg-repo&sektion=8&format=html) defines native catalogue creation/signing and repository metadata.
