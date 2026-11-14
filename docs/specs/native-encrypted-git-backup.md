@@ -21,6 +21,11 @@ covers:
   - playwright.config.ts
   - package.json
   - bun.lock
+  - psalm.xml
+  - GitVersion.yml
+  - scripts/
+  - renovate.json
+  - .semgrepignore
 ---
 
 # Plan: Native encrypted Git backup provider
