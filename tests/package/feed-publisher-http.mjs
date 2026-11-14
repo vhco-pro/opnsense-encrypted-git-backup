@@ -537,6 +537,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal.at(-2).payload.dispatch, "71");
             assert.equal(journal.at(-1).payload.phase, "create-rejected");
             requests = createRequests;
+            // Uploading the retry's retained assets repaired the corrupt served
+            // blob in this content-addressed fixture. Passing checks on the
+            // terminally failed recovery must hold before replay eligibility.
+            await assert.rejects(run("fixture", second), /manual diagnosis/);
+            assert.equal(createRequests, requests);
+            assets.set(packageKey, Buffer.from("corrupt recovery"));
             await assert.rejects(run("fixture", second), /already consumed/);
             await assert.rejects(run("fixture", authorized), /already consumed/);
             assert.equal(createRequests, requests);
