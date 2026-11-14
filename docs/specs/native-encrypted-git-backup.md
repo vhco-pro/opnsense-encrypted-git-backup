@@ -331,7 +331,9 @@ Prove the same workflow sequence with fixture keys and owned synthetic staging u
 
 ## Open Questions
 
-None.
+### Q3. How should the publisher retry a terminal recovery failure? (R-28 F-01)
+
+The owner already requires retries to reuse matching approved inputs. The proposed application is one new attempt per authorized retry dispatch when the uniquely correlated recovery deployment is confirmed live, the prior request is terminal, and native verification fails. Reuse the exact approved recovery bytes and keep newer work blocked until verification succeeds. An unknown or conflicting state stays on hold. The revised baseline needs acceptance of this recovery behavior together with the rest of the publication sequence.
 
 ## Review Log
 
@@ -365,6 +367,7 @@ None.
 | 2026-11-14 | R-25 | spec | `83fe3c3caeb6eb11a41a67ee65c72af5e69e018f` | unknown | procedural | Two blocking and one other factual finding; model identity not attested. |
 | 2026-11-14 | R-26 | spec | `6915b5de4d1cbf45f5990393aff0e0dc7c016938` | unknown | procedural | Four findings, two blocking; model identity not attested. |
 | 2026-11-14 | R-27 | spec | `f9d4132ec907c1d810b9d247592a67740c0b04ee` | unknown | procedural | Two factual findings; model identity not attested. |
+| 2026-11-14 | R-28 | spec | `d6f87e7102f0ac6da2b132b4ec6560a42a7cfe68` | unknown | procedural | Blocking recovery retry judgement; model identity not attested. |
 
 ### R-1
 
@@ -1151,6 +1154,15 @@ SEVERITY: should-fix
 WHERE: Design / Signed-feed promotion (Q1), lines 276 and 278. Test Plan / AC-09, line 307. Tasks / T9, line 325.
 EVIDENCE: The R-26 F-04 revision authorizes recovery with the already approved bytes when the uniquely correlated terminally failed candidate is confirmed live. Step 5 explicitly requires persisting the recovery decision for the terminal-success path followed by failed native validation. The new terminal-failure path says it triggers recovery without explicitly carrying forward that durable decision requirement. AC-09 can pass its restart test through the first path and its terminal-failure test without an interruption.
 PROPOSAL: Make the existing durable recovery decision apply to both triggers. In the terminal-failure case, interrupt after recovery is selected and before submission, then verify that a later authorized dispatch resumes with the same approved recovery bytes while newer work waits.
+
+### R-28
+
+FINDING: F-01
+KIND: judgement
+SEVERITY: blocking
+WHERE: docs/specs/native-encrypted-git-backup.md, Context / Owner summary, line 65. Design / Packaging and contribution, line 235. Design / Signed-feed promotion (Q1), lines 273-278. Acceptance Criteria / AC-09, line 292. Test Plan / AC-09, line 307. Tasks / T9, line 325.
+EVIDENCE: The R-27 revision covers both requested repairs. AC-09 sends unclassified structured errors through the production parser for candidate and recovery creates, with a definitive rejection as a control and zero follow-up creates for unclassified errors. It also interrupts the terminally failed candidate path after the recovery decision is durable and requires a later dispatch to restore the same approved bundle. Pinned vh-adlc lint reports pass. A separate gap remains when the recovery deployment itself becomes live and either finishes with terminal failure or finishes successfully but persistently fails native verification. The retry rule requires the recorded source to remain live, and closure requires terminal success plus passing native checks. The special recovery trigger applies to the candidate. AC-09 can pass by leaving a live recovery deployment open when cached package retrieval fails, even if the publisher has no authorized way to restore a usable feed.
+PROPOSAL: Resolve what an authorized operator can do when the exact recovery deployment is confirmed live but cannot be verified, while preserving the hold on unknown or conflicting state. Extend AC-09 to prove the chosen path and its closure checks, or explicitly narrow the recovery guarantee and test the resulting hold.
 
 ## Sources
 
