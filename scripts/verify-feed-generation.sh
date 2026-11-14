@@ -13,20 +13,20 @@ verify_key() {
     actual=$(openssl pkey -pubin -in "$public_key" -outform DER | sha256sum | cut -d ' ' -f 1)
     [[ "$expected" == "$actual" ]]
 }
-if jq -e 'has("predecessorCatalogue")' "$manifest" >/dev/null; then
-    verify_key "$key" "$(jq -er .keySha256 "$manifest")"
-fi
-bash "$root/run-feed-verifier.sh" "$url" "$manifest" "$key" "$abi"
-
-# The predecessor catalogue is a separate path with independent trust. Its
-# descriptor is part of the digest-verified release manifest.
+# The predecessor catalogue descriptor belongs to the digest-verified manifest.
 if jq -e 'has("predecessorCatalogue")' "$manifest" >/dev/null; then
     predecessor=$(jq -cer '.predecessorCatalogue |
         select(type == "object" and (.path | type == "string" and test("^[A-Za-z0-9_-]+$")))' "$manifest")
     path=$(jq -r .path <<< "$predecessor")
-    verify_key "${FEED_PREDECESSOR_PUBLIC_KEY:?}" "$(jq -er .keySha256 <<< "$predecessor")"
+    old_key=$(jq -er .keySha256 <<< "$predecessor")
+    new_key=$(jq -er .keySha256 "$manifest")
+    [[ "$old_key" != "$new_key" ]]
+    verify_key "$key" "$new_key"
+    verify_key "${FEED_PREDECESSOR_PUBLIC_KEY:?}" "$old_key"
     directory=$(mktemp -d)
     trap 'rm -rf -- "$directory"' EXIT
     printf '%s\n' "$predecessor" > "$directory/release.json"
     bash "$root/run-feed-verifier.sh" "$url/$path" "$directory/release.json" "${FEED_PREDECESSOR_PUBLIC_KEY:?}" "$abi"
 fi
+
+bash "$root/run-feed-verifier.sh" "$url" "$manifest" "$key" "$abi"
