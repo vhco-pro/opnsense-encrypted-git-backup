@@ -65,8 +65,9 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
     const candidateTar = join(directory, "candidate.tar");
     const recoveryTar = join(directory, "recovery.tar");
     await execute("tar", ["-cf", candidateTar, "-C", directory, ...Object.keys(packages), ...candidateFiles]);
+    await writeFile(join(recovery, "generation.json"), JSON.stringify({ recoveryOf: sha, version }));
     const recoveryPaths = {};
-    const recoveryFiles = ["404.html", ...Object.keys(packages), packageName];
+    const recoveryFiles = ["404.html", "generation.json", ...Object.keys(packages), packageName];
     for (const path of recoveryFiles) {
         recoveryPaths["/" + path] = createHash("sha256").update(await readFile(join(recovery, path))).digest("hex").slice(0, 32);
     }

@@ -64,6 +64,10 @@ reconcile_recovery() {
     live_id_is "$recovery_id"
     recovery_outcome=$(terminal_outcome <<< "$recovery_match")
     [[ "$recovery_outcome" != unknown ]]
+    # A mismatched live marker is ambiguous and cannot authorize a retry.
+    local served_marker
+    served_marker=$(request "$FEED_URL/generation.json" | sha256sum | cut -d ' ' -f 1)
+    [[ "$served_marker" == "$(sha256sum "$recovery_dir/generation.json" | cut -d ' ' -f 1)" ]]
     if verify_recovery "$recovery_dir"; then
         [[ "$recovery_outcome" == success ]] || {
             echo 'Terminal recovery failure with passing checks requires manual diagnosis.' >&2
