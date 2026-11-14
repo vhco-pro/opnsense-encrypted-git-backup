@@ -56,6 +56,14 @@ absence instead. The closure records the failed deployment and preserves the
 previous generation. An existing recovery-required record continues to control
 the attempt.
 
+Before Pages upload or create, the protected publisher retains a
+content-addressed approval that binds the source, candidate, recovery bundle,
+manifest, prior checkpoint and exact successor history. It reads back that
+approval and the successor history from release storage. The submission journal
+then records both digests before the create request. A later invocation can
+reuse matching retained approval and history after losing its local workspace.
+Missing or conflicting evidence after submission keeps the attempt open.
+
 GitHub Deployment payloads are a candidate journal under single-workflow ownership. GitHub documents workflow concurrency and deployment creation, but supplies no conditional append for this journal. The fixture does not establish that other credentials or workflows cannot create conflicting records. Previous deployment statuses expire, so the publisher does not use them as the replay ledger. The HTTP fixture does not provision real deployment records or upload Pages assets. Full history, durable bundles, retained packages, native verification and release authorization still precede enabling production mode.
 
 The production dispatch job uses the fixed publisher concurrency group and a protected environment. It requires explicit enablement, a main-branch dispatch at the approved SHA, the reviewed run and tag, both retained archives, and a disposable FreeBSD VM on a GitHub-hosted Linux runner. The source token is read-only. A separate deployment-journal credential and the Pages credential are scoped to publication. Configure required environment reviewers and verify the hosted VM before enabling production. Release asset creation belongs to preparation, with a separate asset-writer token. The fixture runs use per-run concurrency and loopback resources.

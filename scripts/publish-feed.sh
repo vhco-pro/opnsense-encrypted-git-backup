@@ -59,6 +59,29 @@ if [[ "$started" != '{}' && "$(jq -r .payload.digest <<< "$started")" != "${FEED
     started='{}'
 fi
 history_digest=
+history_record() {
+    jq -cS . "$1" > "$temp/successor"
+    successor=$(sha256sum "$temp/successor" | cut -d ' ' -f 1)
+    history_asset="history-$successor.json"
+    history_release=$(jq -er .tag "$FEED_NATIVE_MANIFEST")
+    jq -cnS --arg sha "$GITHUB_SHA" --arg candidate "$FEED_DIGEST" --arg recovery "$FEED_RECOVERY_DIGEST" \
+        --arg prior "$history_digest" --arg successor "$successor" --arg predecessor "$2" \
+        --arg marker "$(sha256sum "$FEED_NATIVE_MANIFEST" | cut -d ' ' -f 1)" '
+        {sha:$sha,candidate:$candidate,recovery:$recovery,prior:$prior,successor:$successor,
+            predecessor:$predecessor,manifest:$marker}
+    ' > "$temp/approval"
+    approval=$(sha256sum "$temp/approval" | cut -d ' ' -f 1)
+    approval_asset="approval-$approval.json"
+}
+read_history_asset() {
+    gh release download "$history_release" --repo "$GITHUB_REPOSITORY" --pattern "$1" --dir "$temp/readback"
+}
+store_history_asset() {
+    cp "$1" "$temp/$2"
+    GH_TOKEN="${FEED_ASSET_TOKEN:-${GH_TOKEN:-}}" gh release upload "$history_release" "$temp/$2" \
+        --repo "$GITHUB_REPOSITORY" >&2
+    read_history_asset "$2"
+}
 if [[ -n "${FEED_HISTORY:-}" ]]; then
     checkpoint=$(jq -ce '
         [.[] | select(.payload.phase == "history-checkpoint")] |
@@ -109,6 +132,17 @@ if [[ -n "${FEED_HISTORY:-}" ]]; then
             -f "$scripts/feed-history.jq" > "$temp/history"
     bash "$scripts/check-feed-history.sh" "$temp/history" "$FEED_DIRECTORY"
     bash "$scripts/check-feed-history.sh" "$temp/history" "$(dirname -- "$FEED_DIRECTORY")/recovery"
+    if [[ "$started" != '{}' ]]; then
+        history_record "$temp/history" "$(jq -r '.payload.predecessor // ""' <<< "$started")"
+        jq -e --arg successor "$successor" --arg approval "$approval" '
+            .payload.successor == $successor and .payload.approval == $approval
+        ' <<< "$started" >/dev/null
+        mkdir "$temp/readback"
+        read_history_asset "$approval_asset"
+        cmp "$temp/approval" "$temp/readback/$approval_asset"
+        read_history_asset "$history_asset"
+        cmp "$temp/successor" "$temp/readback/$history_asset"
+    fi
 fi
 if [[ "$started" != '{}' ]]; then
     attempt=$(jq -er '.payload.attempt | select(test("^[a-f0-9]{32}$"))' <<< "$started")
@@ -263,16 +297,6 @@ if [[ "$started" != '{}' ]]; then
             else error("conflicting closure") end
         ' "$temp/journal")
         release=$(jq -er .tag "$FEED_NATIVE_MANIFEST")
-        asset="history-$history_head.json"
-        jq -cS . "$temp/history" > "$temp/$asset"
-        mkdir "$temp/readback"
-        if ! gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$temp/readback"; then
-            [[ "$closed" == false ]]
-            GH_TOKEN="${FEED_ASSET_TOKEN:-${GH_TOKEN:-}}" gh release upload "$release" "$temp/$asset" \
-                --repo "$GITHUB_REPOSITORY" >&2
-            gh release download "$release" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$temp/readback"
-        fi
-        cmp "$temp/$asset" "$temp/readback/$asset"
         if [[ "$closed" == false ]]; then
             bash "$scripts/feed-close.sh" "$1" "$journal" "$source_sha" "$attempt" "$id" "$digest" "$version" "$history_head" "$release" "$withdrawn"
         fi
@@ -299,6 +323,8 @@ scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 attempt=$(openssl rand -hex 16)
 package_history='{}'
 marker=$FEED_DIGEST
+successor=
+approval=
 if [[ -n "${FEED_HISTORY:-}" ]]; then
     source "$scripts/feed-retirement.sh"
     withdrawn=$(jq -r '.payload.withdrawn // ""' <<< "$predecessor")
@@ -332,19 +358,36 @@ if [[ -n "${FEED_HISTORY:-}" ]]; then
     printf '%s\n' "$package_history" > "$temp/proposed-history"
     bash "$scripts/check-feed-history.sh" "$temp/proposed-history" "$FEED_DIRECTORY"
     bash "$scripts/check-feed-history.sh" "$temp/proposed-history" "$(dirname -- "$FEED_DIRECTORY")/recovery"
+    history_record "$temp/proposed-history" "$parent"
+    mkdir "$temp/readback"
+    if ! read_history_asset "$approval_asset"; then
+        if read_history_asset "$history_asset"; then
+            echo 'Successor history has no matching retained approval.' >&2
+            exit 1
+        fi
+        store_history_asset "$temp/approval" "$approval_asset"
+    fi
+    cmp "$temp/approval" "$temp/readback/$approval_asset"
+    if ! read_history_asset "$history_asset"; then
+        store_history_asset "$temp/successor" "$history_asset"
+    fi
+    cmp "$temp/successor" "$temp/readback/$history_asset"
 fi
 jq -n --arg sha "$GITHUB_SHA" --arg environment "$environment" --arg attempt "$attempt" \
+    --arg successor "$successor" --arg approval "$approval" \
     --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg parent "$parent" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '{
         ref:$sha, environment:$environment, auto_merge:false, required_contexts:[],
         transient_environment:false, production_environment:false,
-        payload:{phase:"submission-started",attempt:$attempt,digest:$digest,marker:$marker,history:$history,predecessor:$parent,recovery:$recovery,packages:$packages}
+        payload:{phase:"submission-started",attempt:$attempt,digest:$digest,marker:$marker,history:$history,predecessor:$parent,recovery:$recovery,packages:$packages,successor:$successor,approval:$approval}
     }' > "$temp/record"
 node "$scripts/feed-pages-assets.mjs" "$PAGES_API" "$PAGES_ASSET_API" "$FEED_DIRECTORY" "$FEED_MANIFEST"
 request "${github_headers[@]}" -H 'Content-Type: application/json' --data-binary "@$temp/record" "$journal" > "$temp/record-result"
-jq -e --arg attempt "$attempt" --arg sha "$GITHUB_SHA" --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg parent "$parent" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" '
+jq -e --arg attempt "$attempt" --arg sha "$GITHUB_SHA" --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg parent "$parent" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" \
+    --arg successor "$successor" --arg approval "$approval" '
     .sha == $sha and .payload.attempt == $attempt and .payload.digest == $digest
     and .payload.phase == "submission-started" and .payload.packages == $packages and .payload.marker == $marker
     and .payload.history == $history and .payload.predecessor == $parent and .payload.recovery == $recovery
+    and .payload.successor == $successor and .payload.approval == $approval
 ' "$temp/record-result" >/dev/null
 create_pages "$GITHUB_SHA" "$attempt" "$FEED_MANIFEST"
 printf '%s\n' 'Submission recorded. Reconcile the live generation on the next invocation.'

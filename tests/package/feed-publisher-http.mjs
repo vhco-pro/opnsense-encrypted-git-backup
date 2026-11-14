@@ -81,7 +81,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         const chunks = [];
         for await (const chunk of request) chunks.push(chunk);
         const bytes = Buffer.concat(chunks);
-        if (request.method === "PUT" && /^\/bundles\/(?:feed-[a-f0-9]{64}[.]tar|history-[a-f0-9]{64}[.]json)$/.test(path)) {
+        if (request.method === "PUT" && /^\/bundles\/(?:feed-[a-f0-9]{64}[.]tar|(?:history|approval)-[a-f0-9]{64}[.]json)$/.test(path)) {
             if (bundles.has(path)) return reply(409, {});
             if (!path.includes(createHash("sha256").update(bytes).digest("hex"))) return reply(422, {});
             if (dropHistoryWrite && path.includes("/history-")) {
@@ -138,6 +138,17 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         const paths = new Map(Object.entries(JSON.parse(submitted)));
         if (![...paths.values()].every((hash) => assets.has(hash))) return reply(422, {});
         if (!journal.some((entry) => `feed-attempt:${entry.payload.attempt}` === attempt)) return reply(422, {});
+        if (native) {
+            const submission = journal.find((entry) => `feed-attempt:${entry.payload.attempt}` === attempt);
+            if (submission.payload.phase === "submission-started") {
+                const head = `/bundles/history-${submission.payload.successor}.json`;
+                const approval = `/bundles/approval-${submission.payload.approval}.json`;
+                if (!bundles.has(head) || !downloaded.includes(head) || !bundles.has(approval) ||
+                    !downloaded.includes(approval)) {
+                    return reply(412, { success: false, errors: [{ message: "History was not committed and read back before create" }] });
+                }
+            }
+        }
         createRequests++;
         if (dropBeforeCreate) return request.socket.destroy();
         if (rejectCreate) {
@@ -322,6 +333,25 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(assets.size, 0);
             assert.equal(createRequests, 0);
             downloaded.length = 0;
+            const historyAssets = [...bundles.keys()].filter((path) => path.includes("/history-"));
+            dropHistoryWrite = true;
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            assert.deepEqual([...bundles.keys()].filter((path) => path.includes("/history-")), historyAssets);
+            assert.equal(journal.length, 0);
+            assert.equal(createRequests, 0);
+            assert.equal(assets.size, 0);
+            loseHistoryReply = true;
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            assert.equal(journal.length, 0);
+            assert.equal(createRequests, 0);
+            assert.equal(assets.size, 0);
+            const approvalPathname = [...bundles.keys()].find((path) => path.includes("/approval-"));
+            assert.ok(approvalPathname);
+            const retainedApproval = bundles.get(approvalPathname);
+            bundles.delete(approvalPathname);
+            await assert.rejects(run(), /Successor history has no matching retained approval/);
+            bundles.set(approvalPathname, retainedApproval);
+            assert.equal(createRequests, 0);
         }
         await assert.rejects(run(), (error) => {
             assert.match(error.stderr, /curl: [(]52[)]/, error.stderr);
@@ -339,15 +369,6 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(createRequests, beforeIntermediate);
             assert.equal(journal.length, 1);
             pages[0].latest_stage = terminal;
-            const historyAssets = [...bundles.keys()].filter((path) => path.includes("/history-"));
-            dropHistoryWrite = true;
-            await assert.rejects(run(), /curl: [(]52[)]/);
-            assert.deepEqual([...bundles.keys()].filter((path) => path.includes("/history-")), historyAssets);
-            assert.equal(journal.length, 1);
-            assert.equal(createRequests, beforeIntermediate);
-            loseHistoryReply = true;
-            await assert.rejects(run(), /curl: [(]52[)]/);
-            assert.equal(journal.length, 1);
             loseClosureReply = true;
             await assert.rejects(run(), /curl: [(]52[)]/);
             assert.equal(journal.length, 2);
@@ -365,7 +386,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal[1].payload.history,
                 createHash("sha256").update(JSON.stringify(ordered) + "\n").digest("hex"));
             assert.equal(journal[0].payload.packages[fixture.previous], fixture.previousDigest);
-            assert.equal(downloaded.filter((path) => path === `/bundles/history-${journal[1].payload.history}.json`).length, 2);
+            assert.equal(journal[0].payload.successor, journal[1].payload.history);
             const retained = await fetch(url + "/feed/" + fixture.previous);
             assert.equal(createHash("sha256").update(Buffer.from(await retained.arrayBuffer())).digest("hex"),
                 fixture.previousDigest);
