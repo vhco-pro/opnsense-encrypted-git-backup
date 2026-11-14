@@ -317,12 +317,25 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 await writeFile(join(next, "pages-manifest.json"), JSON.stringify(paths));
                 const previous = journal.at(-1);
                 fixture = await retainFixture({ directory: next, endpoint: url, packageName,
-                    candidateFiles, version, predecessor: previous.payload.history });
+                    candidateFiles, version, predecessor: previous.payload.history,
+                    previousSite: number === 2 ? join(native, "site") : join(native, `site-${number - 1}`),
+                });
                 // Before each dispatch only the controller's predecessor is retained.
+                if (number === 4) nextOutcome = "failure";
                 await assert.rejects(run(), /curl: [(]52[)]/);
                 assert.equal(journal.at(-1).payload.predecessor, previous.payload.attempt);
                 assert.equal(journal.at(-1).payload.history, previous.payload.history);
-                assert.match((await run()).stdout, /closure is recorded/);
+                if (number === 4) {
+                    const calls = createRequests;
+                    await assert.rejects(run());
+                    assert.equal(createRequests, calls);
+                    const authorized = { FEED_RECOVERY_AUTHORIZED: "true", GITHUB_RUN_ID: "60" };
+                    await assert.rejects(run("fixture", authorized), /curl: [(]52[)]/);
+                    assert.equal(journal.at(-2).payload.phase, "recovery-required");
+                    assert.match((await run("fixture", authorized)).stdout, /closure is recorded/);
+                } else {
+                    assert.match((await run()).stdout, /closure is recorded/);
+                }
                 assert.equal(journal.at(-1).payload.version, version);
                 const cached = await fetch(url + "/feed/os-encrypted-git-backup-0.0.1.pkg");
                 assert.deepEqual(Buffer.from(await cached.arrayBuffer()), initial);

@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const sharedSha = "3b78b04df802ea1592cbe19338d7a882d1888389";
 const workflow = `vhco-pro/version-workflow/.github/workflows/version.yml@${sharedSha}`;
 
-export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor }) {
+export async function retainFixture({ directory, endpoint, packageName, candidateFiles, version = "0.0.1", predecessor, previousSite }) {
     const sha = (await execute("git", ["rev-parse", "HEAD"])).stdout.trim();
     const tag = `v${version}`;
     const repo = join(directory, "repository");
@@ -61,13 +61,30 @@ export async function retainFixture({ directory, endpoint, packageName, candidat
         await mkdir(dirname(output), { recursive: true });
         await copyFile(join(directory, path), output);
     }
-    await writeFile(join(recovery, "404.html"), "Fixture catalogue unavailable");
+    const catalogueFiles = [];
+    if (previousSite) {
+        const priorVersion = `0.0.${Number(version.split(".").at(-1)) - 1}`;
+        const priorPackage = `os-encrypted-git-backup-${priorVersion}.pkg`;
+        for (const path of ["meta.conf", "meta.pkg", "packagesite.pkg", "data.pkg"]) {
+            await copyFile(join(previousSite, path), join(recovery, path));
+            catalogueFiles.push(path);
+        }
+        const digest = async (path) => createHash("sha256").update(await readFile(join(recovery, path))).digest("hex");
+        await writeFile(join(recovery, "release.json"), JSON.stringify({
+            version: priorVersion, packageSha256: await digest(priorPackage),
+            catalogueSha256: await digest("packagesite.pkg"),
+        }));
+        catalogueFiles.push("release.json");
+    } else {
+        await writeFile(join(recovery, "404.html"), "Fixture catalogue unavailable");
+        catalogueFiles.push("404.html");
+    }
     const candidateTar = join(directory, "candidate.tar");
     const recoveryTar = join(directory, "recovery.tar");
     await execute("tar", ["-cf", candidateTar, "-C", directory, ...Object.keys(packages), ...candidateFiles]);
     await writeFile(join(recovery, "generation.json"), JSON.stringify({ recoveryOf: sha, version }));
     const recoveryPaths = {};
-    const recoveryFiles = ["404.html", "generation.json", ...Object.keys(packages), packageName];
+    const recoveryFiles = [...catalogueFiles, "generation.json", ...Object.keys(packages), packageName];
     for (const path of recoveryFiles) {
         recoveryPaths["/" + path] = createHash("sha256").update(await readFile(join(recovery, path))).digest("hex").slice(0, 32);
     }
