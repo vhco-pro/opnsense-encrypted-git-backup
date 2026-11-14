@@ -1,0 +1,8 @@
+<acl>
+    <page-encrypted-git-status>
+        <name>System: Configuration: Encrypted Git backup status</name>
+        <patterns>
+            <pattern>api/encrypted_git_backup/status/read</pattern>
+        </patterns>
+    </page-encrypted-git-status>
+</acl>

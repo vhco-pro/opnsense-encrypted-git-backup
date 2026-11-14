@@ -33,10 +33,20 @@ their separate design, review and owner approvals.
 
 ## Verification
 
-The repository currently contains design documents only.
 The PHP guidance is adopted from the merged revision in
 https://github.com/vhco-pro/docs/pull/37.
 Use the verified vh-adlc binary for feature-document lint and review checks.
 Run `git diff --check` before committing.
-Record native build and integration commands after observing them on a disposable
-compatible OPNsense/FreeBSD environment.
+After installing the locked development dependencies and fetching the pinned core
+symbols as shown in `.github/workflows/php.yml`, run:
+
+```sh
+find src tests -name '*.php' -exec php -l {} \;
+vendor/bin/phpcs
+vendor/bin/phpstan analyse --no-progress
+vendor/bin/phpunit
+actionlint
+```
+
+See [native build observations](docs/compatibility.md) for the verified package
+commands and remaining appliance checks.
