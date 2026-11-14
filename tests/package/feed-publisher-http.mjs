@@ -26,6 +26,8 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     const key = "a".repeat(32);
     const site = new Map([["/generation.json", key]]);
     let loseJournalReply = false;
+    let loseClosureReply = false;
+    let loseHistoryReply = false;
 
     const server = createServer(async (request, response) => {
         const path = new URL(request.url, "http://localhost").pathname;
@@ -57,6 +59,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             if (bundles.has(path)) return reply(409, {});
             if (!path.includes(createHash("sha256").update(bytes).digest("hex"))) return reply(422, {});
             bundles.set(path, bytes);
+            if (loseHistoryReply && path.includes("/history-")) {
+                loseHistoryReply = false;
+                return request.socket.destroy();
+            }
             return reply(201, {});
         }
         const body = bytes.toString();
@@ -65,7 +71,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             if (record.auto_merge !== false || record.environment !== "feed-fixture") return reply(422, {});
             const entry = { id: journal.length + 1, sha: record.ref, payload: record.payload };
             journal.push(entry);
-            if (loseJournalReply) return request.socket.destroy();
+            if (loseJournalReply || (loseClosureReply && entry.payload.phase === "verified-closure")) {
+                loseClosureReply = false;
+                return request.socket.destroy();
+            }
             return reply(201, entry);
         }
 
@@ -201,6 +210,14 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(journal.length, 1);
         assert.equal(assets.get(key).toString(), JSON.stringify({ digest: effectiveMarker }));
         assert.equal(pages.length, 1);
+        if (native) {
+            loseHistoryReply = true;
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            assert.equal(journal.length, 1);
+            loseClosureReply = true;
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            assert.equal(journal.length, 2);
+        }
         const result = await run();
         if (native) {
             assert.match(result.stdout, /Native client verification passed and closure is recorded/);
@@ -214,12 +231,21 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal[1].payload.history,
                 createHash("sha256").update(JSON.stringify(ordered) + "\n").digest("hex"));
             assert.equal(journal[0].payload.packages[fixture.previous], fixture.previousDigest);
-            assert.equal(downloaded.length, 7);
+            assert.equal(downloaded.filter((path) => path === `/bundles/history-${journal[1].payload.history}.json`).length, 2);
             const retained = await fetch(url + "/feed/" + fixture.previous);
             assert.equal(createHash("sha256").update(Buffer.from(await retained.arrayBuffer())).digest("hex"),
                 fixture.previousDigest);
             await run();
             assert.equal(journal.length, 2);
+            const headPath = `/bundles/history-${journal[1].payload.history}.json`;
+            const headBytes = bundles.get(headPath);
+            bundles.delete(headPath);
+            await assert.rejects(run());
+            assert.equal(bundles.has(headPath), false);
+            bundles.set(headPath, Buffer.from("{}"));
+            await assert.rejects(run());
+            assert.equal(bundles.get(headPath).toString(), "{}");
+            bundles.set(headPath, headBytes);
             const previousDigest = journal[0].payload.packages[fixture.previous];
             delete journal[0].payload.packages[fixture.previous];
             await assert.rejects(run(), /submission history does not extend/);
