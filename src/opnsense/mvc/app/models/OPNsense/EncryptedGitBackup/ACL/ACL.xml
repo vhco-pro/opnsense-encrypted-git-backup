@@ -2,6 +2,7 @@
     <page-encrypted-git-status>
         <name>System: Configuration: Encrypted Git backup status</name>
         <patterns>
+            <pattern>ui/encrypted_git_backup</pattern>
             <pattern>api/encrypted_git_backup/status/read</pattern>
         </patterns>
     </page-encrypted-git-status>

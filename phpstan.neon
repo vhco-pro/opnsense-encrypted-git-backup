@@ -5,6 +5,9 @@ parameters:
         - src
         - tests
     scanFiles:
+        - tests/stubs/PhalconView.stub
+        - work/upstream/core/src/opnsense/mvc/app/controllers/OPNsense/Base/IndexController.php
+        - work/upstream/core/src/opnsense/mvc/app/controllers/OPNsense/Base/ControllerBase.php
         - work/upstream/core/src/opnsense/mvc/app/controllers/OPNsense/Base/ApiControllerBase.php
         - work/upstream/core/src/opnsense/mvc/app/controllers/OPNsense/Base/ControllerRoot.php
         - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Core/Backend.php

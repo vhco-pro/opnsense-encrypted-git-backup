@@ -1,0 +1,7 @@
+<menu>
+    <System>
+        <Configuration>
+            <EncryptedGitBackup VisibleName="Encrypted Git Backup" url="/ui/encrypted_git_backup"/>
+        </Configuration>
+    </System>
+</menu>
