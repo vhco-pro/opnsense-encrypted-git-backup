@@ -40,8 +40,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ (inputs.mode == 'verify-release' || inputs.mode == 'publish') && 'native-package-pages-publisher' || format('native-package-pages-fixture-{0}-{1}', github.run_id, github.run_attempt) }}
-  cancel-in-progress: false
+  group: ${{ (inputs.mode == 'verify-release' || inputs.mode == 'publish') && 'native-package-pages-publisher' || format('native-package-pages-fixture-{0}', github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: ${{ inputs.mode != 'verify-release' && inputs.mode != 'publish' }}
 
 jobs:
   fixture:

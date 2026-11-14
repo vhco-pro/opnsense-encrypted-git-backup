@@ -3,8 +3,12 @@ name: Native browser
 on:
   pull_request:
   push:
-    branches: [main, "feat/**"]
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ format('native-browser-{0}', github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -34,11 +38,15 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/opnsense-browser"
           bash tests/appliance/browser.sh "$RUNNER_TEMP/opnsense-browser"
-      - name: Retain browser screenshots and appliance markers
+      - name: Retain sanitized browser evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: native-browser-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/opnsense-browser/artifacts
+          path: |
+            ${{ runner.temp }}/opnsense-browser/artifacts/**/status-mobile.png
+            ${{ runner.temp }}/opnsense-browser/artifacts/**/status-narrow-reduced-motion.png
+            ${{ runner.temp }}/opnsense-browser/artifacts/*-real-zoom.png
+            ${{ runner.temp }}/opnsense-browser/artifacts/*-zoom.log
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 5

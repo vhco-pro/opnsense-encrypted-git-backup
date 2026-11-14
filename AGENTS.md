@@ -34,6 +34,17 @@ their separate design, review and owner approvals.
 
 ## Verification
 
+Run available local checks before pushing. Batch related fixes and use one exact
+pre-merge verification run. Diagnose failures locally before another push or
+dispatch. Automatic hosted validation runs on pull requests and pushes to main.
+Cancel superseded verification for the same PR or ref. Protected publication
+keeps its separate non-cancelling concurrency group.
+
+Use standard GitHub-hosted Linux runners in public repositories. Hosted runs in
+private repositories and paid or larger runners require fresh, explicit owner
+approval. Keep uploaded artifacts limited to sanitized review evidence with
+short retention. See [GitHub Actions billing](https://docs.github.com/en/actions/concepts/billing-and-usage).
+
 The PHP guidance was introduced in https://github.com/vhco-pro/docs/pull/37.
 The pinned revision includes the security requirements from
 https://github.com/vhco-pro/docs/pull/38.

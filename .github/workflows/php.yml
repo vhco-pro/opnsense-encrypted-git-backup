@@ -3,7 +3,11 @@ name: PHP checks
 on:
   pull_request:
   push:
-    branches: [main, "feat/**"]
+    branches: [main]
+
+concurrency:
+  group: ${{ format('php-{0}', github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
