@@ -9,7 +9,8 @@ if [[ -z "${FEED_NATIVE_SSH:-}" ]]; then
     exec sh "$root/feed-verify-native.sh" "$1" "$3" "$4" "$version" "$digest" "$catalogue"
 fi
 [[ $# == 4 && "$FEED_NATIVE_SSH" == freebsd ]]
-[[ "$1" =~ ^https://[A-Za-z0-9.-]+(/[A-Za-z0-9/_-]*)?$ ]]
+[[ "$1" =~ ^https://[A-Za-z0-9.-]+(/[A-Za-z0-9/_-]*)?$ ||
+   "$1" =~ ^http://127[.]0[.]0[.]1:[0-9]+(/[A-Za-z0-9/_-]*)?$ ]]
 [[ "$4" == FreeBSD:15:amd64 ]]
 remote=$(ssh -o BatchMode=yes freebsd 'mktemp -d /tmp/feed-verify.XXXXXXXX')
 [[ "$remote" =~ ^/tmp/feed-verify[.][A-Za-z0-9]+$ ]]

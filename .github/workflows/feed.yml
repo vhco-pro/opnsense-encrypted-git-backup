@@ -61,11 +61,16 @@ jobs:
           release: '15.1'
           arch: x86_64
           sync: rsync
-          copyback: false
+          copyback: true
           disable-cache: true
           run: |
             sh scripts/prepare-feed-verifier.sh
             test "$(pkg-static config ABI)" = FreeBSD:15:amd64
+            sh tests/package/hosted-feed-content.sh work/native-feed
+      - name: Verify the signed native fixture through the Pages adapter
+        env:
+          NATIVE_FEED_DIRECTORY: work/native-feed
+        run: node --test tests/package/feed-publisher-http.mjs
 
   verify-release:
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'verify-release'
