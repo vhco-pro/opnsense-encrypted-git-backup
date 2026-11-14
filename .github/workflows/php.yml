@@ -60,7 +60,6 @@ jobs:
     with:
       dry-run: true
       preview-label: ''
-      config-file-path: GitVersion.yml
 
   package-plan:
     needs: version
