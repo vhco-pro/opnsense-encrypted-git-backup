@@ -1,11 +1,12 @@
 # Repository instructions
 
 Read the personal conventions at
-https://github.com/vhco-pro/docs/blob/66582497a21a2181521e7d77200608af597dcc89/AGENTS.md
+https://github.com/vhco-pro/docs/blob/06c929bea58e31d28a2a1ae9b563d10c744d9886/AGENTS.md
 and follow the task routes there before implementation.
 Read conventions/coding.md for code, conventions/feature-documents.md for features,
 and conventions/documentation.md and guides/humanize-prose.md for prose.
 Read conventions/php.md before PHP specification, implementation or review.
+Read conventions/frontend-testing.md for native browser settings and status interfaces.
 CI and packaging also use conventions/delivery.md and knowledge/shared-delivery.md.
 Report inaccessible required sources before proceeding.
 

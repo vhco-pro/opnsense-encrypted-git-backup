@@ -17,6 +17,9 @@ covers:
   - phpstan.neon
   - phpunit.xml.dist
   - .github/workflows/
+  - playwright.config.ts
+  - package.json
+  - bun.lock
 ---
 
 # Plan: Native encrypted Git backup provider
@@ -53,7 +56,7 @@ Retain independently recoverable encrypted history and test a real native restor
 Shared PHP conventions now define typing, small effect boundaries, PSR-12, secure resources and explicit development checks.
 The implementation must pass style, static analysis and behavior tests with recorded coverage of owned files.
 Development tools are kept in the build/test environment.
-The signed repository's static hosting remains an owner choice.
+The owner requires managed static hosting for the signed repository, with its proposed Cloudflare Pages delivery still awaiting the hosting choice.
 This design phase produces a reviewed specification and installation/recovery design.
 Implementation and live rollout follow acceptance of the revised design.
 
@@ -93,7 +96,7 @@ Deployment-specific credentials, real configuration exports, external-monitor cr
 
 ### PHP quality and compatibility
 
-Follow the shared [PHP convention](https://github.com/vhco-pro/docs/blob/66582497a21a2181521e7d77200608af597dcc89/conventions/php.md), pinned by AGENTS.md.
+Follow the shared [PHP convention](https://github.com/vhco-pro/docs/blob/06c929bea58e31d28a2a1ae9b563d10c744d9886/conventions/php.md), pinned by AGENTS.md.
 That immutable revision is the proposal in https://github.com/vhco-pro/docs/pull/37 and is included in this independent review.
 Use OPNsense's PSR-12 style and preserve its exact provider/model interface signatures.
 Use native types and strict typing for owned implementation where compatible with those signatures and actual framework callers.
@@ -107,6 +110,11 @@ An empty analysis target, missing framework symbols, broad baseline or suppresse
 Record actual interpreter/extension versions, tool versions, source/test inclusions and exact commands in the repository after observing them.
 Native package contents exclude developer dependencies and private fixtures.
 Run syntax and style checks, static analysis and behavior tests in CI, plus package/integration tests on a compatible disposable OPNsense/FreeBSD environment.
+Native browser settings and status pages also follow the pinned frontend-testing standard.
+Provide owned repeatable synthetic appliance fixtures and an automated Playwright suite for settings/setup, reload persistence, success/failure status and permission boundaries.
+Run Chromium journeys and Firefox for authentication, redirects and state-sensitive flows, plus the applicable responsive, keyboard, zoom and supported-theme checks.
+Keep fixture preparation and cleanup scoped to disposable test appliances and out of normal package installation.
+Browser tooling and its lock file remain developer-only inputs.
 
 Resolve and pin the exact current stable release, PHP runtime and FreeBSD ABI from official release/package metadata before implementation starts.
 Legacy-release support is limited to an assessed migration path.
@@ -219,6 +227,11 @@ Keep signing private keys outside source and package artifacts, with independent
 Publish a complete validated repository generation so interrupted publication preserves a usable previous generation.
 Choose compatible release/ABI channels explicitly and refuse an incompatible package on the target.
 Q4 chooses static public hosting and its availability boundary.
+The owner requires managed serverless/static hosting and wants no instance-maintenance responsibility.
+The proposed Cloudflare Pages feed serves static catalogue, signature and package files over managed HTTPS.
+Its publication pipeline and signing-key lifecycle remain project responsibilities.
+Validate artifact count/size limits, response behavior and native client compatibility before selecting the final feed configuration.
+Retain immutable package versions needed by cached catalogues across repository generations and test an update during catalogue/artifact retrieval.
 Record artifact version, source revision, dependencies, integrity and authenticity checks and supported OPNsense/PHP/FreeBSD combinations.
 Native package installation alone does not establish compatibility with an arbitrary older appliance.
 Define package file ownership and test install/upgrade/remove before any live rollout.
@@ -239,6 +252,7 @@ Upstream acceptance remains an external decision.
 - [ ] AC-07: A second operator can install, configure, observe and recover the provider from versioned documentation and verified package inputs, with supported versions, diff/storage trade-offs and distribution/contribution limits explicit.
 - [ ] AC-08: Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests with visible file coverage and reviewed narrow exceptions, while the runtime package excludes development tooling and private fixtures.
 - [ ] AC-09: The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable repository generation through failed publication and signing-key rotation.
+- [ ] AC-10: The native settings and status interfaces pass reproducible automated browser journeys for setup, reload persistence, success/failure states and permissions on owned disposable fixtures, with the applicable responsive and accessibility checks and developer tooling excluded from the runtime package.
 
 ## Test Plan
 
@@ -253,6 +267,7 @@ Upstream acceptance remains an external decision.
 | AC-07 | Follow the native install/setup/recovery guide from a fresh compatible disposable appliance using only retained package provenance and independent recovery material. Verify package authenticity, document measured repository growth and reproduce upgrade/removal behavior. |
 | AC-08 | On the pinned target interpreter, run syntax checks, PHP_CodeSniffer PSR-12, PHPStan at the declared maximum-level target with platform symbols/stubs, and PHPUnit over actual owned source/tests. Record resolved versions, scanned files, exclusions and any independently reviewed exception. Inspect the built package for development dependencies and private fixtures. Verify real platform interfaces separately through AC-01 to AC-07. |
 | AC-09 | Bootstrap repository trust on a fresh compatible appliance, install through native firmware/package administration and update a version. Reject an unsigned/wrong-key catalogue, a changed artifact and incompatible ABI. Interrupt repository publication and prove the previous generation still installs. Exercise signing-key rotation, revoked-key rejection and recovery using independent signing/recovery material without exposing keys. |
+| AC-10 | Prepare and repeat owned synthetic appliance fixtures without duplicating users or triggering external effects. Run Playwright through native settings/setup, reload persistence, normal/failed status and administrator/read-only/unauthorized cases. Exercise applicable Chromium/Firefox, responsive, keyboard, zoom and supported-theme coverage through real UI actions, with retained screenshots and console checks. Verify cleanup ownership and package exclusion of browser tools and private fixtures. |
 
 ## Tasks
 
@@ -262,11 +277,11 @@ None yet; written after design acceptance.
 
 ### Q4: Where should the signed package repository be hosted?
 
-**Recommendation:** A. Use static Cloudflare hosting under the owner's service domain, with the feed's client trust independent of its hosting credentials.
+**Recommendation:** A. Use managed Cloudflare Pages static hosting under the owner's service domain, with the feed's client trust independent of its hosting credentials.
 
 | Option | You get | It costs |
 | --- | --- | --- |
-| **A. Static Cloudflare hosting** | A public signed feed using the owner's existing hosting platform and domain. | A selected hostname, deployment ownership and independent signing-key recovery. |
+| **A. Static Cloudflare Pages hosting** | A managed static feed using the owner's existing hosting platform and domain. | A selected hostname, checked hosting limits, deployment ownership and independent signing-key recovery. |
 | **B. GitHub-hosted static repository** | Package/source delivery on the same platform with independently verified signatures. | Publishing/hosting configuration and an availability dependency on GitHub for updates. |
 
 **Why this is yours:** The hosting and hostname determine a public endpoint and ongoing release responsibility.
@@ -277,6 +292,7 @@ None yet; written after design acceptance.
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-11-14 | R-1 | spec | `fe017181fab3d0a407d53708757f720adb32b947` | unknown | procedural | Blocking current-core scheduling claim corrected; model identity not attested. |
 | 2026-11-14 | R-2 | spec | `60850674d58ac855a509af22132174201972ffd2` | unknown | procedural | NO FINDINGS; model identity not attested. |
+| 2026-11-14 | R-3 | spec | `ab93ef6d9f5a6dcd9c47f1b452cc978665adc027` | unknown | procedural | Blocking strict-typing clarification and missing browser proof identified; model identity not attested. |
 
 ### R-1
 
@@ -291,9 +307,27 @@ PROPOSAL: Describe the current runner's observed exception isolation and identif
 
 NO FINDINGS
 
+### R-3
+
+FINDING: F-01
+KIND: factual
+SEVERITY: blocking
+WHERE: Adopted conventions/php.md / Types and input boundaries; Design / PHP quality and compatibility
+EVIDENCE: The adopted PHP guideline at revision 66582497a21a2181521e7d77200608af597dcc89, lines 27-31, discusses parameter, property and return declarations, then states that strict typing is selected by the calling file. This omits the distinction for scalar return checks. The implemented PHP RFC https://wiki.php.net/rfc/scalar_type_hints_v5, sections Parameter type declarations and Return type declarations, establishes that scalar argument checking follows the calling file, while scalar return checking follows the file defining the function. The cited PHP manual also demonstrates strict return checking. Applying the broad statement to framework integration would produce incorrect coercion expectations and tests.
+PROPOSAL: Qualify the caller-file rule as applying to scalar argument checks and state the definition-file rule for scalar return checks. Preserve explicit input validation and actual framework-call compatibility tests. Update the adopted immutable documentation revision after correcting the authoritative guideline.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: should-fix
+WHERE: Design / PHP quality and compatibility; Design / Provider and ownership; Acceptance Criteria and Test Plan
+EVIDENCE: At reviewed plugin commit ab93ef6d9f5a6dcd9c47f1b452cc978665adc027, the feature adds native settings and a browser status view, but its verification design and criteria cover PHP checks, package tests and native form inspection without an automated browser suite. The adopted shared AGENTS.md at revision 66582497a21a2181521e7d77200608af597dcc89, lines 14-15, routes every browser frontend to conventions/frontend-testing.md. That standard requires reproducible owned fixtures and automated Playwright journeys, including browser actions, persistence, permission states and responsive verification. Existing proofs could pass while those required browser behaviors remain untested.
+PROPOSAL: Add the applicable frontend-testing requirement to the feature design and observable proof. Use synthetic state on a disposable appliance to exercise settings/setup, reload persistence, successful and failed status, and access permissions through the real browser interface. Include the resulting owned browser test paths in covers and retain the existing boundary between disposable tests and live deployment.
+
 ## Sources
 
-- [Shared PHP convention proposal](https://github.com/vhco-pro/docs/blob/66582497a21a2181521e7d77200608af597dcc89/conventions/php.md) supplies the reviewed implementation and verification rules, with primary-source links for each subject.
+- [Shared PHP convention proposal](https://github.com/vhco-pro/docs/blob/06c929bea58e31d28a2a1ae9b563d10c744d9886/conventions/php.md) supplies the implementation and verification rules, with primary-source links for each subject.
+- [Shared browser verification standard](https://github.com/vhco-pro/docs/blob/06c929bea58e31d28a2a1ae9b563d10c744d9886/conventions/frontend-testing.md) supplies the owned-fixture and automated browser proof requirements.
+- [Cloudflare Pages static hosting](https://developers.cloudflare.com/pages/framework-guides/deploy-anything/) and [limits](https://developers.cloudflare.com/pages/platform/limits/) describe the proposed managed hosting model and the limits to verify before feed publication.
 - [FreeBSD pkg repository tooling](https://man.freebsd.org/cgi/man.cgi?query=pkg-repo&sektion=8&format=html) defines native catalogue creation/signing and repository metadata.
 
 - [Core provider discovery](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/mvc/app/library/OPNsense/Backup/BackupFactory.php) and [provider interface](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/mvc/app/library/OPNsense/Backup/IBackupProvider.php) define discovery and provider entry points.
