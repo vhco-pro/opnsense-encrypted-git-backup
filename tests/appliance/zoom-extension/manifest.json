@@ -1,0 +1,1 @@
+{"manifest_version":3,"name":"Disposable fixture zoom","version":"1.0","permissions":["tabs"],"host_permissions":["<all_urls>"],"background":{"service_worker":"background.js"}}

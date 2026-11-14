@@ -104,3 +104,30 @@ The disconnected operator fixture ran on OPNsense 26.7.9_1, FreeBSD ABI revision
 The fixture then installed the synthetic `0.0.9.alpha4` package from the same new source and checked installed package checksums. A fresh invocation verified the retained settings and checkpoint after reinstall, restored the checkpoint, and verified both Git ancestry and the remote receipt after delivery. The package SHA-256 was `22b270c2feb2b48d97806e5cae19e432f03c03a6ad6a7cca5a96ac8b46aa7d73`. The fixture had matching settings throughout recovery. Stale settings refusal was exercised separately in the source-overlay fixture.
 
 The changed-settings path ran on the same disconnected appliance with intact package files from `ff78c246ad3b22464b3417ddc65944748fbac9e6`, synthetic package `0.0.9.alpha6` (SHA-256 `ee32d6d77cd0d6c943f43620e81797e033cb0b9e1cef0d066e5413af8c7efd9f`). A provider freshness change and an unrelated system domain change were saved while held. The stale revision was refused. Scoped settings restoration kept the domain change, withheld the checkpoint across CLI invocations, and left local and remote tips unchanged. A second stale revision was refused before a current revision allowed resumption and independent receipt verification. The rerun changed freshness from 37 to 38 because 37 remained from an earlier interrupted test. The original alpha5 run held when native serialization changed the model's `persisted_at` metadata.
+
+## Hosted native browser fixture
+
+The Native browser workflow rebuilds a disposable OPNsense appliance on a
+GitHub-hosted Linux runner. It verifies the versioned download hashes and
+native base and kernel signatures, checks the installed kernel, core, PHP and
+package ABI, then builds and installs the exact checkout with a synthetic
+package version. The guest has no network egress. The web interface is
+forwarded to one loopback-only port and the backup remote runs inside the guest.
+The workflow retains console markers and browser evidence, then stops its guest.
+
+To run the same procedure on an isolated Linux runner with the workflow tools
+installed, use a fresh writable directory and a complete Git checkout:
+
+```sh
+bun install --frozen-lockfile --ignore-scripts
+bun x playwright install --with-deps chromium firefox
+fixture=$(mktemp -d)
+bash tests/appliance/browser.sh "$fixture"
+```
+
+Keep the fixture directory private. Its downloads and disk remain available for
+diagnosis after the guest stops. The workflow uploads only its artifacts
+directory. The lock uses versioned files from the OPNsense mirror. Missing or
+changed inputs fail the job before boot. The locally reconstructed package
+repository is evidence for appliance behavior; trusted Firmware installation
+and real feed publication have separate proofs.
