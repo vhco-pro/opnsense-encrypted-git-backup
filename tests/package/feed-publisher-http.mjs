@@ -31,6 +31,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let nextOutcome = "success";
     let dropBeforeCreate = false;
     let rejectCreate = false;
+    let unclassifiedCreate = false;
     let createRequests = 0;
     let loseClosureReply = false;
     let loseHistoryReply = false;
@@ -110,6 +111,10 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         if (rejectCreate) {
             rejectCreate = false;
             return reply(403, { success: false, errors: [{ code: 10000, message: "Authentication error" }] });
+        }
+        if (unclassifiedCreate) {
+            unclassifiedCreate = false;
+            return reply(403, { success: false, errors: [{ code: 10001, message: "Unclassified fixture failure" }] });
         }
         const status = nextOutcome;
         nextOutcome = "success";
@@ -598,6 +603,20 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(createRequests, recoveryRequests);
             assert.equal(journal.at(-1).payload.phase, "recovery-started");
             dropBeforeCreate = false;
+
+            journal.length = 0;
+            pages.length = 0;
+            sites.length = 0;
+            nextOutcome = "failure";
+            await assert.rejects(run(), /curl: [(]52[)]/);
+            unclassifiedCreate = true;
+            const beforeUnclassifiedRecovery = createRequests;
+            await assert.rejects(run("fixture", authorized));
+            assert.equal(createRequests, beforeUnclassifiedRecovery + 1);
+            assert.equal(pages.length, 1);
+            assert.equal(journal.at(-1).payload.phase, "recovery-started");
+            await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "92" }), /unresolved Pages create/);
+            assert.equal(createRequests, beforeUnclassifiedRecovery + 1);
         }
 
         fixture = firstFixture;
@@ -628,6 +647,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(journal.at(-1).payload.phase, "rejection-closure");
         assert.equal(createRequests, rejectedRequests);
         assert.equal(pages.length, 0);
+        journal.length = 0;
+
+        unclassifiedCreate = true;
+        const beforeUnclassifiedCandidate = createRequests;
+        await assert.rejects(run());
+        assert.equal(createRequests, beforeUnclassifiedCandidate + 1);
+        assert.equal(pages.length, 0);
+        assert.equal(journal.at(-1).payload.phase, "submission-started");
+        await assert.rejects(run(), /unresolved Pages create/);
+        assert.equal(createRequests, beforeUnclassifiedCandidate + 1);
         journal.length = 0;
 
         loseJournalReply = true;
