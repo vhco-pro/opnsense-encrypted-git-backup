@@ -16,6 +16,7 @@ const publisher = fileURLToPath(new URL("../../scripts/publish-feed.sh", import.
 
 test("publisher holds ambiguous responses and reconciles one live deployment", async () => {
     const native = process.env.NATIVE_FEED_DIRECTORY && resolve(process.env.NATIVE_FEED_DIRECTORY);
+    const source = (await execute("git", ["rev-parse", "HEAD"])).stdout.trim();
     const journal = [];
     const pages = [];
     let historyAnchor;
@@ -36,9 +37,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let unclassifiedCreate = false;
     let createRequests = 0;
     let loseClosureReply = false;
+    let dropClosureWrite = false;
     let loseHistoryReply = false;
     let dropHistoryWrite = false;
     let dropSubmissionWrite = false;
+    let pauseJournalRead;
+    let loseTrustPendingReply = false;
 
     const server = createServer(async (request, response) => {
         const path = new URL(request.url, "http://localhost").pathname;
@@ -52,6 +56,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 return response.writeHead(200).end(bundles.get(path));
             }
             if (path === "/repos/fixture/plugin/deployments") {
+                if (pauseJournalRead) {
+                    const pause = pauseJournalRead;
+                    pauseJournalRead = undefined;
+                    pause.enter();
+                    await pause.release;
+                }
                 if (truncatedJournal) response.setHeader("Link", '<http://127.0.0.1/next>; rel="next"');
                 return reply(200, historyAnchor ? [historyAnchor, ...journal] : journal);
             }
@@ -93,8 +103,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 dropSubmissionWrite = false;
                 return request.socket.destroy();
             }
+            if (dropClosureWrite && record.payload.phase === "verified-closure") {
+                dropClosureWrite = false;
+                return request.socket.destroy();
+            }
             const entry = { id: journal.length + 1, sha: record.ref, payload: record.payload };
             journal.push(entry);
+            if (loseTrustPendingReply && entry.payload.phase === "trust-finalization-pending") {
+                loseTrustPendingReply = false;
+                return request.socket.destroy();
+            }
             if (loseJournalReply || (loseClosureReply && entry.payload.phase === "verified-closure")) {
                 loseClosureReply = false;
                 return request.socket.destroy();
@@ -183,7 +201,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             const hashFile = async (file) => createHash("sha256").update(await readFile(join(directory, file))).digest("hex");
             nativeManifest = join(directory, "release.json");
             await writeFile(nativeManifest, JSON.stringify({
-                source: (await execute("git", ["rev-parse", "HEAD"])).stdout.trim(),
+                source,
                 tag: "v0.0.1", version: "0.0.1", package: name,
                 packageSha256: await hashFile(name),
                 catalogueSha256: await hashFile("packagesite.pkg"),
@@ -203,7 +221,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         await writeFile(join(directory, "generation.json"), JSON.stringify({ digest: effectiveMarker }));
         if (native) {
             fixture = await retainFixture({
-                directory, endpoint: url, packageName: "os-encrypted-git-backup-0.0.1.pkg", candidateFiles,
+                sha: source, directory, endpoint: url, packageName: "os-encrypted-git-backup-0.0.1.pkg", candidateFiles,
             });
             site.set("/" + fixture.previous, fixture.previousDigest.slice(0, 32));
             const packages = { [fixture.previous]: fixture.previousDigest };
@@ -241,10 +259,25 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 : execute("bash", [publisher, mode], options);
         };
 
-        await assert.rejects(run("production"), /Production publication requires the approved protected workflow/);
-        assert.equal(journal.length, 0);
+        // Model admission by the protected workflow: only the admitted
+        // fixture reaches the empty journal. A parallel unadmitted dispatch
+        // exercises the real entry-point guard without production endpoints.
+        let enter;
+        let release;
+        const entered = new Promise((resolve) => { enter = resolve; });
+        pauseJournalRead = { enter, release: new Promise((resolve) => { release = resolve; }) };
         truncatedJournal = true;
-        await assert.rejects(run(), /supported complete-read bound/);
+        const holder = assert.rejects(run(), /supported complete-read bound/);
+        try {
+            await Promise.race([entered, holder.then(() => assert.fail("Holder never reached the journal"))]);
+            const baseline = [journal.length, assets.size, createRequests, bundles.size, downloaded.length];
+            await assert.rejects(run("production", { GITHUB_WORKFLOW_REF: "" }),
+                /Production publication requires the approved protected workflow/);
+            assert.deepEqual([journal.length, assets.size, createRequests, bundles.size, downloaded.length], baseline);
+        } finally {
+            release();
+            await holder;
+        }
         truncatedJournal = false;
         assert.equal(createRequests, 0);
         assert.equal(assets.size, 0);
@@ -262,6 +295,32 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             bundles.set(historyPath, history);
             assert.equal(journal.length, 0);
             assert.equal(assets.size, 0);
+            downloaded.length = 0;
+            const [approvalPath, workflowPath] = fixture.arguments;
+            const approval = await readFile(approvalPath);
+            await rm(approvalPath);
+            await assert.rejects(run());
+            await writeFile(approvalPath, approval);
+            const workflow = await readFile(workflowPath);
+            const conflicting = JSON.parse(workflow);
+            conflicting.run_attempt++;
+            await writeFile(workflowPath, JSON.stringify(conflicting));
+            await assert.rejects(run());
+            await writeFile(workflowPath, workflow);
+            assert.equal(downloaded.length, 0);
+
+            const candidatePath = `/bundles/feed-${fixture.candidate}.tar`;
+            const candidateBundle = bundles.get(candidatePath);
+            assert.ok(candidateBundle);
+            bundles.delete(candidatePath);
+            await assert.rejects(run());
+            const corruptBundle = Buffer.concat([candidateBundle, Buffer.from("changed")]);
+            bundles.set(candidatePath, corruptBundle);
+            await assert.rejects(run());
+            bundles.set(candidatePath, candidateBundle);
+            assert.equal(journal.length, 0);
+            assert.equal(assets.size, 0);
+            assert.equal(createRequests, 0);
             downloaded.length = 0;
         }
         await assert.rejects(run(), (error) => {
@@ -407,7 +466,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 paths["/generation.json"] = createHash("sha256").update(marker).digest("hex").slice(0, 32);
                 await writeFile(join(next, "pages-manifest.json"), JSON.stringify(paths));
                 const previous = journal.at(-1);
-                fixture = await retainFixture({ directory: next, endpoint: url, packageName,
+                fixture = await retainFixture({ sha: source, directory: next, endpoint: url, packageName,
                     candidateFiles, version, predecessor: previous.payload.history,
                     previousSite: join(native, number === 2 ? "site" : number === 6 ? "site-5" : number >= 4 ? "site-3-recovery" : "site-2"),
                     predecessorCatalogue: number === 4 || number === 5 ? overlap.predecessorCatalogue : undefined,
@@ -504,8 +563,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     await assert.rejects(run("fixture", retirementEnv), /withdrawal could not be verified/);
                     assert.equal(createRequests, calls);
                     available.delete(old);
-                    await assert.rejects(run("fixture", retirementEnv), /Trust finalization is pending/);
-                    assert.equal(journal.at(-1).payload.phase, "trust-finalization-pending");
+                    loseTrustPendingReply = true;
+                    await assert.rejects(run("fixture", retirementEnv), /curl: [(]52[)]/);
+                    const durablePending = journal.at(-1);
+                    assert.equal(durablePending.payload.phase, "trust-finalization-pending");
+                    await assert.rejects(run("fixture", retirementEnv));
+                    assert.equal(journal.at(-1), durablePending);
                     const evidence = join(next, "operator-evidence.json");
                     const signature = join(next, "operator-evidence.sig");
                     const attest = async (clients, observedAt = Math.floor(Date.now() / 1000),
@@ -534,7 +597,16 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                     await attest(clients, Math.floor(Date.now() / 1000) - 901);
                     await assert.rejects(run("fixture", evidenceEnv));
                     await attest(clients);
+                    dropClosureWrite = true;
+                    await assert.rejects(run("fixture", evidenceEnv), /curl: [(]52[)]/);
+                    assert.equal(journal.at(-1), durablePending);
+                    assert.equal(createRequests, calls);
+                    loseClosureReply = true;
+                    await assert.rejects(run("fixture", evidenceEnv), /curl: [(]52[)]/);
+                    const retired = journal.at(-1);
+                    assert.equal(retired.payload.phase, "verified-closure");
                     assert.match((await run("fixture", evidenceEnv)).stdout, /closure is recorded/);
+                    assert.equal(journal.at(-1), retired);
                     assert.equal(createRequests, calls);
                     await cachedClient("fetch", "0.0.3", overlap.predecessorCatalogue.packageSha256,
                         cacheDirectory, "/feed/prior-key");
@@ -721,7 +793,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             const bootstrapManifest = Object.fromEntries([...site].filter(([path]) => candidateFiles.includes(path.slice(1))));
             await writeFile(join(bootstrap, "pages-manifest.json"), JSON.stringify(bootstrapManifest));
             fixture = await retainFixture({
-                directory: bootstrap, endpoint: url, packageName: "os-encrypted-git-backup-0.0.1.pkg",
+                sha: source, directory: bootstrap, endpoint: url, packageName: "os-encrypted-git-backup-0.0.1.pkg",
                 candidateFiles, emptyHistory: true,
             });
             historyAnchor = undefined;
