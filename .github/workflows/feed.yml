@@ -36,6 +36,7 @@ jobs:
         with:
           persist-credentials: false
       - run: node --test tests/package/feed-publisher-http.mjs
+      - run: bash tests/package/feed-preflight-test.sh
 
   verify-release:
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'verify-release'
