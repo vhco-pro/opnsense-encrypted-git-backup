@@ -25,7 +25,17 @@ test "$(client rquery -r fixture '%v' os-encrypted-git-backup)" = "$version"
 if [ "$action" = fetch ]; then
     # Fetch using the original authenticated repo DB, with autoupdate disabled
     # and an empty download cache.
-    test -z "$(ls -A "$work/cache")"
+    if [ -n "$(find "$work/cache" -type f -name '*.pkg' -print)" ]; then
+        echo 'The native download cache already has a package.' >&2
+        exit 1
+    fi
     client -o REPO_AUTOUPDATE=false fetch -U -y -r fixture os-encrypted-git-backup
-    test -n "$(find "$work/cache" -type f -name '*.pkg' -print)"
+    for package in "$work"/cache/*; do
+        [ -f "$package" ] || continue
+        if [ "$(pkg query -F "$package" '%n %v')" = "os-encrypted-git-backup $version" ]; then
+            exit 0
+        fi
+    done
+    echo 'Native pkg did not download the cached catalogue version.' >&2
+    exit 1
 fi

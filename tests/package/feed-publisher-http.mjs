@@ -123,7 +123,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     try {
         const url = `http://127.0.0.1:${server.address().port}`;
         const cachedClient = (action, version, work = cacheDirectory) => execute("ssh", [
-            "-o", "BatchMode=yes", "freebsd", "sh", work + "/feed-cached-client.sh",
+            "-o", "BatchMode=yes", "freebsd", "sh", "-x", work + "/feed-cached-client.sh",
             action, work, url + "/feed", work + "/key.pem", version,
         ]);
         const newCache = async () => {
