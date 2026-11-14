@@ -1,10 +1,11 @@
 # Repository instructions
 
 Read the personal conventions at
-https://github.com/vhco-pro/docs/blob/c70769ebf43ea03a4bdffb3cda51954eb05b35a7/AGENTS.md
+https://github.com/vhco-pro/docs/blob/66582497a21a2181521e7d77200608af597dcc89/AGENTS.md
 and follow the task routes there before implementation.
 Read conventions/coding.md for code, conventions/feature-documents.md for features,
 and conventions/documentation.md and guides/humanize-prose.md for prose.
+Read conventions/php.md before PHP specification, implementation or review.
 CI and packaging also use conventions/delivery.md and knowledge/shared-delivery.md.
 Report inaccessible required sources before proceeding.
 
@@ -32,6 +33,8 @@ their separate design, review and owner approvals.
 ## Verification
 
 The repository currently contains design documents only.
+The PHP guidance is adopted from the immutable revision proposed in
+https://github.com/vhco-pro/docs/pull/37, which remains under review.
 Use the verified vh-adlc binary for feature-document lint and review checks.
 Run `git diff --check` before committing.
 Record native build and integration commands after observing them on a disposable

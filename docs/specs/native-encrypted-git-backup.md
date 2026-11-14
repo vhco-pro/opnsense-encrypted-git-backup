@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "The owner selected a separate native provider, a private design repository and BSD-2-Clause. Compatibility, secret custody and distribution choices await design review."
+status_description: "Current-stable targeting, protected external credentials and a signed package repository are selected. PHP quality requirements are added for renewed independent review; repository hosting remains a design choice."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
 goal: "Administrators configure, run and recover encrypted Git configuration backups through a native OPNsense provider with verifiable delivery and safe migration."
 covers:
@@ -11,6 +11,12 @@ covers:
   - docs/installation.md
   - docs/recovery.md
   - docs/compatibility.md
+  - composer.json
+  - composer.lock
+  - phpcs.xml.dist
+  - phpstan.neon
+  - phpunit.xml.dist
+  - .github/workflows/
 ---
 
 # Plan: Native encrypted Git backup provider
@@ -23,6 +29,8 @@ Build an installable OPNsense backup provider with its own package and settings 
 PHP is the native choice for the provider interface, configuration model and encrypted-export library.
 Use OPNsense's standard configuration and scheduling interfaces, with Git and OpenSSH as transport tools.
 The project owns reusable behavior, while deployment configuration and the maintained Homelab guides belong in their existing repositories.
+The owner selected the current supported stable OPNsense release as the first runtime target, protected external credential files and a signed package repository for the first release.
+An older production appliance needs a separately reviewed upgrade and migration path.
 
 The owner selected a separate provider after reviewing upstream feedback.
 Earlier encryption work on the existing Git plugin was declined because encrypted snapshots lose readable Git diffs.
@@ -42,7 +50,10 @@ The reusable provider supports SSH-accessible Git hosts, with deployment-specifi
 Migration preserves both existing remote history and unpublished local history.
 Stop the legacy plaintext writer at a verified checkpoint before accepting new credentials into persistent configuration.
 Retain independently recoverable encrypted history and test a real native restore on an isolated appliance.
-Secret custody, supported releases and package distribution still need owner choices.
+Shared PHP conventions now define typing, small effect boundaries, PSR-12, secure resources and explicit development checks.
+The implementation must pass style, static analysis and behavior tests with recorded coverage of owned files.
+Development tools are kept in the build/test environment.
+The signed repository's static hosting remains an owner choice.
 This design phase produces a reviewed specification and installation/recovery design.
 Implementation and live rollout follow acceptance of the revised design.
 
@@ -70,6 +81,7 @@ The current contribution guide requires BSD-2-Clause, a discussion before a new 
 ## Scope
 
 Deliver a separate PHP provider with native settings, package lifecycle, scheduling integration, complete encrypted snapshots, SSH Git transport, health evidence and guarded migration.
+Include a signed package repository and documented client trust bootstrap in the first release.
 Provide native installation, upgrade, removal and recovery procedures with synthetic fixtures and disposable-appliance tests.
 Use OPNsense's XML model format and native interfaces for externally defined configuration.
 The provider's runtime dependencies are OPNsense's existing PHP/core libraries, Git, OpenSSH and OpenSSL.
@@ -78,6 +90,27 @@ Readable encrypted-file Git diffs, secret redaction, additional storage backends
 Deployment-specific credentials, real configuration exports, external-monitor credentials and production inventories stay in their deployment's protected storage.
 
 ## Design
+
+### PHP quality and compatibility
+
+Follow the shared [PHP convention](https://github.com/vhco-pro/docs/blob/66582497a21a2181521e7d77200608af597dcc89/conventions/php.md), pinned by AGENTS.md.
+That immutable revision is the proposal in https://github.com/vhco-pro/docs/pull/37 and is included in this independent review.
+Use OPNsense's PSR-12 style and preserve its exact provider/model interface signatures.
+Use native types and strict typing for owned implementation where compatible with those signatures and actual framework callers.
+Validate model/XML/request input before conversion and confine unavoidable dynamic types to tested integration boundaries.
+Keep configuration, Git and filesystem effects explicit and avoid parallel service containers or generic abstraction layers.
+
+Configure PHP_CodeSniffer, PHPStan and PHPUnit as pinned development-only dependencies.
+The quality target for owned source and tests is PHPStan's maximum supported rule level, with exact platform symbols and precise stubs where required.
+Any measured interoperability gap needs a narrow documented exception and independent review, with the affected paths and checks visible.
+An empty analysis target, missing framework symbols, broad baseline or suppressed runtime failure cannot satisfy quality acceptance.
+Record actual interpreter/extension versions, tool versions, source/test inclusions and exact commands in the repository after observing them.
+Native package contents exclude developer dependencies and private fixtures.
+Run syntax and style checks, static analysis and behavior tests in CI, plus package/integration tests on a compatible disposable OPNsense/FreeBSD environment.
+
+Resolve and pin the exact current stable release, PHP runtime and FreeBSD ABI from official release/package metadata before implementation starts.
+Legacy-release support is limited to an assessed migration path.
+The production firewall upgrade belongs in the Lab rollout and its own bounded maintenance approval.
 
 ### Provider and ownership
 
@@ -122,7 +155,11 @@ Require SSH host verification and reject credentials embedded in repository URLs
 Validate branch/ref inputs and use safe process argument handling for native Git/OpenSSH commands.
 Mandatory encryption prevents a missing or unreadable credential from creating a plaintext backup.
 An independent recovery copy must exist before activation, and credentials must never be emitted in status, logs, command arguments or receipt metadata.
-The storage contract is Q2 below, because native XML persistence and root-only file custody have different restoration behavior.
+Store SSH private keys and unattended encryption passwords in root-owned protected files outside the native XML model.
+The model stores validated references and non-secret settings.
+Reprovision these files from independently held credentials after native XML restoration.
+Use authenticated native UI/API actions and privileged configd operations for provisioning and use, with explicit read-only-user rejection.
+Ensure native complete configuration exports exclude those external files, while the separately retained recovery material remains usable independently.
 
 Use one versioned key identifier in each encrypted snapshot's metadata.
 Credential rotation retains access to earlier snapshots and verifies the newly retained artifact before declaring the rotation complete.
@@ -174,7 +211,14 @@ Loss of the deployment key can be handled by issuing a replacement after recover
 
 Build a proper FreeBSD `.pkg` using pinned OPNsense plugin tooling on a compatible disposable build environment.
 Expose the package through normal OPNsense package administration.
-Q3 chooses initial artifact delivery versus an additional signed repository before public distribution.
+The first release includes a signed third-party package repository with native client trust configuration and Firmware-GUI discovery/update verification.
+Generate catalogue metadata and signatures through the compatible native pkg tooling and publish immutable versioned package artifacts.
+Clients verify the configured repository trust before accepting catalogue updates and verify artifact integrity against that trusted metadata.
+Distribute the initial trusted key/fingerprint through a separately verified release identity, then document key rotation and revocation.
+Keep signing private keys outside source and package artifacts, with independently retained recovery material.
+Publish a complete validated repository generation so interrupted publication preserves a usable previous generation.
+Choose compatible release/ABI channels explicitly and refuse an incompatible package on the target.
+Q4 chooses static public hosting and its availability boundary.
 Record artifact version, source revision, dependencies, integrity and authenticity checks and supported OPNsense/PHP/FreeBSD combinations.
 Native package installation alone does not establish compatibility with an arbitrary older appliance.
 Define package file ownership and test install/upgrade/remove before any live rollout.
@@ -193,6 +237,8 @@ Upstream acceptance remains an external decision.
 - [ ] AC-05: Native scheduling survives regeneration and upgrade, failure of another provider cannot silently suppress the selected scheduling path, and native status plus independent freshness checking expose stale or failed delivery.
 - [ ] AC-06: Migration preserves the verified final legacy history and previous remote ancestor off the firewall, prevents new credentials entering the legacy plaintext capture path and remains recoverable after interruption.
 - [ ] AC-07: A second operator can install, configure, observe and recover the provider from versioned documentation and verified package inputs, with supported versions, diff/storage trade-offs and distribution/contribution limits explicit.
+- [ ] AC-08: Owned PHP source and tests pass the selected runtime syntax checks, PSR-12 style, declared static-analysis checks and behavior tests with visible file coverage and reviewed narrow exceptions, while the runtime package excludes development tooling and private fixtures.
+- [ ] AC-09: The signed repository supports verified native installation and updates on the selected runtime, rejects untrusted catalogues, modified packages and incompatible targets, and preserves recoverable trust and a usable repository generation through failed publication and signing-key rotation.
 
 ## Test Plan
 
@@ -205,6 +251,8 @@ Upstream acceptance remains an external decision.
 | AC-05 | Regenerate native cron and upgrade the package, then observe a real scheduled run. Make an earlier shared provider fail and prove the selected path still runs or visibly fails its independent health test. Exercise normal, stale, unchanged-source and stopped-scheduler receipts with matching pass/fail expectations. Verify the deployment's owner notification delivery separately. |
 | AC-06 | Exercise an old hook appending during the preliminary archive, then stop/drain it and verify the final independently downloaded bundle against the checkpoint tip and remote ancestor. Interrupt each cutover stage and repeat safely. Attempt enablement while the old hook remains active and require rejection before new secrets are saved. |
 | AC-07 | Follow the native install/setup/recovery guide from a fresh compatible disposable appliance using only retained package provenance and independent recovery material. Verify package authenticity, document measured repository growth and reproduce upgrade/removal behavior. |
+| AC-08 | On the pinned target interpreter, run syntax checks, PHP_CodeSniffer PSR-12, PHPStan at the declared maximum-level target with platform symbols/stubs, and PHPUnit over actual owned source/tests. Record resolved versions, scanned files, exclusions and any independently reviewed exception. Inspect the built package for development dependencies and private fixtures. Verify real platform interfaces separately through AC-01 to AC-07. |
+| AC-09 | Bootstrap repository trust on a fresh compatible appliance, install through native firmware/package administration and update a version. Reject an unsigned/wrong-key catalogue, a changed artifact and incompatible ABI. Interrupt repository publication and prove the previous generation still installs. Exercise signing-key rotation, revoked-key rejection and recovery using independent signing/recovery material without exposing keys. |
 
 ## Tasks
 
@@ -212,38 +260,16 @@ None yet; written after design acceptance.
 
 ## Open Questions
 
-### Q1: Which OPNsense releases should the first plugin support?
+### Q4: Where should the signed package repository be hosted?
 
-**Recommendation:** A. Target the current supported stable release first, with a dedicated legacy-migration assessment.
-
-| Option | You get | It costs |
-| --- | --- | --- |
-| **A. Current stable plus legacy migration assessment** | A maintainable upstream baseline and an explicit path from older installations. | An older production appliance may need a separately planned upgrade before deployment. |
-| **B. Current stable and older runtime support** | Potential direct deployment to a legacy appliance if its APIs prove compatible. | Additional build/test matrices and a defined sunset for unsupported platform versions. |
-
-**Why this is yours:** The rollout order and continuing support commitment affect the owner's firewall and future users.
-
-### Q2: Where should unattended encryption and SSH secrets persist?
-
-**Recommendation:** A. Use protected external credential files and keep validated references in the native model.
+**Recommendation:** A. Use static Cloudflare hosting under the owner's service domain, with the feed's client trust independent of its hosting credentials.
 
 | Option | You get | It costs |
 | --- | --- | --- |
-| **A. Protected external credential files** | Explicit filesystem custody and a small XML settings model. | Native XML restore needs a documented credential reprovisioning step and proof of GUI/configd access permissions. |
-| **B. Native model secret fields** | Behavior matching existing backup providers and credentials included in full native restoration. | Plaintext configuration and local history hold those secrets under native configuration access permissions. |
+| **A. Static Cloudflare hosting** | A public signed feed using the owner's existing hosting platform and domain. | A selected hostname, deployment ownership and independent signing-key recovery. |
+| **B. GitHub-hosted static repository** | Package/source delivery on the same platform with independently verified signatures. | Publishing/hosting configuration and an availability dependency on GitHub for updates. |
 
-**Why this is yours:** This determines recovery convenience, local secret exposure and how the previously selected root-only custody translates into a native plugin.
-
-### Q3: How should the first package be distributed before upstream acceptance?
-
-**Recommendation:** A. Start with a verified versioned package for controlled installation, then design a signed repository when publishing.
-
-| Option | You get | It costs |
-| --- | --- | --- |
-| **A. Versioned package first** | A small release path using native package installation and explicit upgrade commands. | Operators install selected versions explicitly during the initial phase. |
-| **B. Signed third-party package repository immediately** | Firmware-GUI discovery and native update delivery after repository trust is configured. | Repository metadata, signing-key custody, compatibility channels and update-hosting operations. |
-
-**Why this is yours:** Automatic distribution adds a maintained trust and publishing service beyond the provider package.
+**Why this is yours:** The hosting and hostname determine a public endpoint and ongoing release responsibility.
 
 ## Review Log
 
@@ -266,6 +292,9 @@ PROPOSAL: Describe the current runner's observed exception isolation and identif
 NO FINDINGS
 
 ## Sources
+
+- [Shared PHP convention proposal](https://github.com/vhco-pro/docs/blob/66582497a21a2181521e7d77200608af597dcc89/conventions/php.md) supplies the reviewed implementation and verification rules, with primary-source links for each subject.
+- [FreeBSD pkg repository tooling](https://man.freebsd.org/cgi/man.cgi?query=pkg-repo&sektion=8&format=html) defines native catalogue creation/signing and repository metadata.
 
 - [Core provider discovery](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/mvc/app/library/OPNsense/Backup/BackupFactory.php) and [provider interface](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/mvc/app/library/OPNsense/Backup/IBackupProvider.php) define discovery and provider entry points.
 - [Current remote backup runner](https://github.com/opnsense/core/blob/d20f63c7f7e73c062a623953690c0668070a8d94/src/opnsense/scripts/system/remote_backup.php) isolates ordinary provider exceptions and reports aggregate failure after processing enabled providers.
