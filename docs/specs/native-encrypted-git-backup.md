@@ -280,7 +280,7 @@ The shared `gh-release-workflow` assumes that its tag is the released artifact. 
 | AC-06 | Exercise an old hook appending during the preliminary archive, then stop/drain it and verify the final independently downloaded bundle against the checkpoint tip and remote ancestor. Interrupt each cutover stage and repeat safely. Attempt enablement while the old hook remains active and require rejection before new secrets are saved. |
 | AC-07 | Follow the native install/setup/recovery guide from a fresh compatible disposable appliance using only retained package provenance and independent recovery material. Verify package authenticity, document measured repository growth and reproduce upgrade/removal behavior. |
 | AC-08 | On the pinned target interpreter, run syntax checks, PHP_CodeSniffer PSR-12, PHPStan at the declared maximum-level target with platform symbols/stubs, and PHPUnit over actual owned source/tests. Run `composer audit --locked` including developer and transitive dependencies, Semgrep CE on owned PHP source and tests, Psalm taint analysis on owned source with pinned framework symbols, and fully redacted Gitleaks scans over the feature Git range and runtime source. Exercise synthetic findings and scanner errors in CI. Run native `pkg audit` on the installed disposable target and record its package inventory and advisory database identity. Record resolved versions, scanned files, exclusions and any independently reviewed exception. Scanner errors and unexpectedly empty coverage leave the criterion open. Resolve findings or record their independently reviewed, owner-approved disposition before marking the criterion met. Inspect the built package for development dependencies and private fixtures. Verify real platform interfaces separately through AC-01 to AC-07. |
-| AC-09 | Carry an exact branch-push SHA and GitVersion output through native build, manifest, signed catalogue and client upgrade. Verify native prerelease ordering and reject mismatched source, tag or version. Bootstrap repository trust on a fresh compatible appliance, install through native firmware/package administration and update a version. Reject an unsigned/wrong-key catalogue, a changed artifact and incompatible ABI. Interrupt repository publication and prove the previous generation still installs. Exercise signing-key rotation, revoked-key rejection and recovery using independent signing/recovery material without exposing keys. |
+| AC-09 | Carry an exact branch-push SHA and GitVersion output through native build, manifest, signed catalogue and client upgrade. Verify native prerelease ordering and reject mismatched source, tag or version. Bootstrap repository trust on a fresh compatible appliance, install through native firmware/package administration and update a version. Reject an unsigned/wrong-key catalogue, a changed artifact and incompatible ABI. Execute the owner-dispatched workflow against owned staging with fixture keys. Interrupt it before and after promotion, retry identical inputs and reject conflicting digests. Verify that rollback restores a previous generation that still installs and that clients holding an older catalogue can retrieve the named package. Exercise signing-key rotation, revoked-key rejection and recovery using independent signing/recovery material without exposing keys. |
 | AC-10 | Prepare and repeat owned synthetic appliance fixtures without duplicating users or triggering external effects. Run Playwright through native settings/setup, reload persistence, normal/failed status and administrator/read-only/unauthorized cases. Exercise applicable Chromium/Firefox, responsive, keyboard, zoom and supported-theme coverage through real UI actions, with retained screenshots and console checks. Verify cleanup ownership and package exclusion of browser tools and private fixtures. |
 
 ## Tasks
@@ -305,11 +305,26 @@ The shared `gh-release-workflow` assumes that its tag is the released artifact. 
 - [ ] T12 `tests/security/`, `.github/workflows/`, `docs/compatibility.md` - verify scanner coverage and exits and disposition the installed native audit findings (AC-08)
 - [ ] T13 `scripts/`, `tests/package/` - verify the exact GitVersion source, native ordering, signed catalogue identity and client upgrade with the prepared artifact (AC-01, AC-07, AC-09)
 
-## Open Questions
+## Resolved Decisions
 
 ### Q1. Who owns signed-feed promotion?
 
-Proposed sequence for owner review. The release operator binds the approved tag, package digest and signed generation in a manifest. Retries reuse matching inputs and stop on a conflicting version. The prior generation remains available until native client verification passes. Public promotion requires separate approval.
+The owner selected an owner-dispatched GitHub Actions workflow on 2026-11-14. That selection authorizes fixture verification. Production dispatch, signing material, Pages credentials, hostname and first publication require separate owner approval.
+
+The workflow uses these steps:
+
+1. Resolve the approved tag to a full commit SHA and verify that it matches the reviewed source and the recorded successful shared GitVersion run. Verify the tag version and derive the native version from that run. Reject a mismatched tag, SHA, run or version before preparing artifacts.
+2. Build against the pinned native inputs. Record the ABI, native version and package SHA-256 in a release manifest alongside the tag, commit and GitVersion result. Create and sign a complete feed generation and record its catalogue and generation digests in the manifest. Verify the package hash and version against the signed catalogue.
+3. Stage the exact generation for native client verification. Record the staged deployment and current production deployment identities before promotion. Verify trust, upgrade, and package retrieval during a generation change. Carry forward immutable packages needed by clients holding older catalogues.
+4. Promote the same verified generation through Cloudflare Pages and check the served manifest, catalogue and native package retrieval. Keep the previous deployment available for rollback. If promotion is interrupted, reconcile the live deployment before taking another action. If the new generation fails verification, restore the previous deployment and verify client retrieval again.
+
+Serialize promotions per feed. A retry must recover the same approved manifest and artifacts, or resume verification of an already deployed matching generation. Stop on a different digest for an existing version or generation, or an unexpected live deployment. Keep the approval and deployment records so a retry after an ambiguous response can distinguish completion from a conflict.
+
+Prove the same workflow sequence with fixture keys and owned synthetic staging using free CI tools, including wrong identity, conflicting digest, interrupted promotion, and retry after a successful promotion with a lost response. No persistent publisher host is required.
+
+## Open Questions
+
+None.
 
 ## Review Log
 
