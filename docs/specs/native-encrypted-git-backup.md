@@ -22,7 +22,6 @@ covers:
   - package.json
   - bun.lock
   - psalm.xml
-  - GitVersion.yml
   - scripts/
   - renovate.json
   - .semgrepignore
