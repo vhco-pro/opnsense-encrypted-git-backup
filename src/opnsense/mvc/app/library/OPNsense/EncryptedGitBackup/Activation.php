@@ -11,7 +11,7 @@ final class Activation
     private const LEGACY_HOOK = '/usr/local/etc/rc.syshook.d/config/10-git-backup';
     private const LEGACY_REPOSITORY = '/conf/backup/git';
 
-    public static function check(string $destination, string $branch): void
+    public static function check(string $destination, string $branch): ?string
     {
         clearstatcache();
         if (file_exists(self::LEGACY_HOOK) || is_link(self::LEGACY_HOOK)) {
@@ -24,15 +24,32 @@ final class Activation
         if ($contents === false || strlen($contents) > 65536) {
             throw new RuntimeException('Could not read the encrypted backup activation checkpoint.');
         }
-        self::validate(
+        $legacy = self::validate(
             $contents,
             $destination,
             $branch,
             file_exists(self::LEGACY_REPOSITORY) || is_link(self::LEGACY_REPOSITORY)
         );
+        if ($legacy === null) {
+            return null;
+        }
+        if (is_link(self::LEGACY_REPOSITORY)) {
+            throw new RuntimeException('The legacy repository path is unsafe.');
+        }
+        [$exit, $tip] = Process::run(
+            ['/usr/local/bin/git', 'rev-parse', '--verify', 'HEAD'],
+            self::LEGACY_REPOSITORY,
+            ['GIT_CONFIG_NOSYSTEM' => '1', 'GIT_CONFIG_GLOBAL' => '/dev/null'],
+            5
+        );
+        if ($exit !== 0 || trim($tip) !== $legacy['tip']) {
+            throw new RuntimeException('The legacy repository changed after the verified archive checkpoint.');
+        }
+        return $legacy['remote'];
     }
 
-    public static function validate(string $contents, string $destination, string $branch, bool $legacyExists): void
+    /** @return array{tip: string, remote: string, archiveSha256: string}|null */
+    public static function validate(string $contents, string $destination, string $branch, bool $legacyExists): ?array
     {
         $checkpoint = json_decode($contents, true, 8);
         if (
@@ -42,10 +59,32 @@ final class Activation
             || ($checkpoint['destination'] ?? null) !== $destination
             || ($checkpoint['branch'] ?? null) !== $branch
             || !array_key_exists('legacy', $checkpoint)
-            || $checkpoint['legacy'] !== null
-            || $legacyExists
+            || ($checkpoint['legacy'] === null) === $legacyExists
         ) {
             throw new RuntimeException('A verified activation checkpoint is required for this backup target.');
         }
+        $legacy = $checkpoint['legacy'];
+        if ($legacy === null) {
+            return null;
+        }
+        if (
+            !is_array($legacy) || count($legacy) !== 3
+            || !self::isDigest($legacy['tip'] ?? null, '/\A(?:[0-9a-f]{40}|[0-9a-f]{64})\z/')
+            || !self::isDigest($legacy['remote'] ?? null, '/\A(?:[0-9a-f]{40}|[0-9a-f]{64})\z/')
+            || !self::isDigest($legacy['archiveSha256'] ?? null, '/\A[0-9a-f]{64}\z/')
+        ) {
+            throw new RuntimeException('The legacy archive checkpoint is invalid.');
+        }
+        return [
+            'tip' => $legacy['tip'],
+            'remote' => $legacy['remote'],
+            'archiveSha256' => $legacy['archiveSha256'],
+        ];
+    }
+
+    /** @phpstan-assert-if-true string $value */
+    private static function isDigest(mixed $value, string $pattern): bool
+    {
+        return is_string($value) && preg_match($pattern, $value) === 1;
     }
 }

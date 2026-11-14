@@ -19,7 +19,7 @@ final class NativeRun
         string $trust,
         string $key
     ): string {
-        Activation::check($destination, $branch);
+        $legacyParent = Activation::check($destination, $branch);
         Settings::validateDestination($destination);
         $identityPath = Credentials::file('identity', $identity);
         $trustPath = Credentials::file('hosts', $trust);
@@ -63,7 +63,7 @@ final class NativeRun
             'GIT_TERMINAL_PROMPT' => '0',
             'GIT_ALLOW_PROTOCOL' => 'ssh',
             'GIT_SSH_COMMAND' => $ssh,
-        ]);
+        ], $legacyParent);
 
         return $delivery->deliver(
             $destination,
