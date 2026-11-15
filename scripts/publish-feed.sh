@@ -17,6 +17,19 @@ request() {
     curl --silent --show-error --fail --max-time 15 --retry 0 "$@"
 }
 
+append_verified_submission() {
+    local record=$1 id
+    id=$(request "${github_headers[@]}" -H 'Content-Type: application/json' \
+        --data-binary "@$record" "$journal" | jq -er '.id | select(type == "number" and . > 0 and . == floor)') ||
+        return 1
+    [[ "$id" =~ ^[0-9]+$ ]] || return 1
+    request "${github_headers[@]}" "$journal/$id" |
+        jq -e --argjson id "$id" --slurpfile sent "$record" '
+            .id == $id and .sha == $sent[0].ref and .environment == $sent[0].environment
+            and .payload == $sent[0].payload
+        ' >/dev/null
+}
+
 # Classify only a complete, structured Pages authentication rejection. A lost
 # response or any other response stays unresolved until provider correlation.
 create_pages() {
@@ -382,13 +395,6 @@ jq -n --arg sha "$GITHUB_SHA" --arg environment "$environment" --arg attempt "$a
         payload:{phase:"submission-started",attempt:$attempt,digest:$digest,marker:$marker,history:$history,predecessor:$parent,recovery:$recovery,packages:$packages,successor:$successor,approval:$approval}
     }' > "$temp/record"
 node "$scripts/feed-pages-assets.mjs" "$PAGES_API" "$PAGES_ASSET_API" "$FEED_DIRECTORY" "$FEED_MANIFEST"
-request "${github_headers[@]}" -H 'Content-Type: application/json' --data-binary "@$temp/record" "$journal" > "$temp/record-result"
-jq -e --arg attempt "$attempt" --arg sha "$GITHUB_SHA" --arg digest "$FEED_DIGEST" --arg marker "$marker" --arg history "$history_digest" --arg parent "$parent" --arg recovery "${FEED_RECOVERY_DIGEST:-}" --argjson packages "$package_history" \
-    --arg successor "$successor" --arg approval "$approval" '
-    .sha == $sha and .payload.attempt == $attempt and .payload.digest == $digest
-    and .payload.phase == "submission-started" and .payload.packages == $packages and .payload.marker == $marker
-    and .payload.history == $history and .payload.predecessor == $parent and .payload.recovery == $recovery
-    and .payload.successor == $successor and .payload.approval == $approval
-' "$temp/record-result" >/dev/null
+append_verified_submission "$temp/record" || exit 1
 create_pages "$GITHUB_SHA" "$attempt" "$FEED_MANIFEST"
 printf '%s\n' 'Submission recorded. Reconcile the live generation on the next invocation.'

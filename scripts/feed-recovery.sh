@@ -25,6 +25,10 @@ append_recovery() {
         transient_environment:false, production_environment:false,
         payload:($payload + {phase:$phase})
     }' > "$temp/recovery-write"
+    if [[ "$phase" == recovery-started ]]; then
+        append_verified_submission "$temp/recovery-write"
+        return
+    fi
     request "${github_headers[@]}" -H 'Content-Type: application/json' --data-binary "@$temp/recovery-write" "$journal" |
         jq -e --slurpfile sent "$temp/recovery-write" '.sha == $sent[0].ref and .payload == $sent[0].payload' >/dev/null
 }
@@ -35,7 +39,7 @@ submit_recovery() {
     node "$scripts/feed-pages-assets.mjs" "$PAGES_API" "$PAGES_ASSET_API" "$recovery_dir" "$recovery_dir/pages-manifest.json"
     append_recovery recovery-started "$(jq -cn --arg candidate "$attempt" --arg attempt "$new_attempt" \
         --arg digest "$recovery_digest" --arg dispatch "$dispatch" --arg source "$source_id" \
-        '{candidate:$candidate,attempt:$attempt,digest:$digest,dispatch:$dispatch,source:$source}')"
+        '{candidate:$candidate,attempt:$attempt,digest:$digest,dispatch:$dispatch,source:$source}')" || return 1
     create_pages "$source_sha" "$new_attempt" "$recovery_dir/pages-manifest.json"
 }
 

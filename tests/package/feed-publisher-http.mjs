@@ -41,6 +41,9 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let loseHistoryReply = false;
     let dropHistoryWrite = false;
     let dropSubmissionWrite = false;
+    let rejectRecordReadBack = false;
+    let journalReads = 0;
+    let stagingJournalReads = 0;
     let pauseJournalRead;
     let loseTrustPendingReply = false;
 
@@ -56,6 +59,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 return response.writeHead(200).end(bundles.get(path));
             }
             if (path === "/repos/fixture/plugin/deployments") {
+                journalReads++;
                 if (pauseJournalRead) {
                     const pause = pauseJournalRead;
                     pauseJournalRead = undefined;
@@ -65,7 +69,19 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 if (truncatedJournal) response.setHeader("Link", '<http://127.0.0.1/next>; rel="next"');
                 return reply(200, historyAnchor ? [historyAnchor, ...journal] : journal);
             }
-            if (path === "/pages/upload-token") return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
+            const recordId = path.match(/^\/repos\/fixture\/plugin\/deployments\/(\d+)$/);
+            if (recordId) {
+                if (rejectRecordReadBack) {
+                    rejectRecordReadBack = false;
+                    return reply(404, {});
+                }
+                const record = journal.find(({ id }) => id === Number(recordId[1]));
+                return record ? reply(200, record) : reply(404, {});
+            }
+            if (path === "/pages/upload-token") {
+                stagingJournalReads = journalReads;
+                return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
+            }
             if (path === "/pages/deployments") return reply(200, { success: true, result: pages });
             if (path === "/pages") {
                 const live = canonicalIndex === null ? null : pages.at(canonicalIndex ?? -1) ?? null;
@@ -107,7 +123,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 dropClosureWrite = false;
                 return request.socket.destroy();
             }
-            const entry = { id: journal.length + 1, sha: record.ref, payload: record.payload };
+            const entry = { id: journal.length + 1, sha: record.ref, environment: record.environment, payload: record.payload };
             journal.push(entry);
             if (loseTrustPendingReply && entry.payload.phase === "trust-finalization-pending") {
                 loseTrustPendingReply = false;
@@ -867,10 +883,27 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(journal.length, 0);
         assert.equal(pages.length, 0);
         assert.equal(createRequests, beforeDroppedSubmission);
-        loseJournalReply = true;
-        await assert.rejects(run());
+        const staged = new Map(assets);
+        truncatedJournal = true;
+        await assert.rejects(run(), /complete-read bound/);
+        assert.equal(journal.length, 0);
+        assert.equal(createRequests, beforeDroppedSubmission);
+        truncatedJournal = false;
+        const beforeRetry = journalReads;
+        downloaded.length = 0;
+        rejectRecordReadBack = true;
+        await assert.rejects(run(), /404/);
+        assert.equal(stagingJournalReads, beforeRetry + 1);
+        assert.deepEqual(assets, staged);
+        if (fixture) {
+            assert.ok(downloaded.includes(`/bundles/feed-${fixture.arguments[4]}.tar`));
+            assert.ok(downloaded.includes(`/bundles/feed-${fixture.arguments[5]}.tar`));
+        }
+        assert.equal(journal.length, 1);
+        assert.equal(journal[0].payload.phase, "submission-started");
         await assert.rejects(run(), /unresolved Pages create/);
         assert.equal(journal.length, 1);
+        assert.equal(createRequests, beforeDroppedSubmission);
         assert.equal(pages.length, 0);
     } finally {
         if (cacheDirectory) {

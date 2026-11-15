@@ -12,7 +12,7 @@ the approved feed design.
 | F-04 · Pages asset keys | The old preflight accepted one asset key for two different files. It now rejects conflicting bytes for a duplicated key and accepts identical bytes. The retained bundle and final served-file verification still use SHA-256. Validation of a unique provider asset key against the production key generator requires verified preparation tooling before live publication. |
 | F-05 · Credential arguments | Journal and Pages curl calls from the publisher and closure now pass private header file paths. The fixture verifies empty fixture headers and separate synthetic production-shaped headers without making HTTP requests. Runner environment and credential isolation remain part of the protected publication setup. |
 | F-06 · Bounded reads | The GitHub query rejects pagination or 100 records, and Pages correlation rejects 100 deployments. Recovery instructions now state that production stops at the bound. A complete-history or migration design needs verification before reaching it. |
-| F-07 · Durable prepared state | Confirmed absent. Neither the dispatcher nor preflight appends this state. A loopback test that drops the first submission-started write receives no Pages create and finds no prepared record. The journal reducer has no prepared phase. A narrowly scoped decision is below. AC-09 readiness remains open pending resolution of this mismatch. |
+| F-07 · Durable prepared state | The earlier prepared-state mismatch was reproduced. The owner selected the single-record contract below. AC-09 remains open on the revised draft pending baseline acceptance and scoped verification. |
 | F-08 · Interrupted running status | The hard deadline can terminate the worker before it updates status. The recovery guide now explains that the last attempt can remain marked running and the independent receipt age still detects missed deliveries. |
 | F-09 · Legacy path presence | Rollback now checks for a present non-directory entry after its existing symlink rejection, matching delivery's presence check. |
 | F-10 · Stale wording | The README and installation guide distinguish merged code from the pending first feed. The Python disposition heading now reflects the accepted scope. The unused covered path and workflow comment are harmless metadata. The accepted `covers` field stays unchanged. |
@@ -26,9 +26,9 @@ With supervision, the save waited 1904 ms and the worker exited 124. This
 checks lock release under termination. It does not measure CI queue latency
 or promise a configuration save interval for other services.
 
-## Decision pending for F-07
+## Owner selected the single-record contract for F-07
 
-The accepted design records a durable `prepared` state and lets a later
+The earlier accepted design recorded a durable `prepared` state and lets a later
 dispatch discard that state only after verifying the original runner
 terminated. The current publisher validates and stages immutable assets
 before recording `submission-started`. Adding the preceding phase would
@@ -43,7 +43,7 @@ separate durable record of pre-submission preparation and termination.
 It does not loosen recovery authorization, history retention or native
 client verification.
 
-If the owner selects this option, the proposed normative edits are:
+On 2026-11-15, the owner selected “Use simpler single-record contract (Recommended)”. The draft applies these exact normative edits:
 
 1. In Design, replace the sentences from “Write a prepared state” through
    “Only a durable prepared state from a terminated runner proves that
@@ -56,8 +56,8 @@ If the owner selects this option, the proposed normative edits are:
 
    > Interrupt pre-submission staging before the submission-started record commits. Verify zero Pages create requests, then verify a later authorized dispatch reads the complete journal and resumes from the retained approved assets.
 
-The accepted specification remains unchanged. First publication awaits
-resolution of F-07 and separate release approval.
+The design choice authorizes revision and review. The exact revised baseline
+awaits renewed acceptance. First publication requires separate authorization.
 
 ## Exact repair verification
 
