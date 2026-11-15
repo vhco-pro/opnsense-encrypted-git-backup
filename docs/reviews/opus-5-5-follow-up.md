@@ -199,8 +199,7 @@ trust inputs for production remain separately gated.
 [R-59](../specs/native-encrypted-git-backup.md#r-59) ran the signed
 walkthrough independently and verified the manifest and source
 composition. Its three measured revisions added 216 KiB. It verified nine
-criteria. AC-08 remains open pending approval of the scoped Python
-disposition extension. The earlier R-56, R-57 and R-58 findings remain
+criteria. AC-08 retains the [owner-approved Python residual](../security/cve-2025-15367.md#approved-follow-up-disposition). The installed audit still exits 1. The earlier R-56, R-57 and R-58 findings remain
 in the feature's review log.
 
 ## Exact repair verification
