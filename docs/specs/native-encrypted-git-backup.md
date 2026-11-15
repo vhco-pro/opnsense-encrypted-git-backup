@@ -1,7 +1,7 @@
 ---
 status: in-progress
 branch: docs/merged-implementation-status
-status_description: "The revised submission contract is accepted and the targeted native feed fixture passed. R-57 verified six criteria. Supervised interruption, current guide and release-path proof, and the audit disposition remain open."
+status_description: "The revised submission contract is accepted and the targeted native feed fixture passed. R-57 verified five criteria. Supervised interruption, current guide and release-path proof, and the audit disposition remain open."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
 goal: "Administrators configure, run and recover encrypted Git configuration backups through a native OPNsense provider with verifiable delivery and safe migration."
 covers:
@@ -433,7 +433,7 @@ None.
 | 2026-11-15 | R-55 | spec | `c21c21bc36bd57e6ebed2495745a1c07ac0ab67d` | claude-opus-5-5 | structural | Two documentation nits. No blocking or should-fix findings. Verified first-party model and read-only source and Git mounts. |
 | 2026-11-15 | R-55 | spec | `c21c21bc36bd57e6ebed2495745a1c07ac0ab67d` | n/a | n/a | accepted by owner |
 | 2026-11-15 | R-56 | implementation | `fcbc9565c00ee6b8ec891f4be9bda5058230e0b4` | claude-opus-5-5 | structural | Two met, seven not verified, one not met. Independently ran the owned loopback test. Source and Git mounts were read-only and before/after state matched. |
-| 2026-11-15 | R-57 | implementation | `526a72365a295c5418286c267b430f96a5162eda` | claude-opus-5-5 | structural | Six met, three not verified, one not met. Independently executed loopback, PHP and source identity checks. Source and Git state preserved. |
+| 2026-11-15 | R-57 | implementation | `526a72365a295c5418286c267b430f96a5162eda` | claude-opus-5-5 | structural | Five met, four not verified, one not met. Independently executed loopback, PHP and source identity checks. Source and Git state preserved. |
 
 ### R-1
 
