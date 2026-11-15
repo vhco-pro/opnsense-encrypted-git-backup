@@ -28,12 +28,21 @@ previous=$(git -C "$repo" rev-parse "$ref")
 cat > "$work/worker" <<SH
 #!/bin/sh
 trap '' TERM
-echo \$\$ > "$work/worker.pid"
-exec /usr/local/bin/php "$worker"
+echo \$\$ > "$work/supervised.pid"
+/usr/local/bin/php "$worker" &
+echo \$! > "$work/worker.pid"
+wait \$! || :
+# Keep the TERM-ignoring harness alive until the real timeout escalates.
+while :; do sleep 1; done
 SH
-chmod 0700 "$work/worker"
-sed "s|^$command\$|command:/usr/bin/timeout -k 2 12 $work/worker|" "$work/actions" > "$actions"
-grep -Fx "command:/usr/bin/timeout -k 2 12 $work/worker" "$actions"
+cat > "$work/supervise" <<SH
+#!/bin/sh
+/usr/bin/timeout -v -k 2 12 "$work/worker" 2> "$work/signals"
+echo \$? > "$work/timeout.status"
+SH
+chmod 0700 "$work/worker" "$work/supervise"
+sed "s|^$command\$|command:$work/supervise|" "$work/actions" > "$actions"
+grep -Fx "command:$work/supervise" "$actions"
 cat > "$hook" <<SH
 #!/bin/sh
 touch "$work/entered"
@@ -60,17 +69,12 @@ test -e "$work/entered"
 worker_pid=$(cat "$work/worker.pid")
 git_pid=$(pgrep -P "$worker_pid" -x git)
 ssh_pid=$(pgrep -P "$git_pid" -x ssh)
-supervisor=$(ps -o ppid= -p "$worker_pid" | tr -d ' ')
+supervised=$(cat "$work/supervised.pid")
+supervisor=$(ps -o ppid= -p "$supervised" | tr -d ' ')
 test "$(ps -o comm= -p "$supervisor")" = timeout
+test "$(ps -o ppid= -p "$worker_pid" | tr -d ' ')" = "$supervised"
 pending=$(git -C "$state/pending" rev-parse HEAD)
 test "$pending" != "$previous"
-# Model an unresponsive worker with its real push still in flight.
-kill -STOP "$worker_pid"
-for n in $(jot 4); do
-    if ps -o state= -p "$worker_pid" | grep -q '^T'; then break; fi
-    sleep 1
-done
-ps -o state= -p "$worker_pid" | grep '^T'
 for n in $(jot 24); do
     kill -0 "$supervisor" 2>/dev/null || break
     sleep 1
@@ -80,13 +84,16 @@ for n in $(jot 5); do
         ! kill -0 "$ssh_pid" 2>/dev/null; then break; fi
     sleep 1
 done
-for pid in "$supervisor" "$worker_pid" "$git_pid" "$ssh_pid"; do
+for pid in "$supervisor" "$supervised" "$worker_pid" "$git_pid" "$ssh_pid"; do
     if kill -0 "$pid" 2>/dev/null; then
         echo 'A supervised process remained after the deadline.' >&2
         exit 1
     fi
 done
 wait "$scheduled" || :
+test "$(cat "$work/timeout.status")" = 124
+grep -F 'sending signal term(15)' "$work/signals"
+grep -F 'sending signal kill(9)' "$work/signals"
 test "$(git -C "$repo" rev-parse "$ref")" = "$previous"
 test "$(git -C "$state/pending" rev-parse HEAD)" = "$pending"
 cmp "$state/verified.json" "$work/verified"
