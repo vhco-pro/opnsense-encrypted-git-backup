@@ -1,7 +1,7 @@
 ---
 status: in-progress
 branch: docs/merged-implementation-status
-status_description: "The revised submission contract is accepted and the targeted native feed fixture passed. R-57 verified five criteria. Supervised interruption, current guide and release-path proof, and the audit disposition remain open."
+status_description: "The revised submission contract is accepted and the targeted native feed fixture passed. R-58 verified seven criteria, including supervised interruption. Signed operator and Firmware provenance checks and the follow-up audit disposition remain open."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
 goal: "Administrators configure, run and recover encrypted Git configuration backups through a native OPNsense provider with verifiable delivery and safe migration."
 covers:

@@ -126,7 +126,7 @@ The disconnected scheduled-action fault test at
 195-second supervisor and exercised its FreeBSD TERM/KILL path with a
 12-second timeout and two-second grace. The test paused a real SSH push
 with a rejecting fixture hook. A TERM-ignoring harness held the timeout
-open until it logged KILL. The worker, Git and SSH processes exited.
+open until it logged KILL. The worker, Git and SSH processes exited. The supervisor logged KILL for the harness, and the test did not trace the terminating signal of each descendant.
 The native status and the on-disk attempt both reported failure. The
 remote commit and last receipt stayed unchanged, the independent check
 reported a stale receipt, and retry pushed the retained pending commit.
@@ -146,16 +146,20 @@ The tag, run record and signing identity were fixture inputs. The manual
 fixture run at R-51 verified the dispatch route. Its workflow file is
 byte-identical, and the public PR jobs ran the updated controller with
 the same fixture commands and conditions. No follow-up manual or
-production dispatch was run.
+production dispatch was run. Production Pages key generation and
+live-provider validation remain separate from this fixture proof.
 
-The updated guide walkthrough installed the synthetic package, saved
+The first console walkthrough built and installed a local synthetic package, saved
 activation, verified the encrypted snapshot from the expected remote
 commit, and restored the export through the native restore API. Three
 additional snapshots measured 53,648 bytes per encrypted blob and grew
 the fixture repository from 200 to 416 KiB. The authored guide proof used
 synthetic data, a loopback SSH destination and one disconnected guest.
 The native browser artifacts cover the UI; the guide fixture uses the
-native save and restore interfaces from the console.
+native save and restore interfaces from the console. It used the native
+PHP save entry point and root configctl. It did not verify signed install
+provenance, and [R-58](../specs/native-encrypted-git-backup.md#r-58)
+records that gap.
 
 ## Exact repair verification
 
