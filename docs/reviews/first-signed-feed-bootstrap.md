@@ -65,3 +65,18 @@ and validate the manifest with `scripts/feed-pages-assets.mjs --validate`.
 This hash identifies provider upload assets. Release verification
 continues to use the separate package, catalogue and archive SHA-256s.
 [Cloudflare hash source](https://github.com/cloudflare/workers-sdk/blob/4bca70b301302b018ca28c53af0813de430bedd6/packages/deploy-helpers/src/deploy/helpers/hash.ts)
+
+## Public CI permission check
+
+GitHub recorded a startup failure at `f1d0311` and started no PHP workflow
+jobs. A read-only caller cannot invoke a reusable workflow that declares
+write permissions. Moving the unchanged fixture jobs to
+`feed-fixture.yml` keeps both automatic CI and manual fixture dispatch
+read-only. The production dispatch remains separate with the same
+protected jobs and concurrency group.
+
+First-party Opus 5.5 independently reviewed that split at
+`707d9b8528eca0c575faca4fb14c2e97d59137d8` with no findings above
+informational level. Its read-only review checked the job definitions and
+permission changes. Hosted verification runs separately.
+[Initial startup failure](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43723162775)
