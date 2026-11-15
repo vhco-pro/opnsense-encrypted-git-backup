@@ -138,3 +138,57 @@ Observed (no defect found by inspection):
 
 Limitations: No tests were run in this context. All results above come from reading the source at the target commit and the retained logs. FreeBSD timeout(1) reaper behaviour and configd queueing were not checked against the core source. The rollback drain window is 30 seconds against a worker cap of up to 200 seconds. It fails closed, and this commit does not change it. This is a bounded corrective review. It is not a full matrix acceptance verdict, it approves no release, and it leaves residual #4 and earlier independent evidence unchanged.
 ```
+
+## Independent check of the additional evidence
+
+Claude Code again served `claude-opus-5-5` through `firstParty`. The repository and Git metadata remained read-only and unchanged. The return follows verbatim.
+
+```text
+MODEL: claude-opus-5-5
+TARGET: 18e99ad6d588d0cab34a046be08d98e6090cdb4a (docs), checking evidence for source 89414487b5e5755230e90729f55334c9de5a9251
+
+**Summary:** The new logs answer the earlier F-02 and F-03 findings. The doc text keeps its supervisor and delay claims within what was actually shown. Two small nits remain about how much the evidence pins down, plus one about wording in the recovery guide. I read the source, the doc and the logs, and ran nothing.
+
+FINDING: prior F-02 (evidence missing) — **answered**
+KIND: factual
+EVIDENCE: The repair log's header names source `89414487…`. Under that header, PHPStan reports no errors and PHPUnit passes 28 tests with 125 assertions, which matches the doc. Each of the six package shell suites prints PASS, including `feed-preflight-test.sh`, and the Node publisher test passes. That suite runs under `set -euo pipefail`. Its duplicate-key rejection, identical-bytes acceptance and synthetic-header checks are written with `grep -q` and `test`, so they print nothing when they pass. Any failure would stop the suite before PASS, so the PASS line covers them. The other stderr lines in the log come from negative cases the tests expect.
+
+FINDING: prior F-03 (log came from an earlier test draft) — **answered**
+KIND: factual
+EVIDENCE: The new failing log names the old source `d70e8af`, the test file from `8941448` and the test name. It fails at `GitDeliveryTest.php:151` with "Delivery reported success after its deadline." after 5 assertions. In the committed test, that is the 5th assertion (lines 126, 129, 142, 143, 151), so the log now matches the committed revision. The failing exact-ref log errors with "invalid backup object identifier" at test line 199 after 3 assertions (186, 189, 192), which also matches the committed test and the doc's description.
+
+FINDING: N-01
+KIND: factual
+SEVERITY: nit
+WHERE: Retained exact-ref failing log; the "Exact repair verification" section
+EVIDENCE: Unlike the timeout log, the exact-ref failing log has no header. It doesn't record which old source or test-file version it ran against. The single-test green run in the repair log has no test name either. Both are consistent with the committed test, but neither proves which commit was used.
+PROPOSAL: Optional. Add the same baseline and test-name header to future retained logs.
+
+FINDING: N-02
+KIND: factual
+SEVERITY: nit
+WHERE: Repair log, shell-suite section
+EVIDENCE: The PHP runs used a container checkout. The shell-suite errors show the scripts' root as the docs working checkout instead. The single header line doesn't show which commit that checkout had when the run happened. I couldn't confirm with read-only file tools whether anything outside `docs/` changed between `89414487` and `18e99ad`.
+PROPOSAL: Note in the log or doc that the shell suites ran at the source commit, or rerun them from the same checkout as PHP.
+
+FINDING: N-03 (doc text bounds)
+KIND: judgement
+SEVERITY: nit
+WHERE: Follow-up F-01/F-02 row and the "Exact repair verification" paragraph; recovery guide, supervisor paragraph
+EVIDENCE:
+- The follow-up doc is properly bounded. It says queueing before the worker starts is outside the supervisor. It says the fixture leaves out SIGKILL escalation, descendant reaping and configd queue latency. It says a long native lock wait can use up the supervisor budget before the Git deadline fires. It says termination can prevent the final status update. It doesn't claim a proven 200-second worst case or a CI queue bound. This answers the earlier F-04 and F-05 findings at the review-doc level.
+- The recovery guide is less specific. It mentions configd launch delays and a possibly leftover running status. It does not say that the in-worker configuration lock wait counts against the 195-second supervisor. Its line "leaves time for normal startup and response handling" doesn't mention that a long lock wait ends in termination instead of a recorded deadline failure.
+PROPOSAL: Optional. Add that sentence to the recovery guide so operators see it, not only reviewers.
+
+**Also confirmed:**
+- Timing figures (5913 ms with exit 0, then 1904 ms with exit 124) match between the doc and the earlier review.
+- The doc correctly says the green publisher test shows current behaviour and is not evidence of AC-09 conformance.
+- F-07 remains an open decision for the owner, and AC-09 readiness and first publication stay blocked. I did not assess F-07.
+
+**Limitations:**
+- Only three new log files were checked. Earlier retained logs, including the failing prepared-record run, were taken from the doc's description.
+- I couldn't check the Git object store with read-only file tools, so the commit identity of the shell-suite checkout is unconfirmed.
+- PHPCS output appears only as a timing line, with no explicit pass line.
+- I didn't look at FreeBSD timeout(1) or configd behaviour.
+- This is a bounded evidence check. It's not a full review and it doesn't approve a release.
+```
