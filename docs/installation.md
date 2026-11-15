@@ -31,10 +31,10 @@ identity tied to the reviewed package source even when a workflow-only
 change lands later.
 
 The matching `publish` dispatch checks out that reviewed source, verifies the
-retained release evidence and materializes the trusted public key from its
-protected environment. Set `SIGNED_FEED_PUBLIC_KEY_PEM` to that public PEM and
-`SIGNED_FEED_PUBLIC_KEY_SHA256` to its SHA-256 fingerprint over DER public key
-bytes. The private signing key stays outside Actions. First publication also
+retained release evidence and downloads the retained
+`feed-signing-public.pem` asset. Pass the independently verified SHA-256
+fingerprint over DER public key bytes as `public_key_sha256`. The private
+signing key stays outside Actions. First publication also
 requires a retained recovery bundle with the originally advertised packages
 and no catalogue or metadata files. A dispatch that reports a recorded
 submission is followed by reconciliation with the same retained inputs.
