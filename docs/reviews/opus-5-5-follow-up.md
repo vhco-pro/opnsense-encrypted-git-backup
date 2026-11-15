@@ -58,3 +58,83 @@ If the owner selects this option, the proposed normative edits are:
 
 The accepted specification remains unchanged. First publication awaits
 resolution of F-07 and separate release approval.
+
+## Exact repair verification
+
+On repair source `89414487b5e5755230e90729f55334c9de5a9251`, PHP 8.5.12
+passed PHPCS, PHPStan and PHPUnit (28 tests, 125 assertions). The exact-ref
+test also passed by itself (one test, six assertions). It failed against
+the original source with an invalid backup object identifier. The committed
+deadline test failed against that same original source because delivery
+reported success after the test deadline. The earlier failed draft test
+also observed a late receipt.
+
+All six package shell suites passed, including `feed-preflight-test.sh`
+with the duplicate-key and header-file cases. The loopback publisher test
+passed. Its green result describes current behavior. The separate prepared
+record assertion failed against the merged source and remains evidence
+of F-07, not conformance to the accepted AC-09 sequence.
+
+The native timing fixture exercises TERM and lock release using the real
+installed core configuration save. SIGKILL escalation, descendant reaping
+and configd queue latency were outside that fixture. A long native lock
+wait before delivery can consume the supervisor budget before the Git
+deadline fires, and supervisor termination can prevent a final status
+update.
+
+## Independent review of the repairs
+
+Claude Code served `claude-opus-5-5` and identified the provider as
+`firstParty` in its final usage metadata. Source and Git metadata were
+mounted read-only. HEAD, refs, index and status matched before and after.
+The initial bounded review return follows verbatim. The exact test runs
+above address its evidence and test-version findings.
+
+```text
+MODEL: claude-opus-5-5
+TARGET: 89414487b5e5755230e90729f55334c9de5a9251
+
+FINDING: F-01
+KIND: judgement
+SEVERITY: should-fix
+WHERE: docs/reviews/opus-5-5-follow-up.md, Decision pending for F-07; docs/specs/native-encrypted-git-backup.md, Design and AC-09 Test Plan; tests/package/feed-publisher-http.mjs:864-869
+EVIDENCE: The prepared-contract red rerun failed with "No durable prepared record before interrupted submission-started write". That confirms the accepted design's durable prepared state is absent. The spec still contains the exact text the option quotes ("Write a prepared state ... Only a durable prepared state from a terminated runner proves that the workflow did not start submission" and "Terminate a runner while its attempt is prepared and verify a later dispatch can resume"), so the proposed replacement span is exact and the spec is unchanged. The committed test asserts journal.length 0, pages 0 and no new create after a dropped submission-started write. That matches the pending smaller option, not the accepted design. The node green run of this test therefore shows current behaviour, not AC-09 conformance.
+PROPOSAL: Keep F-07 open and AC-09 not ready until the owner decides. Do not cite the green publisher test as AC-09 evidence unless the owner adopts the option and a fresh spec review confirms the revised text.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: should-fix
+WHERE: docs/reviews/opus-5-5-follow-up.md, F-03, F-04 and F-05 rows; retained evidence set
+EVIDENCE: No red or green log for testRemoteReadBackSelectsTheExactRef exists apart from the aggregate PHP run (28 tests, 125 assertions, no commit recorded). The node green log covers only the publisher HTTP test, not tests/package/feed-preflight-test.sh. The asset-key fixed log shows only the rejection error. It does not show the identical-bytes acceptance path or the synthetic header subtest. None of the logs record the commit or command they ran against.
+PROPOSAL: Retain a run of feed-preflight-test.sh and the PHP suite that records the target commit, or describe the F-04 and F-05 rows as inspected rather than observed passing.
+
+FINDING: F-03
+KIND: factual
+SEVERITY: nit
+WHERE: retained timeout red log; tests/GitDeliveryTest.php:144-153
+EVIDENCE: The red log fails at GitDeliveryTest.php:150 on the verified.json assertion after 7 assertions. In the committed test, line 150 is the closing brace of the catch block. Against pre-fix code, the first failure would be assertNotNull at line 151 ("Delivery reported success after its deadline."), after 4 earlier assertions. The log supports the substance (the old code wrote verified.json after a delayed push), but it came from a different revision of the test than the one committed.
+PROPOSAL: Rerun the committed test against the parent source and retain that output, or label the log as coming from an earlier test draft.
+
+FINDING: F-04
+KIND: judgement
+SEVERITY: nit
+WHERE: src/opnsense/service/conf/actions.d/actions_encryptedgit.conf:2-3; tests/native/config-lock-deadline.sh; follow-up native timing paragraph
+EVIDENCE: The fixture checks that the shipped command string is exactly "timeout -k 5 195 php run.php". It then runs a synthetic worker under "timeout -k 1 2" that takes the real config lock and sleeps. The retained output (5913 ms with exit 0, then 1904 ms with exit 124) matches the follow-up text. The synthetic worker exits on SIGTERM, so the -k escalation path is not exercised. It spawns no descendants, so reaping of Git or ssh children is not exercised. It does not run through configd, run.php, encryption or Git. The output file records no appliance or commit identity.
+PROPOSAL: State that the 200-second worst case relies on the KILL escalation and descendant reaping that this fixture leaves untested, or add a variant that ignores SIGTERM and forks a child.
+
+FINDING: F-05
+KIND: judgement
+SEVERITY: nit
+WHERE: src/opnsense/mvc/app/library/OPNsense/EncryptedGitBackup/GitDelivery.php:105; src/opnsense/mvc/app/library/OPNsense/Backup/EncryptedGit.php:150-170; docs/recovery.md new paragraph
+EVIDENCE: The 180-second deadline starts in recordDelivery. That happens after the blocking config lock wait, the activation check (Process::run with a 5-second limit) and the delivery.lock acquisition. If those take more than 15 seconds, the 195-second supervisor fires before the Git deadline. The worker then dies without writing a failed status, so a running status stays behind. The recovery text says this generally ("A terminated worker may leave an attempt marked running"), but not that a long config lock wait leads to it.
+PROPOSAL: Either start the budget at worker entry, or add a sentence to the recovery text saying a long native lock wait can end in supervisor termination instead of a recorded deadline failure.
+
+Observed (no defect found by inspection):
+- Budget: the supervisor worst case is 195 + 5 = 200 seconds, below the 240-second wait in EncryptedGit::backup's configdRun call. Each Git call gets min(30, remaining) seconds and fails before starting once the deadline has passed. Process::run accepts a float timeout. The capture and encryption step runs inside the same wall-clock budget.
+- Late receipts: a push that times out at the deadline is swallowed. The read-back that follows then throws the deadline error, so neither verified.json nor a verified status is written, and creation.json is kept. On retry, the pending HEAD is read back, observe() adds a verification commit whose parent is the retained tip, and creation.json is retired. The committed test asserts each of these steps.
+- Lock order: the worker takes the config lock (blocking), then delivery.lock (non-blocking). Rollback takes delivery.lock (non-blocking), then the config lock (blocking). Neither side waits on the other's inner lock, so they cannot deadlock. The kernel releases both flocks when a worker is terminated. Rollback's config and settings serialization is unchanged apart from the F-09 file_exists change, which still runs after the is_link rejection.
+- Ref parsing: fetch() keeps only lines whose second tab field equals the full ref exactly. It requires exactly one match and still checks FETCH_HEAD against that object. A remote that has only a suffix ref now holds. The pre-fix code also failed closed in both test scenarios, through a different error.
+- Publication: credentials are written to mode 0600 header files (umask 077) in a per-run temporary directory that a trap removes, and curl reads them with -H @file. feed-close.sh calls publication_headers itself, and feed-recovery.sh and feed-retirement.sh inherit the headers by being sourced. No Authorization value is left on a curl command line. Pages asset keys that repeat must now have the same SHA-256 bytes.
+
+Limitations: No tests were run in this context. All results above come from reading the source at the target commit and the retained logs. FreeBSD timeout(1) reaper behaviour and configd queueing were not checked against the core source. The rollback drain window is 30 seconds against a worker cap of up to 200 seconds. It fails closed, and this commit does not change it. This is a bounded corrective review. It is not a full matrix acceptance verdict, it approves no release, and it leaves residual #4 and earlier independent evidence unchanged.
+```
