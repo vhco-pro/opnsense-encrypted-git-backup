@@ -22,6 +22,23 @@ Keep the prior complete generation available until the new catalogue and its pac
 
 The CI workflow uses [version-workflow](https://github.com/vhco-pro/version-workflow/blob/3b78b04df802ea1592cbe19338d7a882d1888389/.github/workflows/version.yml) in dry-run mode. For release preparation, use the successful push run for the approved main commit. Pull-request runs calculate against GitHub's synthetic merge commit and are verification evidence.
 
+For the first signed feed, the protected `tag` dispatch accepts the reviewed
+main source, its successful calculation run and attempt, and the expected
+release tag. It checks the source and version through the pinned shared
+GitVersion action before invoking that action with tagging enabled. It then
+resolves the remote tag back to the reviewed source. This keeps the release
+identity tied to the reviewed package source even when a workflow-only
+change lands later.
+
+The matching `publish` dispatch checks out that reviewed source, verifies the
+retained release evidence and materializes the trusted public key from its
+protected environment. Set `SIGNED_FEED_PUBLIC_KEY_PEM` to that public PEM and
+`SIGNED_FEED_PUBLIC_KEY_SHA256` to its SHA-256 fingerprint over DER public key
+bytes. The private signing key stays outside Actions. First publication also
+requires a retained recovery bundle with the originally advertised packages
+and no catalogue or metadata files. A dispatch that reports a recorded
+submission is followed by reconciliation with the same retained inputs.
+
 On the selected disposable FreeBSD target, invoke `bash scripts/prepare-native-package.sh <GitVersion-SemVer> <source-sha> <tag-or-empty> <pinned-plugins-tree> <output-directory>`. For release preparation pass the exact tag. The script rejects a different checkout, wrong tag or tag pointing elsewhere, and checks the built package manifest against the mapped version. Stable `1.2.3` stays `1.2.3`. GitVersion prerelease `1.2.3-rc.12` maps to `1.2.3.rc12`, with the same rule for alpha and beta. Arbitrary labels and build metadata are rejected.
 
 `tests/package/version-test.sh` checks source and tag identity. Run it on FreeBSD to exercise native ordering with `pkg version -t`. The signed staging script consumes the prepared package. The shared [gh-release-workflow](https://github.com/vhco-pro/gh-release-workflow/blob/b18de6d2f305f971afe01ba31e17bde5966b1567/.github/workflows/gh-release.yml) assumes its Git tag is the release. This plugin's release artifact is the signed native package and catalogue, so the current workflow prepares versions without publishing release effects.
