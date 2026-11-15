@@ -202,7 +202,7 @@ jobs:
     environment: signed-feed-production
     permissions:
       actions: read
-      contents: read
+      contents: write
       deployments: write
     steps:
       - name: Check production configuration
@@ -234,7 +234,7 @@ jobs:
           FEED_OPERATOR_KEY: ${{ vars.SIGNED_FEED_OPERATOR_KEY_PATH }}
           FEED_RECOVERY_AUTHORIZED: ${{ inputs.authorize_recovery }}
           FEED_PRODUCTION_APPROVED: ${{ vars.SIGNED_FEED_PRODUCTION_APPROVED }}
-          FEED_ASSET_TOKEN: ${{ secrets.FEED_ASSET_TOKEN }}
+          FEED_ASSET_TOKEN: ${{ github.token }}
           FEED_JOURNAL_TOKEN: ${{ github.token }}
           PAGES_TOKEN: ${{ secrets.CLOUDFLARE_PAGES_TOKEN }}
           PAGES_API: ${{ vars.CLOUDFLARE_PAGES_API }}
