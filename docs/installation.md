@@ -20,7 +20,7 @@ Keep the prior complete generation available until the new catalogue and its pac
 
 ## Prepare a versioned package
 
-The private workflow uses [version-workflow](https://github.com/vhco-pro/version-workflow/blob/3b78b04df802ea1592cbe19338d7a882d1888389/.github/workflows/version.yml) in dry-run mode. Use the branch-push run for the exact branch commit. Pull-request runs calculate against GitHub's synthetic merge commit.
+The CI workflow uses [version-workflow](https://github.com/vhco-pro/version-workflow/blob/3b78b04df802ea1592cbe19338d7a882d1888389/.github/workflows/version.yml) in dry-run mode. For release preparation, use the successful push run for the approved main commit. Pull-request runs calculate against GitHub's synthetic merge commit and are verification evidence.
 
 On the selected disposable FreeBSD target, invoke `bash scripts/prepare-native-package.sh <GitVersion-SemVer> <source-sha> <tag-or-empty> <pinned-plugins-tree> <output-directory>`. For release preparation pass the exact tag. The script rejects a different checkout, wrong tag or tag pointing elsewhere, and checks the built package manifest against the mapped version. Stable `1.2.3` stays `1.2.3`. GitVersion prerelease `1.2.3-rc.12` maps to `1.2.3.rc12`, with the same rule for alpha and beta. Arbitrary labels and build metadata are rejected.
 
