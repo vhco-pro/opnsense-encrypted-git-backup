@@ -66,6 +66,9 @@ supervisor=$(ps -o ppid= -p "$worker_pid" | tr -d ' ')
 test "$(ps -o comm= -p "$supervisor")" = timeout
 pending=$(git -C "$state/pending" rev-parse HEAD)
 test "$pending" != "$previous"
+# Model an unresponsive worker with its real push still in flight.
+kill -STOP "$worker_pid"
+ps -o state= -p "$worker_pid" | grep -q T
 for n in $(jot 24); do
     kill -0 "$supervisor" 2>/dev/null || break
     sleep 1
