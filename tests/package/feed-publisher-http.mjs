@@ -788,6 +788,20 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             sites.length = 0;
             nextOutcome = "failure";
             await assert.rejects(run(), /curl: [(]52[)]/);
+            rejectRecordReadBack = true;
+            const beforeRecoveryReadBack = createRequests;
+            await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "94" }), /404/);
+            assert.equal(journal.at(-1).payload.phase, "recovery-started");
+            assert.equal(createRequests, beforeRecoveryReadBack);
+            assert.equal(pages.length, 1);
+            await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "95" }), /unresolved Pages create/);
+            assert.equal(createRequests, beforeRecoveryReadBack);
+
+            journal.length = 0;
+            pages.length = 0;
+            sites.length = 0;
+            nextOutcome = "failure";
+            await assert.rejects(run(), /curl: [(]52[)]/);
             unclassifiedCreate = true;
             const beforeUnclassifiedRecovery = createRequests;
             await assert.rejects(run("fixture", authorized));
@@ -884,10 +898,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(pages.length, 0);
         assert.equal(createRequests, beforeDroppedSubmission);
         const staged = new Map(assets);
+        const stagingBeforeTruncated = stagingJournalReads;
         truncatedJournal = true;
         await assert.rejects(run(), /complete-read bound/);
         assert.equal(journal.length, 0);
         assert.equal(createRequests, beforeDroppedSubmission);
+        assert.equal(stagingJournalReads, stagingBeforeTruncated);
         truncatedJournal = false;
         const beforeRetry = journalReads;
         downloaded.length = 0;
