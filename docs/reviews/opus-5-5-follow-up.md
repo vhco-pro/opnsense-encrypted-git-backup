@@ -97,6 +97,30 @@ verified and AC-08 not met. For the signed feed it observed the candidate
 and journal cases, and checked hosted metadata for the native recovery
 cases. The complete release and native client criterion remains open.
 
+## Targeted native follow-up
+
+Public [browser run 43704991178](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43704991178)
+passed at `adf9107df0e9bbb9d1637317bfbf52388651b41f` on its first
+attempt. The preceding browser run passed on attempt two after an
+activation timeout.
+
+Disconnected OPNsense 26.7.9_1 fixtures installed the follow-up package
+built from `4033f572711c17d02a1b7a577d86ea52c524811a`. The merged-to-follow-up
+upgrade preserved activation, pending ancestry and the last receipt,
+verified the installed timeout command and passed native cron delivery,
+configd readiness, removal and reinstall. A separate clean appliance
+passed legacy-writer drain, cutover interruption, rollback and Git ref
+deletion.
+
+With `631729b8e99d0a3c337831247e615ef88b2be17c`, the versioned
+`tests/native/rollback-legacy-entry-hold.sh` failed at the pre-repair
+package because rollback resumed with a regular file in the legacy
+path. After upgrading the same fixture it observed the structured hold,
+unchanged receipt and pending ancestry, then restored activation when
+the file was removed. The first repair-side fixture attempt expected
+the error without its native prefix. The corrected assertion passed on
+a fresh overlay.
+
 ## Exact repair verification
 
 On repair source `89414487b5e5755230e90729f55334c9de5a9251`, PHP 8.5.12
