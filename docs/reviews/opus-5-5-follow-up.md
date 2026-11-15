@@ -83,8 +83,11 @@ publisher test. The loopback fixture checked that a truncated journal
 prevents restaging and create. It also checked that candidate read-back
 returning 404 or a different record prevents create and leaves a later
 dispatch on reconciliation hold. The recovery counterparts run in the
-native fixture. They were outside the local command and remain in T14
-pending native execution and implementation review.
+native fixture. They were outside the local command. The [native-verifier job](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43704991458)
+passed both recovery cases on `adf9107df0e9bbb9d1637317bfbf52388651b41f`
+using FreeBSD pkg, synthetic packages and owned mock endpoints. The
+production verification and publisher jobs were skipped. Independent
+implementation review is pending.
 
 ## Exact repair verification
 
