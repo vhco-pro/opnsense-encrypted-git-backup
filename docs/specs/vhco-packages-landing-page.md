@@ -275,9 +275,27 @@ None yet; written after owner acceptance.
 
 ## Open Questions
 
-None.
-The owner selected publisher reuse, independent page-only updates and public byte/header verification on 15 November 2026.
-The owner then accepted recovery from the actually served predecessor archive, root HTTP 200 and unmatched-route HTTP 404 byte verification, and retained-only provenance metadata with a complete approved public-file list.
+### Q4 — Delivery details
+
+R-3 F-02 asks for the exact recovery comparison set.
+Recommend restoring the prior page and native catalogue files byte-for-byte, while constructing and verifying the recovery's `release.json`, `generation.json` and Pages manifest for their existing publication roles.
+
+R-3 F-04 asks how site-verification failure affects each closure path.
+Recommend applying the existing authorised verification-failure contract to site checks alongside package checks.
+Candidate failure can enter authorised recovery.
+A confirmed terminal recovery with failing site checks can use one identical-byte retry per separately authorised dispatch under the existing Q3 contract.
+Rejection and failed-candidate closures hold when the previously served site fails verification.
+
+R-3 F-06 asks which preparation component and credentials resolve the served baseline.
+Recommend `feed-dispatch.sh` provide preparation's read-only journal/archive selection using the operator's existing GitHub CLI access.
+The protected publication job then verifies Pages correlation using its existing environment credential.
+The existing complete-read bound holds on incomplete or over-limit provider results.
+
+R-3 F-07 asks where the page SHA is independently checked.
+Recommend an explicit `page_source` dispatch input, checked against main ancestry and retained `site.json` by the protected publication job before submission.
+
+Owner answer pending for these four details.
+The earlier publisher, page-only update, public verification, actual served baseline, HTML route and retained-only metadata choices remain recorded in Design.
 
 ## Review Log
 
@@ -285,6 +303,7 @@ The owner then accepted recovery from the actually served predecessor archive, r
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-11-15 | R-1 | spec | `1012715422c73c326c0d3061e62dbc2c9e83c334` | claude-opus-5-5 | procedural | One blocking, four should-fix and two nits. Read-only checkout preservation verified. |
 | 2026-11-15 | R-2 | spec | `23d22b463fb22cc41c8362557def8624ff05dbd7` | claude-opus-5-5 | procedural | One blocking and four should-fix. Read-only source and Git preservation verified. Shell execution was denied to this static reviewer. |
+| 2026-11-15 | R-3 | spec | `340d9014f0b9671257bf6594270681967f82b6b7` | claude-opus-5-5 | procedural | Seven should-fix findings. Static source review, with read-only source and Git preservation verified. |
 
 ### R-1
 
@@ -377,6 +396,59 @@ SEVERITY: should-fix
 WHERE: Design (Homepage-only updates) lines 172-173, Design (Assembly and browser verification) line 130, Design (Publication and recovery) line 165
 EVIDENCE: site.json is "retained inside the bundle". Preflight checks that its "complete asset list matches the bundle's Pages manifest". The Pages manifest also carries package, catalogue, release.json and generation.json paths (scripts/feed-preflight.sh:23-39, tests/package/feed-http-inputs.mjs:44-55), so a literal equality check cannot pass. The design leaves two things open. It does not say whether site.json is itself a Pages path published at `/site.json`. It also does not say whether the manifest may hold extra non-package paths that are absent from site.json, such as a stray HTML file. One implementer would check only that listed assets are present. Another would require the manifest's non-package paths to equal the list. Only the second rejects the "partially present new page assets" that line 165 says must fail preflight.
 PROPOSAL: State whether site.json is served. Define the check as equality between site.json's asset list and the manifest's paths outside the package, catalogue and publication metadata set, and add an unlisted extra page file to the AC-04/AC-05 preflight failure cases.
+
+### R-3
+
+TARGET: 340d9014f0b9671257bf6594270681967f82b6b7
+
+FINDING: F-01
+KIND: factual
+SEVERITY: should-fix
+WHERE: Design (Selecting predecessor history and recovery bytes) lines 208-215, Owner summary line 46, Test Plan AC-05
+EVIDENCE: Line 209 says dispatch "reuses `feed-journal-generation.jq` to select the predecessor closure". That filter sets `.closed` to the newest verified-closure (scripts/feed-journal-generation.jq:52-57), and that closure can belong to the submission being replayed. publish-feed.sh does something different on replay. When the started submission matches FEED_DIGEST, it replaces the predecessor with the closure of `started.payload.predecessor`, "even after closure" (scripts/publish-feed.sh:104-118). It then requires the FEED_HISTORY digest to equal that parent's history (scripts/publish-feed.sh:126-133). Take a package publication where the feed-close.sh POST succeeds but its response is lost (scripts/feed-close.sh:26-32), and the operator re-runs with the same digests. Dispatch would supply `history-<own closure.history>.json`, which is the successor history. publish-feed.sh would then hold with "retained history checkpoint changed", and line 213 makes that mismatch a hold. A page-only update hides the defect, because its successor and predecessor digests are equal (line 217). The AC-05 proof tests replay only as generic "interrupted/lost responses". This design traces to this revision's repair of R-2 F-01.
+PROPOSAL: Specify that dispatch uses the same replay rule as publish-feed.sh. When the latest submission matches the requested candidate digest, dispatch should select the closure named by that submission's predecessor and not `.closed`. Add an AC-05 case for a package publication whose closure response was lost and then re-run.
+
+FINDING: F-02
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Selecting predecessor history and recovery bytes) lines 233-237, Design (Homepage-only updates) lines 187-190 and 197, Test Plan AC-05
+EVIDENCE: Line 233 requires "exact equality" with the prior served archive for "the catalogue/metadata file set and bytes". Line 188 lists the generation marker among publication-metadata paths. Line 237 then says "the recovery's attempt marker retain[s] [its] existing distinct role". Existing recovery bundles carry their own `generation.json` (`{recoveryOf, version}`) and a reconstructed `release.json` (tests/package/feed-http-inputs.mjs:76-81, 101). Both differ from the candidate's `generation.json` digest marker and its full release.json. When the predecessor closed on its candidate, the served `generation.json` is the candidate marker. Requiring exact metadata equality drops the distinct recovery marker, and keeping that marker breaks equality. The marker matters to existing checks: publish-feed.sh:287 and scripts/feed-recovery.sh:76 test `.digest == marker`, and scripts/feed-recovery.sh:90 compares served and recovery `generation.json` bytes. The document never says whether `release.json`, `generation.json` or `pages-manifest.json` are inside the exact comparison. Different implementers would build incompatible recovery archives. This traces to this revision's repair of R-2 F-02.
+PROPOSAL: List exactly which files the recovery-to-served comparison covers. State how the recovery's `generation.json` and `release.json` relate to the prior served bytes in two cases: when the predecessor closed on its candidate, and when it closed on its recovery. Add both cases to the AC-05 assertions.
+
+FINDING: F-03
+KIND: factual
+SEVERITY: should-fix
+WHERE: Design (Homepage-only updates) lines 181, 196-204, Owner summary lines 43-46, Acceptance Criteria AC-05, Test Plan AC-05
+EVIDENCE: A page-only publication reuses the "exact package/catalogue bytes", so it also reuses the approved `release.json` (line 181). The publisher reads `retirement` from that manifest (scripts/feed-retirement.sh:3). When the predecessor closure has a `withdrawn` path, it requires `retirement == {}` (scripts/publish-feed.sh:351-353). Otherwise a non-empty retirement needs FEED_RETIREMENT_AUTHORIZED (scripts/publish-feed.sh:361-365). On success it reruns trust finalization, which needs fresh signed operator evidence (scripts/publish-feed.sh:289-292, scripts/feed-retirement.sh:26-53). So a page-only update on the release that performed a catalogue retirement either holds unconditionally after that retirement closes, or repeats the retirement and trust-finalization flow. The design does not say whether page-only updates are allowed on such a release or how retirement state carries forward. AC-05 has no retirement case.
+PROPOSAL: Define page-only behaviour for a release whose manifest carries a retirement plan and for a predecessor closure with `withdrawn` set, either a carried-forward withdrawal or an explicit exclusion. Add the matching AC-05 case.
+
+FINDING: F-04
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Publication and recovery) lines 161-162 and 175, Owner summary line 48, Acceptance Criteria AC-04, AC-05, Test Plan AC-04
+EVIDENCE: Line 162 says a failed site readback "follows the existing recovery or hold rules for that attempt", but the existing rules fork in three places. First, a candidate whose native verification fails moves to recovery when authorised (scripts/publish-feed.sh:293-302). Second, a failing `verify_recovery` after a recovery deployment allows a new per-dispatch retry submission (scripts/feed-recovery.sh:91-108). Third, `verify_unchanged_feed` gates rejection closure and failed-candidate closure (scripts/publish-feed.sh:210-231). The document does not say whether a site byte, media-type or status mismatch on a successful Pages deployment is a recovery trigger or a hold. It also does not say whether the site check goes inside `verify_recovery`, and therefore into retry and unchanged-feed closures. A deterministic serving mismatch from the provider, such as a Content-Type override, would cause repeated retries under one reading and a single hold under the other. The AC-04 row checks only "failure before closure".
+PROPOSAL: State which outcome a site readback failure causes for a candidate, for a recovery deployment and for rejection or failed-candidate closures. Add one AC-04 or AC-05 fixture case for each outcome.
+
+FINDING: F-05
+KIND: factual
+SEVERITY: should-fix
+WHERE: Test Plan AC-06, Acceptance Criteria AC-06
+EVIDENCE: The row's must-fail examples are the literal tokens `PRIVATE_FIXTURE_LAB_ADDRESS`, `PRIVATE_FIXTURE_TOKEN`, `PRIVATE_FIXTURE_CONFIG_XML` and `PRIVATE_FIXTURE_SIGNER_PEM`. None of them has the shape of the data it stands for. A class-based detector, for example one that matches private IPv4 ranges, PEM private-key headers or OPNsense config XML, would not reject them. Only a literal `PRIVATE_FIXTURE_` matcher passes the row. That matcher also passes a page that leaks a real lab address, token, config fragment or private key, so the proof can pass a wrong implementation. The row changed in this revision in response to R-2 F-04 and has not passed review.
+PROPOSAL: Replace or supplement the markers with synthetic values in the real shapes, such as an RFC 1918 or tailnet address, a token-shaped string, an `<opnsense>` config fragment and a `-----BEGIN PRIVATE KEY-----` block. Each must fail in served HTML, in an asset and in a browser-request URL.
+
+FINDING: F-06
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Selecting predecessor history and recovery bytes) lines 224-231, Design (Homepage-only updates) lines 183 and 190, Design (Assembly and browser verification) line 134, frontmatter covers
+EVIDENCE: Line 224 says "preparation" selects the live predecessor archive by correlating Pages deployment IDs through "the existing provider-correlation rules". Bundle preparation today is an operator procedure outside the protected job (docs/reviews/first-signed-feed-bootstrap.md:49-57). The Pages token exists only in the protected `publish` job (.github/workflows/feed.yml:206). The document names no script or job for this preparation-time selector and no credential for its journal and Pages reads. scripts/feed-site.mjs (line 134) is described only as placing assets. The existing correlation also holds unless the whole production deployment list fits on one page of 25 (scripts/publish-feed.sh:164-174), and every page-only publication adds deployments. The document does not say what happens once that bound is exceeded. The journal alone already identifies a recovery closure: `recovery-required` and `recovery-started` rows exist for the candidate, and `closure.deployment` differs from `recovery-required.source` (scripts/feed-journal-generation.jq:12-24). The document does not say whether provider correlation is required beyond that.
+PROPOSAL: Name the component, job and credentials that perform preparation-time selection and list them in `covers`. State whether selection relies on journal rows alone or also on provider correlation. Define the hold or fallback when the provider deployment list exceeds the existing complete-read bound.
+
+FINDING: F-07
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Homepage-only updates) lines 182-186 and 194, Test Plan AC-05
+EVIDENCE: Line 182 says the reviewed page source SHA is "supplied separately" and "must be reachable from main". Line 186 says "Candidate preflight validates the source SHA". The `publish` dispatch has no page-source input (.github/workflows/feed.yml:4-39). It checks only `APPROVED_SOURCE` with `git merge-base --is-ancestor` (.github/workflows/feed.yml:226-227). scripts/feed-preflight.sh receives no page SHA (scripts/feed-preflight.sh:5-14). The document does not say whether the protected job independently checks that the page SHA in the retained `site.json` is reachable from main, or only that it is consistent with the listed bytes. One implementer would add a dispatch input and an ancestry check. Another would trust the SHA recorded at preparation. AC-05 lists "source mismatch" but no unreachable page SHA case.
+PROPOSAL: State where the page SHA enters the protected run and which step verifies its ancestry from main against the `site.json` value. Add an AC-05 case where an unreachable page SHA holds before submission.
 
 ## Sources
 
