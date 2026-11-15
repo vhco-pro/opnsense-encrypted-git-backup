@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: draft
 branch: feat/native-encrypted-git-backup
 status_description: "Implementing and verifying native activation, delivery, recovery and signed-feed workflows."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
