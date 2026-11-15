@@ -244,6 +244,7 @@ jobs:
           tag_sha=$(git rev-parse --verify "refs/tags/$RELEASE^{commit}")
           # Keep the package checkout on its approved source. Run the operational
           # publisher from the protected workflow revision.
+          # The pinned native VM preparation above stays with the approved source.
           mkdir "$directory/publisher"
           git archive "$GITHUB_SHA" scripts | tar -x -C "$directory/publisher"
           bash "$directory/publisher/scripts/feed-dispatch.sh" production "$directory/version-$VERSION_RUN-$VERSION_ATTEMPT.json" \

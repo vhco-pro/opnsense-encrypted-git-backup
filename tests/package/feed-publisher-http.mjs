@@ -387,7 +387,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(assets.get(key).toString(), JSON.stringify({ digest: effectiveMarker }));
         const beforeIncomplete = createRequests;
         incompletePages = true;
-        await assert.rejects(run());
+        await assert.rejects(run(), /incomplete Pages deployment list/);
         assert.equal(createRequests, beforeIncomplete);
         assert.equal(journal.length, 1);
         incompletePages = false;
@@ -893,6 +893,11 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(pages.length, 0);
         assert.equal(journal.at(-1).payload.phase, "create-rejected");
         const rejectedRequests = createRequests;
+        incompletePages = true;
+        await assert.rejects(run(), /incomplete Pages deployment list/);
+        assert.equal(journal.at(-1).payload.phase, "create-rejected");
+        assert.equal(createRequests, rejectedRequests);
+        incompletePages = false;
         assert.match((await run()).stdout, /Rejected candidate closed/);
         assert.equal(journal.at(-1).payload.phase, "rejection-closure");
         assert.equal(createRequests, rejectedRequests);

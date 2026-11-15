@@ -162,13 +162,18 @@ if [[ "$started" != '{}' ]]; then
     attempt=$(jq -er '.payload.attempt | select(test("^[a-f0-9]{32}$"))' <<< "$started")
     digest=$(jq -er '.payload.digest | select(test("^[a-f0-9]{64}$"))' <<< "$started")
     request "${pages_headers[@]}" "$PAGES_API/deployments?env=production&page=1&per_page=25" > "$temp/pages"
+    if ! jq -e '
+        .success == true and (.result | type == "array" and length <= 25)
+        and .result_info.page == 1 and .result_info.per_page == 25
+        and .result_info.count == (.result | length)
+        and .result_info.total_count == .result_info.count
+        and (.result_info.total_pages == (if .result_info.count == 0 then 0 else 1 end))
+    ' "$temp/pages" >/dev/null; then
+        echo 'incomplete Pages deployment list' >&2
+        exit 1
+    fi
     correlate() {
         jq -ce --arg attempt "feed-attempt:$1" '
-            select(.success == true and (.result | type == "array" and length <= 25)
-                and .result_info.page == 1 and .result_info.per_page == 25
-                and .result_info.count == (.result | length)
-                and .result_info.total_count == .result_info.count
-                and (.result_info.total_pages == 0 or .result_info.total_pages == 1)) |
             [.result[] | select(.environment == "production"
                 and .deployment_trigger.metadata.commit_message == $attempt)] |
             if length == 1 then first else error("unresolved Pages create") end
@@ -198,8 +203,7 @@ if [[ "$started" != '{}' ]]; then
     }
     confirm_rejected() {
         jq -e --arg message "feed-attempt:$1" '
-            .success == true and (.result | type == "array" and length < 100
-                and all(.[]; .deployment_trigger.metadata.commit_message != $message))
+            all(.result[]; .deployment_trigger.metadata.commit_message != $message)
         ' "$temp/pages" >/dev/null
     }
     prior=$(jq -r '.payload.deployment // ""' <<< "$predecessor")
