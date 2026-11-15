@@ -202,3 +202,28 @@ The configured limits and lock order are unchanged. Local PHPCS, PHPStan,
 PHPUnit (28 tests, 125 assertions) and Psalm taint analysis passed after
 the correction. The hosted failure remains in the run history.
 [First repair-head PHP run](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43699326569)
+
+Independent Claude Code Opus 5.5 review of the correction, with verified first-party metadata and preserved read-only source and Git state. Verbatim return follows.
+
+```text
+MODEL: claude-opus-5-5
+TARGET: b302f40bc79d6ac26d774314d89ac58861a4ddbb
+
+NO FINDINGS
+
+LIMITS:
+- **Scope:** I looked only at the one changed runtime line in `Process.php` and the new correction section of the follow-up review note. The branch ref points at the target commit, and the line in the working tree matches the added line in the supplied diff. I had no shell in this session, so I could not open the commit object itself. The diff comes from the allowed evidence. F-07 and the accepted Python residual were not reviewed and are unchanged by this diff.
+- **Arithmetic:** `$timeout * 1_000_000_000.0` is a float times a float. The explicit `(int)` cast then makes `hrtime(true) + int` an int plus an int, so the strict operand check passes. The hosted failure flagged both operands on line 39, and both are fixed by this one change.
+- **Bounded times:**
+  - Every caller passes a positive timeout of 30 seconds or less. That covers the literal 5 second calls and `min(30, remaining)`, where the delivery path already rejects `remaining <= 0`.
+  - At 30 seconds the product is 3.0e10, which is far below 2^53, so it is exact. Truncation only drops fractions of a nanosecond.
+  - A tiny positive remainder casts to 0. That makes the deadline "now", so the loop does one read and status check and then times out. The old version behaved the same way in practice.
+  - No caller can reach overflow, NaN or a negative value.
+  - The new deadline is an exact integer. The old one was a float and lost a few nanoseconds of precision once uptime passed about 104 days. So the change keeps or slightly improves precision.
+- **Unchanged semantics:**
+  - The comparison `hrtime(true) >= $deadline`, the polling loop, the output limit, and the cleanup in `finally` (close the pipe, kill with signal 9, close the process) are all untouched.
+  - The 30 second command limit and the 180 second delivery limit in GitDelivery are untouched.
+  - The diff touches no `flock` or lock-order code.
+- **Platform:** On 32-bit PHP, `hrtime(true)` returns a float, so the cast would not make the sum an integer there. I did not assess that because the gate targets 64-bit.
+- **Evidence:** I did not rerun any tests, as instructed. The local log shows the PHPStan OK result, PHPUnit at 28 tests and 125 assertions, and a bare `[]` that fits an empty Psalm report but has no label. It shows no separate PHPCS output, so the note's claim that PHPCS passed rests on evidence I could not see. I did not open the hosted run link.
+```
