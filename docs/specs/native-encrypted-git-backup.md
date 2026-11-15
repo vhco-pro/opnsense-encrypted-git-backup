@@ -407,6 +407,7 @@ None.
 | 2026-11-15 | R-50 | implementation | `bebe5f5b9388eb0e89d62ec668747a8908fc431e` | unknown | procedural | Eight criteria met. Manual fixture dispatch remains unverified and the installed audit finding remains open. Source and Git metadata were read-only, with all refs preserved. Model identity was not attested. |
 | 2026-11-15 | R-51 | implementation | `bf75a27f49f29a8e86648d47dc6c06ce66a3a15d` | unknown | procedural | Nine criteria met. The approved manual feed fixture passed and the installed Python finding remains open. Source and Git metadata were read-only and preserved. Model identity was not attested. |
 | 2026-11-15 | R-52 | spec | `6bbbb910c6892f0dade9dd302dafe7994ba4284e` | unknown | procedural | Refreshed default-branch context. One summary nit. The accepted baseline is unchanged. Source and Git metadata were read-only and preserved. Model identity was not attested. |
+| 2026-11-15 | R-53 | spec | `6d00f2f78a8006173c4855cf9eeea693a702ec1e` | claude-opus-5-5 | structural | Three should-fix findings and one nit. Verified first-party Claude Code model and read-only source and Git mounts. |
 
 ### R-1
 
@@ -2080,3 +2081,35 @@ SEVERITY: nit
 WHERE: Context / Owner summary, docs/specs/native-encrypted-git-backup.md:65-66.
 EVIDENCE: The summary says the release workflow and native feed promotion and rollback tests remain open and the revised specification needs renewed acceptance. AC-09 and R-51 record completed fixture verification; independently fetched jobs for run 43677265727 confirm fixture and native-verifier succeeded and both production jobs were skipped. The normative baseline matches accepted R-44 exactly. Pinned vh-adlc fresh reports only covered-drift, and gate in-progress fails only spec_review_fresh, with acceptance retained under the pinned convention. These summary statements predate the registration change and conflict with the current recorded state.
 PROPOSAL: Refresh the summary to distinguish completed fixture verification from separately authorized production validation and publication. State that R-44 acceptance remains valid while this covered-drift refresh is recorded, preserving the open AC-08 audit finding and all production authorization boundaries.
+
+### R-53
+
+TARGET: 6d00f2f78a8006173c4855cf9eeea693a702ec1e
+
+FINDING: F-01
+KIND: factual
+SEVERITY: should-fix
+WHERE: Design / Activation reconciliation and retry eligibility, line 291 ("after a complete journal read shows no submission record"); Test Plan / AC-09, line 320 ("verify a later authorized dispatch reads the complete journal and resumes from the retained approved assets"); Tasks / T14, line 346
+EVIDENCE: This revision makes repeating staging depend on a complete journal read. No other part of the baseline defines what counts as complete or says that an incomplete or bounded read must hold. The only proof sentence is in the owner-selected replacement block, and it checks the positive path only. Fixture journals are small, so a reader that takes only the first page as the whole journal would pass that sentence. It would then restage, and could submit, past an unseen submission record. The committed loopback test does cover this case: it sets a truncated journal, expects rejection at the "complete-read bound", and requires zero journal writes and zero creates (supplied revision diff, tests/package/feed-publisher-http.mjs, around lines 886 to 890). The Test Plan row does not require that check, so the proof could pass on a wrong implementation. This traces to the replacement Test Plan block added in this revision.
+PROPOSAL: Add an AC-09 proof step in which an incomplete or bounded journal read causes a hold with zero staging repeats and zero Pages creates. Because the owner selected the replacement text verbatim, confirm the added sentence with the owner before acceptance.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: should-fix
+WHERE: Design / Activation reconciliation and retry eligibility, line 291 ("Persist and independently verify a submission-started record before making any Pages create request"); Design / Activation reconciliation rule 2, line 285; Test Plan / AC-09, line 320 (the "Terminate a runner immediately after recording submission-started" step and the Q3 durable write boundary steps); Tasks / T14, line 346
+EVIDENCE: This revision adds a requirement to independently verify the record before any create, for both candidate and recovery submissions. No AC-09 proof step makes that verification fail or return a mismatch and then requires zero creates followed by the reconciliation hold. The existing steps stop the runner after the record is written, or check the Q3 pair from the test's side. An implementation that trusts the write response and skips its own read-back passes all of them. The supplied diff adds a read-back for candidates and recoveries (append_verified_submission in scripts/publish-feed.sh, used by the recovery-started path in scripts/feed-recovery.sh). The loopback test exercises only a candidate read-back that returns 404 and then holds with no create. The recovery read-back path has no test in the diff. The supplied green log covers that single publisher test, and the red log shows the 404 expectation failing before the fix.
+PROPOSAL: Add an AC-09 proof step that makes the independent read-back fail or return a mismatched record, for both a candidate submission and a recovery submission. Require zero Pages creates and require a later dispatch to hold under Pages reconciliation. Leave T14 open until both paths have been run.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Frontmatter `branch`, line 3; Tasks / T14, line 346; Review Log
+EVIDENCE: This revision changes `branch` from feat/native-encrypted-git-backup to docs/merged-implementation-status. The pinned convention says a document "keeps it until the feature is closed". It also says a revision moves the document to draft "on its feature branch when it has one" and that implementation re-enters through that branch after acceptance. The binary's on_feature_branch_if_set gate reads this field, so the change makes the gate pass on the docs branch. The same target commit also changes the covered scripts/publish-feed.sh and scripts/feed-recovery.sh while the document is still draft. The follow-up says the design choice "authorizes revision and review". Repository AGENTS.md keeps implementation under separate design, review and owner approvals. The only local branch ref is the docs branch.
+PROPOSAL: Raise an Open Question asking the owner which branch the revised feature re-enters through. Also ask whether the pre-acceptance script changes stay as draft work for T14 or wait until renewed acceptance.
+
+FINDING: F-04
+KIND: judgement
+SEVERITY: nit
+WHERE: Context / Owner summary, line 65
+EVIDENCE: The summary says the owner selected "Use simpler single-record contract (Recommended)" for F-07. The document never says what F-07 refers to and does not link docs/reviews/opus-5-5-follow-up.md. The document's own Review Log has an unrelated F-07 under R-8 (line 578). The convention asks the summary to explain material changes since the last accepted scope. This summary does not say that the durable prepared state and its discard after runner termination were removed. It also does not say that staging may now repeat after a complete journal read finds no submission record. It does state the accepted risk correctly: a crash after the record may need manual investigation even when no create was sent. That agrees with line 291.
+PROPOSAL: Link the follow-up review and add one sentence saying that the prepared state was removed and that staging may repeat from retained approved assets only after a complete journal read finds no submission record.
