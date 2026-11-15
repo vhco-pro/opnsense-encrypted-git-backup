@@ -46,9 +46,11 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let stagingJournalReads = 0;
     let pauseJournalRead;
     let loseTrustPendingReply = false;
+    let incompletePages = false;
 
     const server = createServer(async (request, response) => {
-        const path = new URL(request.url, "http://localhost").pathname;
+        const requestUrl = new URL(request.url, "http://localhost");
+        const path = requestUrl.pathname;
         const reply = (status, value) => response.writeHead(status, {
             "Content-Type": "application/json",
         }).end(JSON.stringify(value));
@@ -82,7 +84,15 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
                 stagingJournalReads = journalReads;
                 return reply(200, { success: true, result: { jwt: "fixture-jwt" } });
             }
-            if (path === "/pages/deployments") return reply(200, { success: true, result: pages });
+            if (path === "/pages/deployments") {
+                const limit = Number(requestUrl.searchParams.get("per_page"));
+                if (limit !== 25) return reply(400, { success: false, errors: [{ code: 8000024 }] });
+                return reply(200, { success: true, result: pages.slice(0, limit), result_info: {
+                    page: 1, per_page: limit, count: Math.min(pages.length, limit),
+                    total_count: incompletePages ? limit + 1 : pages.length,
+                    total_pages: incompletePages ? 2 : Math.ceil(pages.length / limit),
+                } });
+            }
             if (path === "/pages") {
                 const live = canonicalIndex === null ? null : pages.at(canonicalIndex ?? -1) ?? null;
                 return reply(200, { success: true, result: { canonical_deployment: live } });
@@ -375,6 +385,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         });
         assert.equal(journal.length, 1);
         assert.equal(assets.get(key).toString(), JSON.stringify({ digest: effectiveMarker }));
+        const beforeIncomplete = createRequests;
+        incompletePages = true;
+        await assert.rejects(run(), /incomplete Pages deployment list/);
+        assert.equal(createRequests, beforeIncomplete);
+        assert.equal(journal.length, 1);
+        incompletePages = false;
         assert.equal(pages.length, 1);
         if (native) {
             const terminal = pages[0].latest_stage;
@@ -877,6 +893,11 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(pages.length, 0);
         assert.equal(journal.at(-1).payload.phase, "create-rejected");
         const rejectedRequests = createRequests;
+        incompletePages = true;
+        await assert.rejects(run(), /incomplete Pages deployment list/);
+        assert.equal(journal.at(-1).payload.phase, "create-rejected");
+        assert.equal(createRequests, rejectedRequests);
+        incompletePages = false;
         assert.match((await run()).stdout, /Rejected candidate closed/);
         assert.equal(journal.at(-1).payload.phase, "rejection-closure");
         assert.equal(createRequests, rejectedRequests);
