@@ -1,0 +1,11 @@
+<?php
+
+namespace OPNsense\Core;
+
+abstract class Singleton
+{
+    /** @return static */
+    public static function getInstance()
+    {
+    }
+}

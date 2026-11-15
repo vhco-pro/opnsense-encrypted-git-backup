@@ -1,0 +1,90 @@
+name: PHP checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ format('php-{0}', github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch pinned platform symbols
+        run: |
+          git init work/upstream/core
+          git -C work/upstream/core fetch --depth=1 https://github.com/opnsense/core.git e1020455a7bbb8a94ecdcec4fa94cd2ee3bdbbc1
+          git -C work/upstream/core checkout --detach FETCH_HEAD
+      - uses: vhco-pro/php-ci-action@d60489c9d9296708889f219297c8a603c60ae424
+        with:
+          php-version: '8.5.12'
+          php-paths: |
+            src
+            tests
+          phpcs-config: phpcs.xml.dist
+          phpstan-config: phpstan.neon
+          phpunit-config: phpunit.xml.dist
+          psalm-config: psalm.xml
+          semgrep-config: tests/security/php.yml
+          # Scan complete HEAD history on every event, including a branch's first push.
+      - name: Verify plugin security rules and scanner exits
+        run: bash tests/security/probe.sh
+      - name: Verify OPNsense cross-function taint probe
+        run: bash tests/security/check-psalm.sh
+
+  version:
+    needs: php
+    uses: vhco-pro/version-workflow/.github/workflows/version.yml@3b78b04df802ea1592cbe19338d7a882d1888389
+    permissions:
+      contents: read
+    with:
+      dry-run: true
+      preview-label: ''
+
+  feed-fixture:
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/feed.yml
+
+  package-plan:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Test version and source identity
+        run: |
+          bash tests/package/version-test.sh
+          bash tests/package/feed-manifest-test.sh
+          bash tests/package/feed-release-identity-test.sh
+          bash tests/package/feed-bundles-test.sh
+          bash tests/package/feed-history-test.sh
+      - name: Prepare the native package version
+        shell: bash
+        env:
+          SEMVER: ${{ needs.version.outputs.version }}
+          SOURCE_SHA: ${{ github.sha }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          test -z "$TAG"
+          if [[ "$GITHUB_REF" != refs/heads/main && "$SEMVER" =~ ^[0-9]+[.][0-9]+[.][0-9]+-[a-zA-Z0-9-]+[.][0-9]+$ ]] &&
+            [[ ! "$SEMVER" =~ -(alpha|beta|rc)[.] ]]; then
+            printf 'GitVersion branch preview %s for %s has no native release package\n' "$SEMVER" "$SOURCE_SHA"
+            exit 0
+          fi
+          package_version=$(bash scripts/package-version.sh "$SEMVER" "$SOURCE_SHA")
+          printf 'GitVersion %s maps to package version %s for %s\n' "$SEMVER" "$package_version" "$SOURCE_SHA"

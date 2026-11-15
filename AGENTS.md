@@ -1,11 +1,12 @@
 # Repository instructions
 
 Read the personal conventions at
-https://github.com/vhco-pro/docs/blob/d59008a3d135dfac17e93033a854dc67065d7a40/AGENTS.md
+https://github.com/vhco-pro/docs/blob/1edeb5f32d868bbe761ef3221f350634cd6ff022/AGENTS.md
 and follow the task routes there before implementation.
 Read conventions/coding.md for code, conventions/feature-documents.md for features,
 and conventions/documentation.md and guides/humanize-prose.md for prose.
 Read conventions/php.md before PHP specification, implementation or review.
+Read conventions/repository-security.md before configuring security scans.
 Read conventions/frontend-testing.md for native browser settings and status interfaces.
 CI and packaging also use conventions/delivery.md and knowledge/shared-delivery.md.
 Report inaccessible required sources before proceeding.
@@ -33,10 +34,32 @@ their separate design, review and owner approvals.
 
 ## Verification
 
-The repository currently contains design documents only.
-The PHP guidance is adopted from the merged revision in
-https://github.com/vhco-pro/docs/pull/37.
+Run available local checks before pushing. Batch related fixes and use one exact
+pre-merge verification run. Diagnose failures locally before another push or
+dispatch. Automatic hosted validation runs on pull requests and pushes to main.
+Cancel superseded verification for the same PR or ref. Protected publication
+keeps its separate non-cancelling concurrency group.
+
+Use standard GitHub-hosted Linux runners in public repositories. Hosted runs in
+private repositories and paid or larger runners require fresh, explicit owner
+approval. Keep uploaded artifacts limited to sanitized review evidence with
+short retention. See [GitHub Actions billing](https://docs.github.com/en/actions/concepts/billing-and-usage).
+
+The PHP guidance was introduced in https://github.com/vhco-pro/docs/pull/37.
+The pinned revision includes the security requirements from
+https://github.com/vhco-pro/docs/pull/38.
 Use the verified vh-adlc binary for feature-document lint and review checks.
 Run `git diff --check` before committing.
-Record native build and integration commands after observing them on a disposable
-compatible OPNsense/FreeBSD environment.
+After installing the locked development dependencies and fetching the pinned core
+symbols as shown in `.github/workflows/php.yml`, run:
+
+```sh
+find src tests -name '*.php' -exec php -l {} \;
+vendor/bin/phpcs
+vendor/bin/phpstan analyse --no-progress
+vendor/bin/phpunit
+actionlint
+```
+
+See [native build observations](docs/compatibility.md) for the verified package
+commands and remaining appliance checks.

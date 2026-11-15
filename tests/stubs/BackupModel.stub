@@ -1,0 +1,16 @@
+<?php
+
+namespace OPNsense\Base;
+
+use OPNsense\Base\FieldTypes\BaseField;
+
+abstract class BaseModel
+{
+    /**
+     * @param string $reference
+     * @return BaseField|null
+     */
+    public function getNodeByReference($reference)
+    {
+    }
+}

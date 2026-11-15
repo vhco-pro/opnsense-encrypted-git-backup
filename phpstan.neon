@@ -1,0 +1,28 @@
+parameters:
+    level: max
+    phpVersion: 80512
+    paths:
+        - src
+        - tests
+    scanFiles:
+        - tests/stubs/PhalconView.stub
+        - work/upstream/core/src/opnsense/mvc/app/controllers/OPNsense/Base/IndexController.php
+        - work/upstream/core/src/opnsense/mvc/app/controllers/OPNsense/Base/ControllerBase.php
+        - work/upstream/core/src/opnsense/mvc/app/controllers/OPNsense/Base/ApiControllerBase.php
+        - work/upstream/core/src/opnsense/mvc/app/controllers/OPNsense/Base/ControllerRoot.php
+        - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Core/Backend.php
+        - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Backup/Local.php
+        - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Backup/Base.php
+        - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Core/Config.php
+        - work/upstream/core/src/opnsense/mvc/app/models/OPNsense/Core/ACL.php
+        - work/upstream/core/src/opnsense/mvc/app/models/OPNsense/Base/BaseModel.php
+        - src/opnsense/mvc/app/models/OPNsense/Backup/EncryptedGitSettings.php
+        - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Backup/IBackupProvider.php
+        - work/upstream/core/src/opnsense/mvc/app/library/OPNsense/Core/Singleton.php
+        - work/upstream/core/src/opnsense/mvc/app/models/OPNsense/Base/FieldTypes/BaseField.php
+    stubFiles:
+        - tests/stubs/BackupBase.stub
+        - tests/stubs/BaseField.stub
+        - tests/stubs/BackupModel.stub
+        - tests/stubs/CoreSingleton.stub
+        - tests/stubs/CoreConfig.stub

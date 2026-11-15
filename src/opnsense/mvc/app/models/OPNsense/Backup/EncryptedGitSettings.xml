@@ -1,0 +1,25 @@
+<model>
+    <mount>//system/backup/encryptedgit</mount>
+    <version>1.0.0</version>
+    <description>Encrypted Git backup settings</description>
+    <items>
+        <enabled type="BooleanField">
+            <Default>0</Default>
+            <Required>Y</Required>
+        </enabled>
+        <destination type="TextField"/>
+        <branch type="TextField">
+            <Default>backup</Default>
+        </branch>
+        <identity type="TextField"/>
+        <hostTrust type="TextField"/>
+        <encryptionKey type="TextField"/>
+        <activation type="TextField"/>
+        <freshnessHours type="IntegerField">
+            <Default>48</Default>
+            <MinimumValue>1</MinimumValue>
+            <MaximumValue>8760</MaximumValue>
+            <Required>Y</Required>
+        </freshnessHours>
+    </items>
+</model>

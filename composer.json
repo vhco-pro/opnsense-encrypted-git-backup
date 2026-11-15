@@ -1,0 +1,19 @@
+{
+    "name": "vhco-pro/opnsense-encrypted-git-backup",
+    "description": "Native encrypted Git configuration backups for OPNsense",
+    "license": "BSD-2-Clause",
+    "require": {
+        "php": "~8.5.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "2.3.5",
+        "phpunit/phpunit": "13.4.7",
+        "squizlabs/php_codesniffer": "4.0.4",
+        "vimeo/psalm": "7.5.0"
+    },
+    "scripts": {
+        "style": "phpcs",
+        "analyse": "phpstan analyse",
+        "test": "phpunit"
+    }
+}

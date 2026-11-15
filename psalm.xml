@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<psalm xmlns="https://getpsalm.org/schema/config" errorLevel="4" phpVersion="8.5"
+       findUnusedCode="false" resolveFromConfigFile="true" cacheDirectory="work/psalm-cache">
+    <projectFiles>
+        <directory name="src"/>
+    </projectFiles>
+    <extraFiles>
+        <directory name="work/upstream/core/src/opnsense/mvc/app/library"/>
+        <directory name="work/upstream/core/src/opnsense/mvc/app/models"/>
+        <directory name="work/upstream/core/src/opnsense/mvc/app/controllers"/>
+    </extraFiles>
+    <stubs>
+        <file name="tests/stubs/PhalconView.stub"/>
+        <file name="tests/stubs/BackupBase.stub"/>
+        <file name="tests/stubs/BackupModel.stub"/>
+        <file name="tests/stubs/CoreSingleton.stub"/>
+    </stubs>
+</psalm>

@@ -1,0 +1,2 @@
+Back up complete OPNsense configurations as native encrypted exports in an
+SSH-accessible Git repository. Settings appear on the native Backups page.

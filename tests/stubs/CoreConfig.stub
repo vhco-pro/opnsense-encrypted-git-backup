@@ -1,0 +1,11 @@
+<?php
+
+namespace OPNsense\Core;
+
+class Config extends Singleton
+{
+    /** @return \SimpleXMLElement */
+    public function object()
+    {
+    }
+}

@@ -1,0 +1,45 @@
+<?php
+
+namespace OPNsense\Backup;
+
+use OPNsense\Base\BaseModel;
+
+abstract class Base
+{
+    /**
+     * @param string $data
+     * @param string $pass
+     * @param string $tag
+     * @return string|null
+     */
+    public function encrypt($data, $pass, $tag = 'config.xml')
+    {
+    }
+
+    /**
+     * @param string $data
+     * @param string $pass
+     * @param string $tag
+     * @return string|null
+     */
+    public function decrypt($data, $pass, $tag = 'config.xml')
+    {
+    }
+
+    /**
+     * @param BaseModel $mdl
+     * @param array<string, string> $properties
+     * @return void
+     */
+    protected function setModelProperties($mdl, $properties)
+    {
+    }
+
+    /**
+     * @param BaseModel $mdl
+     * @return list<string>
+     */
+    protected function validateModel($mdl)
+    {
+    }
+}
