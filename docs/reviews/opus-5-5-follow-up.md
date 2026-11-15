@@ -121,6 +121,28 @@ the file was removed. The first repair-side fixture attempt expected
 the error without its native prefix. The corrected assertion passed on
 a fresh overlay.
 
+The isolated signed Firmware chain at
+`4e53e671e06acf8263a45d03b8487bcb89f347aa` used the pinned shared
+GitVersion configuration. It calculated `0.1.0` at that SHA, used
+a synthetic tag on the same Git object, verified the run and release
+record with fixture metadata, and upgraded the real plugin through
+Firmware. The signed package SHA-256 was
+`864194e99c3bd4ca3718a09b4baf0e4b3a058508c9498cce15efb24343741fbf`.
+The tag, run record and signing identity were fixture inputs. The manual
+fixture run at R-51 verified the dispatch route. Its workflow file is
+byte-identical, and the public PR jobs ran the updated controller with
+the same fixture commands and conditions. No follow-up manual or
+production dispatch was run.
+
+The updated guide walkthrough installed the synthetic package, saved
+activation, verified the encrypted snapshot from the expected remote
+commit, and restored the export through the native restore API. Three
+additional snapshots measured 53,648 bytes per encrypted blob and grew
+the fixture repository from 200 to 416 KiB. The authored guide proof used
+synthetic data, a loopback SSH destination and one disconnected guest.
+The native browser artifacts cover the UI; the guide fixture uses the
+native save and restore interfaces from the console.
+
 ## Exact repair verification
 
 On repair source `89414487b5e5755230e90729f55334c9de5a9251`, PHP 8.5.12
