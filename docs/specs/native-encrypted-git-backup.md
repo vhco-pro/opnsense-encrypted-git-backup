@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: complete
 branch: docs/merged-implementation-status
 status_description: "The revised submission contract is accepted and the targeted native feed fixture passed. R-59 verified nine criteria. The owner approved the scoped AC-08 residual in tracker #4."
 issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/1
