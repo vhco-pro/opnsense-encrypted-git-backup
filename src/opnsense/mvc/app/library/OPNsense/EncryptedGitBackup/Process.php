@@ -17,7 +17,7 @@ final class Process
         array $arguments,
         string $directory,
         array $environment,
-        int $timeout,
+        float $timeout,
         int $maxOutput = 65536
     ): array {
         $process = proc_open(

@@ -12,6 +12,7 @@ source "$scripts/feed-publication-mode.sh" "$1"
 journal="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/deployments"
 temp=$(mktemp -d)
 trap 'rm -rf -- "$temp"' EXIT
+publication_headers "$temp"
 request() {
     curl --silent --show-error --fail --max-time 15 --retry 0 "$@"
 }
@@ -319,7 +320,6 @@ request "${pages_headers[@]}" "$PAGES_API" | jq -e --arg prior "$prior_id" '
     and (if $prior == "" then .canonical_deployment == null else .canonical_deployment.id == $prior end))
 ' >/dev/null
 parent=$(jq -r '.payload.attempt // ""' <<< "$predecessor")
-scripts=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 attempt=$(openssl rand -hex 16)
 package_history='{}'
 marker=$FEED_DIGEST
@@ -333,7 +333,8 @@ if [[ -n "${FEED_HISTORY:-}" ]]; then
         for bundle in "$FEED_DIRECTORY" "$(dirname -- "$FEED_DIRECTORY")/recovery"; do
             jq -e --arg path "$withdrawn" 'all(keys[];
                 . != ("/" + $path + "/meta.conf") and
-                (test("^/" + $path + "/(packagesite|data|meta)[.](pkg|txz)$") | not))'                 "$bundle/pages-manifest.json" >/dev/null
+                (test("^/" + $path + "/(packagesite|data|meta)[.](pkg|txz)$") | not))' \
+                "$bundle/pages-manifest.json" >/dev/null
         done
     fi
     if [[ "$retirement" != '{}' ]]; then

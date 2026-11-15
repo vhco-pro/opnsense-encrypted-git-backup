@@ -106,3 +106,33 @@ then
     exit 1
 fi
 grep -F 'Invalid Pages asset size' "$tmp/retirement.log"
+
+mkdir "$tmp/key-check"
+printf 'first' > "$tmp/key-check/first"
+printf 'second' > "$tmp/key-check/second"
+jq -n '{"/first":"0123456789abcdef0123456789abcdef","/second":"0123456789abcdef0123456789abcdef"}' > "$tmp/key-check/manifest"
+if node "$root/scripts/feed-pages-assets.mjs" --validate "$tmp/key-check" "$tmp/key-check/manifest" > "$tmp/key-error" 2>&1; then
+    echo 'Reused Pages asset key accepted different bytes.' >&2
+    exit 1
+fi
+grep -q 'Pages asset key maps to different file bytes' "$tmp/key-error"
+cp "$tmp/key-check/first" "$tmp/key-check/second"
+node "$root/scripts/feed-pages-assets.mjs" --validate "$tmp/key-check" "$tmp/key-check/manifest"
+
+# Exercise header preparation only, with synthetic values and no HTTP requests.
+(
+    GITHUB_API_URL=http://127.0.0.1:1 PAGES_API=http://127.0.0.1:1
+    PAGES_ASSET_API=http://127.0.0.1:1 FEED_URL=http://127.0.0.1:1
+    source "$root/scripts/feed-publication-mode.sh" fixture
+    mkdir "$tmp/headers"
+    publication_headers "$tmp/headers"
+    test "${#github_headers[@]}" -eq 0
+    test "${#pages_headers[@]}" -eq 0
+    environment=signed-feed-journal
+    FEED_JOURNAL_TOKEN=synthetic-journal PAGES_TOKEN=synthetic-pages
+    publication_headers "$tmp/headers"
+    test "${github_headers[*]}" = "-H @$tmp/headers/github.headers"
+    test "${pages_headers[*]}" = "-H @$tmp/headers/pages.headers"
+    grep -qx 'Authorization: Bearer synthetic-journal' "$tmp/headers/github.headers"
+    grep -qx 'Authorization: Bearer synthetic-pages' "$tmp/headers/pages.headers"
+)

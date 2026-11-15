@@ -231,7 +231,12 @@ try {
                     ) {
                         throw new RuntimeException('Compatible activation or writer quiescence could not be verified.');
                     }
-                    $legacy = Activation::validate($contents, $destination, $branch, is_dir('/conf/backup/git'));
+                    $legacy = Activation::validate(
+                        $contents,
+                        $destination,
+                        $branch,
+                        file_exists('/conf/backup/git')
+                    );
                     $pending = $state . '/pending';
                     if (is_dir($pending)) {
                         Credentials::privateFile($state . '/target.json');
