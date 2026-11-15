@@ -92,8 +92,9 @@ for pid in "$supervisor" "$supervised" "$worker_pid" "$git_pid" "$ssh_pid"; do
 done
 wait "$scheduled" || :
 test "$(cat "$work/timeout.status")" = 124
-grep -F 'sending signal term(15)' "$work/signals"
-grep -F 'sending signal kill(9)' "$work/signals"
+cat "$work/signals"
+grep -Ei 'send.*(signal[[:space:]]+15([^0-9]|$)|sigterm|term[(]15[)])' "$work/signals"
+grep -Ei 'send.*(signal[[:space:]]+9([^0-9]|$)|sigkill|kill[(]9[)])' "$work/signals"
 test "$(git -C "$repo" rev-parse "$ref")" = "$previous"
 test "$(git -C "$state/pending" rev-parse HEAD)" = "$pending"
 cmp "$state/verified.json" "$work/verified"
