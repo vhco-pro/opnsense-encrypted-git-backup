@@ -224,14 +224,29 @@ None yet; written after owner acceptance.
 
 ## Open Questions
 
-None.
-On 15 November 2026 the owner selected reuse of the existing publisher for v1, separately reviewed page-only publications reusing approved package identity, and public byte/header verification before successful closure.
+### Q3 — Recovery baseline, served HTML routes and provenance visibility
+
+R-2 F-02 asks how to identify and compare the previously served bundle after a predecessor closed on recovery.
+Recommend selecting the candidate or recovery archive actually live at that closure by reconciling its deployment and recovery journal records.
+The publisher then verifies the prior page and catalogue file subset against that retained baseline, while recovery retains all required advertised package bytes.
+
+R-2 F-03 asks which URLs carry the two HTML documents.
+Recommend verifying `index.html` at `/` with HTTP 200 and `404.html` at an unmatched path with HTTP 404, including its exact bytes.
+The local adapter should model Pages' HTML redirects.
+
+R-2 F-05 asks whether `site.json` is public and how extra files are handled.
+Recommend keeping provenance metadata inside the retained archive and checking that all served paths belong to either its explicit site list or the approved package/catalogue/publication-metadata set.
+Unlisted page files fail preflight.
+
+Owner answer pending for these three clarifications.
+The owner selected publisher reuse, independent page-only updates and public byte/header verification on 15 November 2026.
 
 ## Review Log
 
 | Date | Review | Kind | Commit | Model | Isolation | Outcome |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-11-15 | R-1 | spec | `1012715422c73c326c0d3061e62dbc2c9e83c334` | claude-opus-5-5 | procedural | One blocking, four should-fix and two nits. Read-only checkout preservation verified. |
+| 2026-11-15 | R-2 | spec | `23d22b463fb22cc41c8362557def8624ff05dbd7` | claude-opus-5-5 | procedural | One blocking and four should-fix. Read-only source and Git preservation verified. Shell execution was denied to this static reviewer. |
 
 ### R-1
 
@@ -285,6 +300,45 @@ SEVERITY: nit
 WHERE: Design (Browser behaviour), supporting prototype
 EVIDENCE: docs/prototypes/vhco-packages/page.js:35 sets the button text to "Copied" on success but never resets it. If a later copy attempt is denied, the button still reads "Copied" while the status says "Select Copy on your device to copy the repository URL." (page.js:43). The two visible feedback states then contradict each other.
 PROPOSAL: Reset or update the button label on the fallback path, or clear the copied state after a short interval.
+
+### R-2
+
+TARGET: 23d22b463fb22cc41c8362557def8624ff05dbd7
+
+FINDING: F-01
+KIND: factual
+SEVERITY: blocking
+WHERE: Design (Homepage-only updates) lines 170, 182, 185-188, Design (Publication and recovery) line 158, Owner summary lines 42-43, Acceptance Criteria AC-05, Test Plan AC-05
+EVIDENCE: The design reuses the approved tag and says "Existing release assets are preserved" and "the advertised package history union remains identical". The existing history contract rejects that combination in two places. First, the production publisher downloads the fixed-name `advertised-packages.json` from the release (.github/workflows/feed.yml:238) and passes it as FEED_HISTORY (scripts/feed-dispatch.sh:11,26). Once a predecessor closure exists, publish-feed.sh requires the SHA-256 of that file to equal the predecessor closure's history digest (scripts/publish-feed.sh:116-133). For v0.1.0 that asset is the empty seed history (docs/reviews/first-signed-feed-bootstrap.md:57), while the closure records the history that includes the 0.1.0 package. So a page-only dispatch on the same tag exits with "retained history checkpoint changed". Second, the successor history for an unchanged union equals the predecessor's (scripts/feed-history.jq:19-23, scripts/publish-feed.sh:367-383). Its `history-<successor>.json` already exists under the same tag, but the approval asset is new because it binds the fresh candidate and recovery digests (scripts/publish-feed.sh:81-88). publish-feed.sh:385-388 then stops with "Successor history has no matching retained approval." The design never says how either guard changes for a page-only publication. The AC-05 fixture cannot expose the first conflict, because the fixture loads history from `history-<digest>.json` and not from the workflow's fixed asset (tests/package/feed-http-inputs.mjs:36-43). This revision introduced the page-only path in response to R-1 F-02. The pinned vh-adlc lint was not run because shell execution was denied in this review session.
+PROPOSAL: Define how a page-only dispatch supplies its predecessor history on an existing tag and how the history/approval guard treats an unchanged successor without weakening the orphan-history check. Add a Test Plan case that runs the real feed.yml input path on a tag that already holds a closed generation.
+
+FINDING: F-02
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Homepage-only updates) lines 174-176, Design (Publication and recovery) lines 160-165, Acceptance Criteria AC-05, Test Plan AC-05
+EVIDENCE: Line 174 says established recovery is "verified against the previous complete retained bundle". Line 164 says a legacy bundle "uses its recorded prior-root HTTP 404 check". The design names no component that identifies that bundle or performs the comparison: preparation, preflight (scripts/feed-preflight.sh, which receives only the new digests) or the publisher after it reads the journal. The journal does not determine the served bundle either. After a successful recovery, closure records the recovery deployment ID but the candidate digest (scripts/publish-feed.sh:269-270,314-323; scripts/feed-journal-generation.jq:52-57), so the closure digest names a bundle that is not live. Line 181 also makes the recovery a superset of the prior page and catalogue, not a byte copy of a prior archive, so the compared file subset is undefined. No journal field or retained file records a prior root status. The background observation at line 55 is the only record. One implementer could check the predecessor candidate archive at preflight, and another could check the deployed recovery bundle after correlation. The AC-05 fixture names neither a recovered predecessor nor the comparison point.
+PROPOSAL: State which retained archive is the baseline (the candidate or recovery bundle actually live at the predecessor closure, located through the journal's deployment and recovery records), which files must match, and which step checks it. State where a legacy root 404 expectation comes from. Add an AC-05 case where the predecessor generation closed on its recovery bundle.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Publication and recovery) lines 150-151, 156, Acceptance Criteria AC-04, Test Plan AC-04
+EVIDENCE: Line 150 says feed-site.mjs verifies "each served site asset against the retained file's SHA-256 and expected media type". Line 151 adds the root route and "directly served assets". The cited Cloudflare Pages serving page (Sources line 298) documents that Pages redirects HTML files to extensionless routes, for example `/index.html` to `/`, and serves `404.html` only as the body of unmatched requests. The design never maps `index.html` and `404.html` to the URLs and statuses where their bytes are read. The publisher's `request` helper fails on non-2xx responses and does not follow redirects (scripts/publish-feed.sh:16-18). A literal per-file readback of `/index.html` or `/404.html` therefore fails a correct deployment. A readback that skips `404.html` bytes would accept a wrong 404 document. The loopback adapter and the prototype server return 404 for `/index.html` (docs/prototypes/vhco-packages/preview.mjs:3-11), so neither models the 308 redirect.
+PROPOSAL: Specify the public URL, expected status and byte source for each HTML document: `/` with 200 for index.html, and an unmatched path with 404 whose body equals 404.html. Model the Pages HTML redirect in the local adapter used by the AC-04 fixtures.
+
+FINDING: F-04
+KIND: factual
+SEVERITY: should-fix
+WHERE: Test Plan AC-06, Acceptance Criteria AC-06
+EVIDENCE: The AC-06 row judges free text twice: it scans the payload "against synthetic private-marker fixtures" and confirms that "the signing text directs readers to the guide's independent trusted-channel key check". The pinned conventions/feature-documents.md:126 requires a pattern proof to list its must-pass and must-fail examples in the row, and the row lists none. A check that only looks for the word "installation guide" would pass the original prototype wording, "Compare the public key's fingerprint with the release notes" (R-1 F-05), which this revision replaced. That row text changed in this revision in response to R-1 F-05, so it has not passed review.
+PROPOSAL: List the private-marker classes, and must-pass and must-fail signing sentences in the row. For example, the current prototype sentence at docs/prototypes/vhco-packages/index.html:76 must pass, and release-notes comparison wording must fail.
+
+FINDING: F-05
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Homepage-only updates) lines 172-173, Design (Assembly and browser verification) line 130, Design (Publication and recovery) line 165
+EVIDENCE: site.json is "retained inside the bundle". Preflight checks that its "complete asset list matches the bundle's Pages manifest". The Pages manifest also carries package, catalogue, release.json and generation.json paths (scripts/feed-preflight.sh:23-39, tests/package/feed-http-inputs.mjs:44-55), so a literal equality check cannot pass. The design leaves two things open. It does not say whether site.json is itself a Pages path published at `/site.json`. It also does not say whether the manifest may hold extra non-package paths that are absent from site.json, such as a stray HTML file. One implementer would check only that listed assets are present. Another would require the manifest's non-package paths to equal the list. Only the second rejects the "partially present new page assets" that line 165 says must fail preflight.
+PROPOSAL: State whether site.json is served. Define the check as equality between site.json's asset list and the manifest's paths outside the package, catalogue and publication metadata set, and add an unlisted extra page file to the AC-04/AC-05 preflight failure cases.
 
 ## Sources
 
