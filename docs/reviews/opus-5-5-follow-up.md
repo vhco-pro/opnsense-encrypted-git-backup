@@ -177,7 +177,7 @@ The follow-up source matches that commit under `src/`, `scripts/`,
 | `0.1.0` | `c9917f3580b56a80fcdcdbe1a0a7a2149c04d4a37e46898038145767bf1d8534` | `58dac55c1669b0b4d813f23e9c1456632d1abcccd647adc12b1aa043d72dc614` |
 
 A fresh disconnected operator fixture verified archive and catalogue
-identities and the catalogue's public signing key. It installed the
+identities and verified catalogue signatures with the fixture key retained inside the hash-bound archive. It installed the
 older package through the Firmware launcher, set up protected
 credentials, saved activation, observed a verified native status result
 and independently verified the remote encrypted artifact. It measured
@@ -192,8 +192,16 @@ The browser run at the same runtime source exercises the native form
 and the authenticated status endpoint. The initial browser phase skips
 the separate remote-rejection journey in each engine and a later phase
 runs those cases. The guide fixture uses synthetic credentials and
-isolated loopback SSH. Publisher and trust inputs for production remain
-separately gated.
+isolated loopback SSH. The CLI restore calls core decryption and restore;
+that fixture does not exercise the Backups upload control. Publisher and
+trust inputs for production remain separately gated.
+
+[R-59](../specs/native-encrypted-git-backup.md#r-59) ran the signed
+walkthrough independently and verified the manifest and source
+composition. Its three measured revisions added 216 KiB. It verified nine
+criteria. AC-08 remains open pending approval of the scoped Python
+disposition extension. The earlier R-56, R-57 and R-58 findings remain
+in the feature's review log.
 
 ## Exact repair verification
 

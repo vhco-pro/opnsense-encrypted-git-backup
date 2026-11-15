@@ -24,4 +24,6 @@ the [recovery guide](docs/recovery.md) for restore and rollback.
 - [Native Git backup](https://docs.opnsense.org/manual/git-backup.html)
 - [Existing upstream encryption discussion](https://github.com/opnsense/plugins/issues/5833)
 
-Licensed under [BSD-2-Clause](LICENSE).
+Licensed under [BSD-2-Clause](LICENSE). This independent plugin uses
+OPNsense interfaces. Upstream submission is a separate maintainer
+decision and would require upstream review.
