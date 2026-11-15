@@ -18,8 +18,6 @@ restore() {
     touch "$work/release"
     rm -f "$hook"
     cp "$work/actions" "$actions"
-    php /tmp/cron-smoke.php remove
-    configctl cron restart
     service configd restart
 }
 trap restore EXIT
@@ -51,10 +49,10 @@ for n in $(jot 15); do
     if timeout 2 configctl encryptedgit status 2>/dev/null | jq -e '.attempt' >/dev/null; then break; fi
     sleep 2
 done
-php /tmp/cron-smoke.php add
-configctl cron restart
-grep -F 'system remote backup 0' /var/cron/tabs/nobody
-for n in $(jot 80); do
+# Invoke the same native action used by the configured Remote Backup cron job.
+configctl -w 30 system remote backup 0 > "$work/scheduled" &
+scheduled=$!
+for n in $(jot 12); do
     test ! -e "$work/entered" || break
     sleep 1
 done
@@ -84,6 +82,7 @@ for pid in "$supervisor" "$worker_pid" "$git_pid" "$ssh_pid"; do
         exit 1
     fi
 done
+wait "$scheduled" || :
 test "$(git -C "$repo" rev-parse "$ref")" = "$previous"
 test "$(git -C "$state/pending" rev-parse HEAD)" = "$pending"
 cmp "$state/verified.json" "$work/verified"
