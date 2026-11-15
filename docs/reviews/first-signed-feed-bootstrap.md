@@ -125,3 +125,24 @@ The local loopback regression reproduced the HTTP 400 and premature
 rejection closure before their fixes, then passed with no new request
 or closure when the listing was incomplete. Hosted native verification
 runs separately.
+
+## Verified publication
+
+The repaired protected workflow reconciled the original submission and
+verified the signed catalogue on a disposable FreeBSD client with a fresh
+package database and cache. The client fetched version `0.1.0` from
+`https://pkg.vhco.pro` and checked the catalogue and package digests. The
+journal recorded verified closure `7806092837` for the original Pages
+deployment. Independent readback still showed one production deployment.
+The retained bootstrap recovery bundle was checked before upload. It was
+never activated on the public feed.
+[Native reconciliation and closure](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43733663127)
+
+The [v0.1.0 release](https://github.com/vhco-pro/opnsense-encrypted-git-backup/releases/tag/v0.1.0)
+then made the verified package and signing public key available as assets.
+The public key's DER SHA-256 is
+`96a1a891e63c16061d968d9d1c64105d14ab64e6e9201b1c2a6dff989df06837`.
+An isolated restore from encrypted off-host backup reproduced that fingerprint.
+No production firewall was changed. The native audit exception remains
+limited to the reviewed integration and disposable fixtures.
+[CVE-2025-15367 tracker](https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/4)
