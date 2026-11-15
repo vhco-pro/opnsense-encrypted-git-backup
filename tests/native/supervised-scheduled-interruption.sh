@@ -66,7 +66,11 @@ pending=$(git -C "$state/pending" rev-parse HEAD)
 test "$pending" != "$previous"
 # Model an unresponsive worker with its real push still in flight.
 kill -STOP "$worker_pid"
-ps -o state= -p "$worker_pid" | grep -q T
+for n in $(jot 4); do
+    if ps -o state= -p "$worker_pid" | grep -q '^T'; then break; fi
+    sleep 1
+done
+ps -o state= -p "$worker_pid" | grep '^T'
 for n in $(jot 24); do
     kill -0 "$supervisor" 2>/dev/null || break
     sleep 1
