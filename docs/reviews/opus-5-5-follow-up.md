@@ -161,6 +161,40 @@ PHP save entry point and root configctl. It did not verify signed install
 provenance, and [R-58](../specs/native-encrypted-git-backup.md#r-58)
 records that gap.
 
+### Signed operator fixture
+
+A separate builder retained two signed catalogues and their packages.
+The transfer archive SHA-256 was
+`5590c6865a922daa753ce556f6355ab767c2e1932791859240c7ffb5d5557a31`.
+Both package manifests identify
+`4e53e671e06acf8263a45d03b8487bcb89f347aa`.
+The follow-up source matches that commit under `src/`, `scripts/`,
+`tests/package/`, `Makefile`, `pkg-descr` and `.github/workflows/feed.yml`.
+
+| Fixture version | Package SHA-256 | Catalogue SHA-256 |
+| --- | --- | --- |
+| `0.0.9.alpha96` | `96460939e768c0abd9e89aaf3ca8dbc5e8fb8388cd3d6664fd0a44cc76e19bb6` | `b64628156538e1845b9d10bb2a4f1cb571bf634f1e9a724b43f1b3cf9d26230a` |
+| `0.1.0` | `c9917f3580b56a80fcdcdbe1a0a7a2149c04d4a37e46898038145767bf1d8534` | `58dac55c1669b0b4d813f23e9c1456632d1abcccd647adc12b1aa043d72dc614` |
+
+A fresh disconnected operator fixture verified archive and catalogue
+identities and the catalogue's public signing key. It installed the
+older package through the Firmware launcher, set up protected
+credentials, saved activation, observed a verified native status result
+and independently verified the remote encrypted artifact. It measured
+three new snapshots and restored an encrypted export. It then upgraded
+from the second trusted catalogue, removed and reinstalled the package,
+and verified the original activation checkpoint survived. Both packages
+came from the retained archive.
+
+The operator fixture uses the Firmware backend, the provider's native
+PHP save interface, root configctl status and the native restore API.
+The browser run at the same runtime source exercises the native form
+and the authenticated status endpoint. The initial browser phase skips
+the separate remote-rejection journey in each engine and a later phase
+runs those cases. The guide fixture uses synthetic credentials and
+isolated loopback SSH. Publisher and trust inputs for production remain
+separately gated.
+
 ## Exact repair verification
 
 On repair source `89414487b5e5755230e90729f55334c9de5a9251`, PHP 8.5.12
