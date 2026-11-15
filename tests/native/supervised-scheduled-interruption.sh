@@ -88,7 +88,7 @@ test "$(git -C "$state/pending" rev-parse HEAD)" = "$pending"
 cmp "$state/verified.json" "$work/verified"
 configctl encryptedgit status > "$work/status"
 jq -e '.attempt.outcome == "running"' "$work/status" >/dev/null
-target=$(printf '%s' '["ssh://root@127.0.0.1:22222/tmp/fixture.git","migration"]' | sha256 -q)
+target=$(php -r 'echo hash("sha256", json_encode(["ssh://root@127.0.0.1:22222/tmp/fixture.git", "migration"], JSON_THROW_ON_ERROR));')
 git -C "$repo" show "$previous:snapshot.json" > "$work/metadata"
 git -C "$repo" show "$previous:config.xml.enc" > "$work/artifact"
 result=0
