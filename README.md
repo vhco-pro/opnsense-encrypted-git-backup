@@ -9,10 +9,10 @@ for the integration, migration and verification scope.
 
 ## Installation and release status
 
-The first release and signed package feed are pending. The feed
-will provide a signed package catalogue and packages for installation and
-upgrades through native OPNsense Firmware or FreeBSD pkg. The Cloudflare Pages
-publication workflow has been exercised with disposable fixtures.
+[Version 0.1.0](https://github.com/vhco-pro/opnsense-encrypted-git-backup/releases/tag/v0.1.0)
+is available from the signed package repository at `https://pkg.vhco.pro`.
+The first release targets the compatible OPNsense runtime on FreeBSD amd64.
+Verify the repository's signing key before installing.
 
 See the [installation guide](docs/installation.md) for installation requirements,
 the [compatibility notes](docs/compatibility.md) for the verified runtime, and

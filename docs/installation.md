@@ -1,6 +1,21 @@
 # Install the encrypted Git backup provider
 
-Use the supported runtime and package inputs in [Runtime compatibility](compatibility.md). The first published package feed is pending. The packages and feed used in verification are disposable fixtures. Wait for an approved feed and verify its signing identity through an independent channel before installing on a managed appliance.
+Check [Runtime compatibility](compatibility.md) before configuring the repository.
+Version 0.1.0 uses the signed catalogue at `https://pkg.vhco.pro` for
+`FreeBSD:15:amd64`. Download `feed-signing-public.pem` from the
+[v0.1.0 release](https://github.com/vhco-pro/opnsense-encrypted-git-backup/releases/tag/v0.1.0).
+Confirm the SHA-256 of its DER public key bytes through an independent
+trusted channel before configuring the client.
+
+```sh
+openssl pkey -pubin -in feed-signing-public.pem -outform DER | sha256 -q
+```
+
+The first release fingerprint is
+`96a1a891e63c16061d968d9d1c64105d14ab64e6e9201b1c2a6dff989df06837`.
+Set the package repository URL to `https://pkg.vhco.pro`, set
+`signature_type` to `pubkey` and point `pubkey` to the verified key file.
+Keep the native OPNsense repositories configured for their existing packages.
 
 On the appliance, use the native Firmware package administration to install `os-encrypted-git-backup` from the verified repository. The provider appears under **System → Configuration → Backups**.
 
@@ -41,6 +56,6 @@ submission is followed by reconciliation with the same retained inputs.
 
 On the selected disposable FreeBSD target, invoke `bash scripts/prepare-native-package.sh <GitVersion-SemVer> <source-sha> <tag-or-empty> <pinned-plugins-tree> <output-directory>`. For release preparation pass the exact tag. The script rejects a different checkout, wrong tag or tag pointing elsewhere, and checks the built package manifest against the mapped version. Stable `1.2.3` stays `1.2.3`. GitVersion prerelease `1.2.3-rc.12` maps to `1.2.3.rc12`, with the same rule for alpha and beta. Arbitrary labels and build metadata are rejected.
 
-`tests/package/version-test.sh` checks source and tag identity. Run it on FreeBSD to exercise native ordering with `pkg version -t`. The signed staging script consumes the prepared package. The shared [gh-release-workflow](https://github.com/vhco-pro/gh-release-workflow/blob/b18de6d2f305f971afe01ba31e17bde5966b1567/.github/workflows/gh-release.yml) assumes its Git tag is the release. This plugin's release artifact is the signed native package and catalogue, so the current workflow prepares versions without publishing release effects.
+`tests/package/version-test.sh` checks source and tag identity. Run it on FreeBSD to exercise native ordering with `pkg version -t`. The signed staging script consumes the prepared package. The shared [gh-release-workflow](https://github.com/vhco-pro/gh-release-workflow/blob/b18de6d2f305f971afe01ba31e17bde5966b1567/.github/workflows/gh-release.yml) assumes its Git tag is the release. This plugin's release artifact is the signed native package and catalogue, so the shared calculation runs separately from the protected feed publisher.
 
 The workflow uses the shared bundled GitVersion configuration. When a branch dry run emits a branch-named prerelease such as `0.1.0-feat-native-encrypted-git-backup.1`, CI reports it as a source preview. The native release mapper remains strict and rejects that label.
