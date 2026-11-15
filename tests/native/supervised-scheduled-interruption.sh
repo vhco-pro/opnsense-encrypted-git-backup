@@ -87,7 +87,11 @@ test "$(git -C "$repo" rev-parse "$ref")" = "$previous"
 test "$(git -C "$state/pending" rev-parse HEAD)" = "$pending"
 cmp "$state/verified.json" "$work/verified"
 configctl encryptedgit status > "$work/status"
-jq -e '.attempt.outcome == "running"' "$work/status" >/dev/null
+jq -c '{nativeAttempt: .attempt.outcome, lastReceipt: .verification.commit}' "$work/status"
+jq -c '{diskAttempt: .outcome}' "$state/attempt.json"
+outcome=$(jq -er '.attempt.outcome | select(. == "running" or . == "failed")' "$work/status")
+test "$outcome" = "$(jq -er .outcome "$state/attempt.json")"
+test "$(jq -er .verification.commit "$work/status")" = "$previous"
 target=$(php -r 'echo hash("sha256", json_encode(["ssh://root@127.0.0.1:22222/tmp/fixture.git", "migration"], JSON_THROW_ON_ERROR));')
 git -C "$repo" show "$previous:snapshot.json" > "$work/metadata"
 git -C "$repo" show "$previous:config.xml.enc" > "$work/artifact"
@@ -95,7 +99,7 @@ result=0
 php "$source/tests/package/check-freshness.php" "$work/metadata" "$previous" "$work/artifact" 2 \
     "$target" "$work/status" > "$work/freshness" || result=$?
 test "$result" = 1
-jq -e '.remoteFresh == false and .attemptOutcome == "running"' "$work/freshness" >/dev/null
+jq -e --arg outcome "$outcome" '.remoteFresh == false and .attemptOutcome == $outcome' "$work/freshness" >/dev/null
 restore
 trap - EXIT
 for n in $(jot 15); do
