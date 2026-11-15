@@ -55,7 +55,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-    uses: ./.github/workflows/feed.yml
+    uses: ./.github/workflows/feed-fixture.yml
 
   package-plan:
     needs: version
