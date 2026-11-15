@@ -36,7 +36,7 @@ final class Process
         }
 
         $output = '';
-        $deadline = hrtime(true) + $timeout * 1_000_000_000;
+        $deadline = hrtime(true) + (int) ($timeout * 1_000_000_000.0);
         try {
             if (!stream_set_blocking($pipes[1], false)) {
                 throw new RuntimeException('Could not configure the backup process output.');

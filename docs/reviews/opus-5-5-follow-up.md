@@ -192,3 +192,13 @@ PROPOSAL: Optional. Add that sentence to the recovery guide so operators see it,
 - I didn't look at FreeBSD timeout(1) or configd behaviour.
 - This is a bounded evidence check. It's not a full review and it doesn't approve a release.
 ```
+
+## Hosted PHP check correction
+
+The first repair-head PHP run caught Psalm's strict integer/float operand
+check in the monotonic deadline calculation. The calculation now converts
+seconds to integer nanoseconds before adding them to the monotonic clock.
+The configured limits and lock order are unchanged. Local PHPCS, PHPStan,
+PHPUnit (28 tests, 125 assertions) and Psalm taint analysis passed after
+the correction. The hosted failure remains in the run history.
+[First repair-head PHP run](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43699326569)
