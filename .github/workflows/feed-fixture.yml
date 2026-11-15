@@ -1,0 +1,42 @@
+name: Signed feed fixture
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - run: node --test tests/package/feed-publisher-http.mjs
+      - run: bash tests/package/feed-preflight-test.sh
+
+  native-verifier:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Boot disposable native verifier
+        uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b # v1.6.0
+        with:
+          release: '15.1'
+          arch: x86_64
+          sync: rsync
+          copyback: true
+          disable-cache: true
+          run: |
+            sh scripts/prepare-feed-verifier.sh
+            test "$(pkg-static config ABI)" = FreeBSD:15:amd64
+            sh tests/package/hosted-feed-content.sh work/native-feed
+      - name: Verify the signed native fixture through the Pages adapter
+        env:
+          NATIVE_FEED_DIRECTORY: work/native-feed
+        run: node --test tests/package/feed-publisher-http.mjs
