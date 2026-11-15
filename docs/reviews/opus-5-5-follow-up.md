@@ -56,8 +56,13 @@ On 2026-11-15, the owner selected “Use simpler single-record contract (Recomme
 
    > Interrupt pre-submission staging before the submission-started record commits. Verify zero Pages create requests, then verify a later authorized dispatch reads the complete journal and resumes from the retained approved assets.
 
-The design choice authorizes revision and review. The exact revised baseline
-awaits renewed acceptance. First publication requires separate authorization.
+PR #2 was merged after owner approval. The authorized after-merge cleanup
+removed the original remote feature branch. The owner directed the same
+author to continue the revision and already approved source repairs on
+draft PR #5, on `docs/merged-implementation-status`. The branch in the
+specification now names that follow-up. The exact revised baseline awaits
+renewed acceptance before the lifecycle advances. The draft repairs do
+not authorize merge or production publication.
 
 ## Exact repair verification
 

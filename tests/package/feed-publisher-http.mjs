@@ -41,7 +41,7 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
     let loseHistoryReply = false;
     let dropHistoryWrite = false;
     let dropSubmissionWrite = false;
-    let rejectRecordReadBack = false;
+    let recordReadBackFault;
     let journalReads = 0;
     let stagingJournalReads = 0;
     let pauseJournalRead;
@@ -71,12 +71,12 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             }
             const recordId = path.match(/^\/repos\/fixture\/plugin\/deployments\/(\d+)$/);
             if (recordId) {
-                if (rejectRecordReadBack) {
-                    rejectRecordReadBack = false;
-                    return reply(404, {});
-                }
                 const record = journal.find(({ id }) => id === Number(recordId[1]));
-                return record ? reply(200, record) : reply(404, {});
+                const fault = recordReadBackFault;
+                recordReadBackFault = undefined;
+                if (!record || fault === "missing") return reply(404, {});
+                if (fault === "mismatch") return reply(200, { ...record, environment: "wrong-journal" });
+                return reply(200, record);
             }
             if (path === "/pages/upload-token") {
                 stagingJournalReads = journalReads;
@@ -783,19 +783,21 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
             assert.equal(journal.at(-1).payload.phase, "recovery-started");
             dropBeforeCreate = false;
 
-            journal.length = 0;
-            pages.length = 0;
-            sites.length = 0;
-            nextOutcome = "failure";
-            await assert.rejects(run(), /curl: [(]52[)]/);
-            rejectRecordReadBack = true;
-            const beforeRecoveryReadBack = createRequests;
-            await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "94" }), /404/);
-            assert.equal(journal.at(-1).payload.phase, "recovery-started");
-            assert.equal(createRequests, beforeRecoveryReadBack);
-            assert.equal(pages.length, 1);
-            await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "95" }), /unresolved Pages create/);
-            assert.equal(createRequests, beforeRecoveryReadBack);
+            for (const fault of ["missing", "mismatch"]) {
+                journal.length = 0;
+                pages.length = 0;
+                sites.length = 0;
+                nextOutcome = "failure";
+                await assert.rejects(run(), /curl: [(]52[)]/);
+                recordReadBackFault = fault;
+                const beforeRecoveryReadBack = createRequests;
+                await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "94" }), fault === "missing" ? /404/ : { code: 1 });
+                assert.equal(journal.at(-1).payload.phase, "recovery-started");
+                assert.equal(createRequests, beforeRecoveryReadBack);
+                assert.equal(pages.length, 1);
+                await assert.rejects(run("fixture", { ...authorized, GITHUB_RUN_ID: "95" }), /unresolved Pages create/);
+                assert.equal(createRequests, beforeRecoveryReadBack);
+            }
 
             journal.length = 0;
             pages.length = 0;
@@ -905,22 +907,25 @@ test("publisher holds ambiguous responses and reconciles one live deployment", a
         assert.equal(createRequests, beforeDroppedSubmission);
         assert.equal(stagingJournalReads, stagingBeforeTruncated);
         truncatedJournal = false;
-        const beforeRetry = journalReads;
-        downloaded.length = 0;
-        rejectRecordReadBack = true;
-        await assert.rejects(run(), /404/);
-        assert.equal(stagingJournalReads, beforeRetry + 1);
-        assert.deepEqual(assets, staged);
-        if (fixture) {
-            assert.ok(downloaded.includes(`/bundles/feed-${fixture.arguments[4]}.tar`));
-            assert.ok(downloaded.includes(`/bundles/feed-${fixture.arguments[5]}.tar`));
+        for (const fault of ["missing", "mismatch"]) {
+            const beforeRetry = journalReads;
+            downloaded.length = 0;
+            recordReadBackFault = fault;
+            await assert.rejects(run(), fault === "missing" ? /404/ : { code: 1 });
+            assert.equal(stagingJournalReads, beforeRetry + 1);
+            assert.deepEqual(assets, staged);
+            if (fixture) {
+                assert.ok(downloaded.includes(`/bundles/feed-${fixture.arguments[4]}.tar`));
+                assert.ok(downloaded.includes(`/bundles/feed-${fixture.arguments[5]}.tar`));
+            }
+            assert.equal(journal.length, 1);
+            assert.equal(journal[0].payload.phase, "submission-started");
+            await assert.rejects(run(), /unresolved Pages create/);
+            assert.equal(journal.length, 1);
+            assert.equal(createRequests, beforeDroppedSubmission);
+            assert.equal(pages.length, 0);
+            journal.length = 0;
         }
-        assert.equal(journal.length, 1);
-        assert.equal(journal[0].payload.phase, "submission-started");
-        await assert.rejects(run(), /unresolved Pages create/);
-        assert.equal(journal.length, 1);
-        assert.equal(createRequests, beforeDroppedSubmission);
-        assert.equal(pages.length, 0);
     } finally {
         if (cacheDirectory) {
             await execute("ssh", ["-o", "BatchMode=yes", "freebsd", "rm -rf -- " + cacheDirectory]);
