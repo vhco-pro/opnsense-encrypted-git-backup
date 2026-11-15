@@ -121,6 +121,20 @@ the file was removed. The first repair-side fixture attempt expected
 the error without its native prefix. The corrected assertion passed on
 a fresh overlay.
 
+The disconnected scheduled-action fault test at
+`1ae0cf5c5d05ea525dbd7b402ca13682396b2faa` verified the installed
+195-second supervisor and exercised its FreeBSD TERM/KILL path with a
+12-second timeout and two-second grace. The test paused a real SSH push
+with a rejecting fixture hook. A TERM-ignoring harness held the timeout
+open until it logged KILL. The worker, Git and SSH processes exited.
+The native status and the on-disk attempt both reported failure. The
+remote commit and last receipt stayed unchanged, the independent check
+reported a stale receipt, and retry pushed the retained pending commit.
+The sibling failure check also passed. The fault test invokes the
+same native action as cron. A separate fixture above observed an actual
+wall-clock cron run after upgrade. Early fault-harness runs did not
+establish the signal or status assertions.
+
 The isolated signed Firmware chain at
 `4e53e671e06acf8263a45d03b8487bcb89f347aa` used the pinned shared
 GitVersion configuration. It calculated `0.1.0` at that SHA, used
