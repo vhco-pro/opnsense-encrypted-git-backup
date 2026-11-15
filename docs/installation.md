@@ -1,6 +1,6 @@
 # Install the encrypted Git backup provider
 
-Use the supported runtime and package inputs in [Runtime compatibility](compatibility.md). The private draft package and repository are for disposable validation. Wait for an approved feed and a signing identity verified through an independent channel before installing on a managed appliance.
+Use the supported runtime and package inputs in [Runtime compatibility](compatibility.md). The first published package feed is pending. The packages and feed used in verification are disposable fixtures. Wait for an approved feed and verify its signing identity through an independent channel before installing on a managed appliance.
 
 On the appliance, use the native Firmware package administration to install `os-encrypted-git-backup` from the verified repository. The provider appears under **System → Configuration → Backups**.
 
