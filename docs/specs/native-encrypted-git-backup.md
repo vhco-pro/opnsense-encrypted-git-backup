@@ -408,6 +408,7 @@ None.
 | 2026-11-15 | R-51 | implementation | `bf75a27f49f29a8e86648d47dc6c06ce66a3a15d` | unknown | procedural | Nine criteria met. The approved manual feed fixture passed and the installed Python finding remains open. Source and Git metadata were read-only and preserved. Model identity was not attested. |
 | 2026-11-15 | R-52 | spec | `6bbbb910c6892f0dade9dd302dafe7994ba4284e` | unknown | procedural | Refreshed default-branch context. One summary nit. The accepted baseline is unchanged. Source and Git metadata were read-only and preserved. Model identity was not attested. |
 | 2026-11-15 | R-53 | spec | `6d00f2f78a8006173c4855cf9eeea693a702ec1e` | claude-opus-5-5 | structural | Three should-fix findings and one nit. Verified first-party Claude Code model and read-only source and Git mounts. |
+| 2026-11-15 | R-54 | spec | `1ffa659919eea42a6de0b7ad89543f29586c805f` | claude-opus-5-5 | structural | One should-fix and two nits. Verified first-party Claude Code model and read-only source and Git mounts. |
 
 ### R-1
 
@@ -2113,3 +2114,27 @@ SEVERITY: nit
 WHERE: Context / Owner summary, line 65
 EVIDENCE: The summary says the owner selected "Use simpler single-record contract (Recommended)" for F-07. The document never says what F-07 refers to and does not link docs/reviews/opus-5-5-follow-up.md. The document's own Review Log has an unrelated F-07 under R-8 (line 578). The convention asks the summary to explain material changes since the last accepted scope. This summary does not say that the durable prepared state and its discard after runner termination were removed. It also does not say that staging may now repeat after a complete journal read finds no submission record. It does state the accepted risk correctly: a crash after the record may need manual investigation even when no create was sent. That agrees with line 291.
 PROPOSAL: Link the follow-up review and add one sentence saying that the prepared state was removed and that staging may repeat from retained approved assets only after a complete journal read finds no submission record.
+### R-54
+
+TARGET: 1ffa659919eea42a6de0b7ad89543f29586c805f
+
+FINDING: F-01
+KIND: factual
+SEVERITY: should-fix
+WHERE: Test Plan / AC-09, line 320 ("For candidate and recovery submissions, fail the independent read-back after the submission record commits. Verify zero Pages create requests and require a later authorized dispatch to hold under Pages reconciliation if there is no correlated create."); Design / Activation reconciliation and retry eligibility, line 291 ("Persist and independently verify a submission-started record before making any Pages create request"); Design / rule 2, line 285 (submission-started pairing for Q3); Tasks / T14, line 346
+EVIDENCE: The Design requires an independent verification of the record. That means the read-back content has to match what was written, not just that a read succeeds. The proof step this revision added only says to "fail" the read-back. The committed fixture fails it in one way only: the record read returns HTTP 404 (tests/package/feed-publisher-http.mjs:72-80). It then asserts the hold for a candidate (lines 908-923) and a recovery (lines 790-798). The publisher does compare id, sha, environment and payload (scripts/publish-feed.sh:26-30). But an implementation that issues the GET and checks only the HTTP status, ignoring the record body, would pass both the row text and the fixture. The row does not require a read-back that succeeds but returns a different or partial record. R-53 F-02 proposed "fail or return a mismatched record". This revision applied the failure half only. The gap traces to that change.
+PROPOSAL: Extend the AC-09 step so that, for both candidate and recovery submissions, the independent read-back returns a well-formed but mismatched record. Require zero Pages creates in that case and a later authorized dispatch that holds under Pages reconciliation. Keep T14 open until that case has also been run.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: nit
+WHERE: Context / Owner summary, lines 65-66
+EVIDENCE: The convention asks the summary to explain material changes since the last accepted scope and to separate planned checks from observed proof. The summary covers removal of the prepared state, repeated staging after a complete journal read, and the accepted risk after a crash. It does not mention the new requirement to independently verify the record before any create (line 291). It does not say that a failed read-back also leaves the hold with no create sent, not only a crash. It also does not say that an incomplete or truncated journal read holds without restaging (line 320). On validation state, it says live criterion evidence was removed. It does not say that the revision's proof so far is an executed loopback publisher test, with T14 and the native and recovery verification still open. Nothing in the summary claims a native rerun, and the R-51 and native fixture statements read as history.
+PROPOSAL: Add one or two sentences saying that the record is read back independently before any create. Say that a failed read-back or an incomplete journal read holds without a create or restage, and that the revision's verification is still open under T14.
+
+FINDING: F-03
+KIND: factual
+SEVERITY: nit
+WHERE: Frontmatter `branch`, line 3; Open Questions, line 350; Context / Owner summary, lines 64-66; Review Log R-53 F-03, lines 2103-2108
+EVIDENCE: R-53 F-03 was a judgement finding. It asked which branch the revised feature re-enters through, and whether the source changes made before acceptance stay as T14 draft work. Open Questions says "None.", so the question was either never raised or was answered and removed. The convention says an answered question is "folded into the document". Nothing in the document records the answer: not the continuation on the existing follow-up PR, not the removal of the original feature branch after merge, and not the owner's permission for the already approved source repair to continue before renewed acceptance. Only the frontmatter value changed. The follow-up review still says only that "The design choice authorizes revision and review" (docs/reviews/opus-5-5-follow-up.md:59), while commits on this branch change the covered scripts/publish-feed.sh, scripts/feed-recovery.sh and tests/package/feed-publisher-http.mjs. The binary was not run in this pass, so the gate effect was not observed.
+PROPOSAL: Record the owner's answer to R-53 F-03 in the Owner summary or the follow-up review. Name the branch implementation re-enters through and the limits on source repair before acceptance, with no merge or production authority, so the frontmatter change and the draft source commits can be traced to that decision.
