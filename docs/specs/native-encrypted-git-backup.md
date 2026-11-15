@@ -350,7 +350,8 @@ Prove the same workflow sequence with fixture keys and owned synthetic staging u
 - [ ] T10 `tests/`, `playwright.config.ts`, `package.json`, `bun.lock` - run synthetic appliance journeys in Chromium and Firefox and retain responsive and accessibility evidence (AC-10)
 - [ ] T11 `tests/`, `docs/compatibility.md`, `docs/installation.md`, `docs/recovery.md`, `.github/workflows/` - reproduce installation, native restore and scheduling, record measured growth and tool coverage, and verify that CI runs the declared checks (AC-01, AC-02, AC-03, AC-05, AC-07, AC-08)
 
-- [ ] T12 `tests/security/`, `.github/workflows/`, `docs/compatibility.md` - verify scanner coverage and exits and disposition the installed native audit findings (AC-08)
+- [x] T12 `tests/security/`, `.github/workflows/`, `docs/compatibility.md` - verify scanner coverage and exits and disposition the installed native audit findings (AC-08)
+  - Evidence: [Supplemental independent AC-08 review](../security/cve-2025-15367.md#supplemental-independent-ac-08-evidence-review) verified the pinned scanner runs and probe exits. The installed audit exited 1 and the owner accepted the tracked residual for the documented scope.
 - [ ] T13 `scripts/`, `tests/package/` - verify the shared run, attempt, version, exact SHA and immutable tag handoff and reconciliation, native ordering and eligibility, signed catalogue identity and client upgrade with the prepared artifact (AC-01, AC-07, AC-09)
 
 ## Open Questions
