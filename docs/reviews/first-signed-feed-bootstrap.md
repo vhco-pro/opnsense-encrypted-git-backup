@@ -80,3 +80,38 @@ First-party Opus 5.5 independently reviewed that split at
 informational level. Its read-only review checked the job definitions and
 permission changes. Hosted verification runs separately.
 [Initial startup failure](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43723162775)
+
+## First production submission
+
+The shared calculation on reviewed source `d646f204` produced `0.1.0`.
+The protected tag job repeated the check. GitHub rejected its push because
+the Actions token lacked permission to introduce the historical workflow
+revision at the new ref. The pinned shared tag script then created
+`v0.1.0` from the exact source using the owner's existing CLI credential.
+The remote annotated tag resolves to `d646f204`. No credential scopes changed.
+[Protected tag attempt](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43728477169)
+
+An owned disposable native client verified the production-signed catalogue
+before upload. The candidate and bootstrap recovery retain identical package
+bytes. The recovery excludes native catalogue and metadata paths. Both
+archives and the public key passed independent readback from the draft release.
+
+The first protected publication recorded the submission before creating Pages
+deployment `e658b608-f5ee-4256-bcf8-e987ebaef531`. The deployment reported
+success and served the matching manifest, catalogue and package at
+`https://pkg.vhco.pro`. The public package SHA-256 is
+`b0a23361eaa9ffa73ccc53234f9254b629912f0a42abb3a7eaf6fe2b77550064`.
+The catalogue SHA-256 is
+`cc7506ebb4b978b09f8a60034d1d2371bc319d85948a206af44804740ecfd66c`.
+The downloaded package passed an install and checksum check on a disconnected
+OPNsense appliance with the plugin initially absent.
+[First protected publication](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43729204119)
+
+The closure run stopped before native verification because the Cloudflare
+deployment list rejected `per_page=100` with error 8000024. A read-only query
+at `per_page=25` returned the single matching deployment. The publisher now
+checks that the first page is complete before correlating an attempt.
+The package checkout still targets its approved source. The protected caller
+uses publication scripts from its own workflow commit so delivery fixes can
+reconcile an older release without rebuilding or moving its tag.
+[Failed reconciliation](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43729489795)
