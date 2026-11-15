@@ -5,8 +5,6 @@ case "$1" in
             [[ "$url" =~ ^http://127[.]0[.]0[.]1:[0-9]+(/[A-Za-z0-9/_-]*)?$ ]] || exit 64
         done
         environment=feed-fixture
-        github_headers=()
-        pages_headers=()
         ;;
     production)
         if [[ "${GITHUB_ACTIONS:-}" != true || "${GITHUB_EVENT_NAME:-}" != workflow_dispatch ||
@@ -22,8 +20,21 @@ case "$1" in
         [[ "${FEED_URL:?}" =~ ^https://[a-zA-Z0-9.-]+(/[A-Za-z0-9/_-]*)?$ ]]
         : "${FEED_NATIVE_MANIFEST:?}" "${FEED_HISTORY:?}"
         environment=signed-feed-journal
-        github_headers=(-H "Authorization: Bearer $FEED_JOURNAL_TOKEN" -H 'Accept: application/vnd.github+json')
-        pages_headers=(-H "Authorization: Bearer $PAGES_TOKEN")
         ;;
     *) exit 64 ;;
 esac
+
+# The caller owns the temporary directory and removes it on exit.
+publication_headers() {
+    github_headers=()
+    pages_headers=()
+    if [[ "$environment" == signed-feed-journal ]]; then
+        (
+            umask 077
+            printf 'Authorization: Bearer %s\nAccept: application/vnd.github+json\n' "$FEED_JOURNAL_TOKEN" > "$1/github.headers"
+            printf 'Authorization: Bearer %s\n' "$PAGES_TOKEN" > "$1/pages.headers"
+        )
+        github_headers=(-H "@$1/github.headers")
+        pages_headers=(-H "@$1/pages.headers")
+    fi
+}

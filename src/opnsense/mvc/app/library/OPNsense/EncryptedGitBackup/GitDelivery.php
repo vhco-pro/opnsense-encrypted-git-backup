@@ -11,13 +11,18 @@ final class GitDelivery
 {
     private const ARTIFACT = 'config.xml.enc';
     private const METADATA = 'snapshot.json';
+    private const COMMAND_TIMEOUT = 30;
+    private const DELIVERY_TIMEOUT = 180;
+
+    private int $deadline;
 
     /** @param array<string, string> $environment */
     public function __construct(
         private string $git,
         private string $directory,
         private array $environment,
-        private ?string $legacyParent = null
+        private ?string $legacyParent = null,
+        private int $deliveryTimeout = self::DELIVERY_TIMEOUT
     ) {
     }
 
@@ -97,6 +102,7 @@ final class GitDelivery
         Closure $capture
     ): string {
         $attempt = $this->attempt($destination, $branch);
+        $this->deadline = hrtime(true) + $this->deliveryTimeout * 1_000_000_000;
         $this->writeStatus($attempt + ['outcome' => 'running']);
         try {
             $commit = $this->reconcile($destination, $branch, $revision, $key, $capture);
@@ -258,10 +264,20 @@ final class GitDelivery
         if ($exit === 2 && $list === '') {
             return null;
         }
-        if ($exit !== 0 || !str_ends_with($list, "\t" . $ref . "\n")) {
+        if ($exit !== 0) {
             throw new RuntimeException('Could not read the remote backup branch.');
         }
-        $commit = $this->objectId(substr($list, 0, -strlen($ref) - 2));
+        $matches = [];
+        foreach (explode("\n", rtrim($list, "\n")) as $line) {
+            $fields = explode("\t", $line, 2);
+            if (($fields[1] ?? null) === $ref) {
+                $matches[] = $fields[0];
+            }
+        }
+        if (count($matches) !== 1) {
+            throw new RuntimeException('Could not establish an exact remote backup branch match.');
+        }
+        $commit = $this->objectId($matches[0]);
         $this->requireGit(['fetch', '--no-tags', '--', $destination, $ref], $repository);
         if (trim($this->requireGit(['rev-parse', 'FETCH_HEAD'], $repository)) !== $commit) {
             throw new RuntimeException('The remote branch changed while being verified.');
@@ -375,6 +391,10 @@ final class GitDelivery
      */
     private function git(array $arguments, ?string $repository = null, int $limit = 65536): array
     {
+        $remaining = ($this->deadline - hrtime(true)) / 1_000_000_000;
+        if ($remaining <= 0) {
+            throw new RuntimeException('The encrypted backup exceeded its delivery deadline.');
+        }
         return Process::run(
             [
                 $this->git,
@@ -385,7 +405,7 @@ final class GitDelivery
             ],
             $repository ?? $this->directory,
             $this->environment,
-            30,
+            min(self::COMMAND_TIMEOUT, $remaining),
             $limit
         );
     }

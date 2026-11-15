@@ -1,6 +1,6 @@
 # Install the encrypted Git backup provider
 
-Use the supported runtime and package inputs in [Runtime compatibility](compatibility.md). The private draft package and repository are for disposable validation. Wait for an approved feed and a signing identity verified through an independent channel before installing on a managed appliance.
+Use the supported runtime and package inputs in [Runtime compatibility](compatibility.md). The first published package feed is pending. The packages and feed used in verification are disposable fixtures. Wait for an approved feed and verify its signing identity through an independent channel before installing on a managed appliance.
 
 On the appliance, use the native Firmware package administration to install `os-encrypted-git-backup` from the verified repository. The provider appears under **System → Configuration → Backups**.
 
@@ -20,7 +20,7 @@ Keep the prior complete generation available until the new catalogue and its pac
 
 ## Prepare a versioned package
 
-The private workflow uses [version-workflow](https://github.com/vhco-pro/version-workflow/blob/3b78b04df802ea1592cbe19338d7a882d1888389/.github/workflows/version.yml) in dry-run mode. Use the branch-push run for the exact branch commit. Pull-request runs calculate against GitHub's synthetic merge commit.
+The CI workflow uses [version-workflow](https://github.com/vhco-pro/version-workflow/blob/3b78b04df802ea1592cbe19338d7a882d1888389/.github/workflows/version.yml) in dry-run mode. For release preparation, use the successful push run for the approved main commit. Pull-request runs calculate against GitHub's synthetic merge commit and are verification evidence.
 
 On the selected disposable FreeBSD target, invoke `bash scripts/prepare-native-package.sh <GitVersion-SemVer> <source-sha> <tag-or-empty> <pinned-plugins-tree> <output-directory>`. For release preparation pass the exact tag. The script rejects a different checkout, wrong tag or tag pointing elsewhere, and checks the built package manifest against the mapped version. Stable `1.2.3` stays `1.2.3`. GitVersion prerelease `1.2.3-rc.12` maps to `1.2.3.rc12`, with the same rule for alpha and beta. Arbitrary labels and build metadata are rejected.
 

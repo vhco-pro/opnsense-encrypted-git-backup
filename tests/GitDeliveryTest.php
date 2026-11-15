@@ -120,6 +120,100 @@ final class GitDeliveryTest extends TestCase
         }
     }
 
+    public function testDeliveryDeadlineRetainsAmbiguousPushForReadBackOnRetry(): void
+    {
+        $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
+        self::assertTrue(mkdir($directory, 0700));
+        try {
+            $remote = $directory . '/remote';
+            self::assertSame(0, Process::run(['/usr/bin/git', 'init', '--bare', $remote], $directory, [], 5)[0]);
+            $git = $directory . '/git';
+            $script = <<<'SH'
+                #!/bin/sh
+                for argument do
+                    if [ "$argument" = push ] && [ ! -e "$0.delayed" ]; then
+                        /usr/bin/git "$@" || exit "$?"
+                        : > "$0.delayed"
+                        exec /bin/sleep 5
+                    fi
+                done
+                exec /usr/bin/git "$@"
+                SH;
+            self::assertNotFalse(file_put_contents($git, $script));
+            self::assertTrue(chmod($git, 0700));
+            $delivery = new GitDelivery($git, $directory, ['GIT_CONFIG_NOSYSTEM' => '1'], null, 2);
+            $error = null;
+            try {
+                $delivery->deliver($remote, 'snapshots', '1.0', 'key', static fn (): string => 'encrypted');
+            } catch (RuntimeException $exception) {
+                $error = $exception->getMessage();
+            }
+            self::assertNotNull($error, 'Delivery reported success after its deadline.');
+            self::assertStringContainsString('deadline', $error);
+            self::assertFileDoesNotExist($directory . '/verified.json');
+            self::assertFileExists($directory . '/creation.json');
+            $attempt = file_get_contents($directory . '/attempt.json');
+            self::assertIsString($attempt);
+            self::assertStringContainsString('"outcome":"failed","category":"delivery"', $attempt);
+            [$exit, $tip] = Process::run(
+                ['/usr/bin/git', 'rev-parse', 'refs/heads/snapshots'],
+                $remote,
+                [],
+                5
+            );
+            self::assertSame(0, $exit);
+            $verified = $delivery->deliver(
+                $remote,
+                'snapshots',
+                '1.0',
+                'key',
+                static fn (): never => throw new RuntimeException('Pending snapshot was not reused.')
+            );
+            self::assertSame(
+                [0, $tip],
+                Process::run(['/usr/bin/git', 'rev-parse', $verified . '^'], $remote, [], 5)
+            );
+            self::assertFileDoesNotExist($directory . '/creation.json');
+            self::assertFileExists($directory . '/verified.json');
+        } finally {
+            Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
+        }
+    }
+
+    public function testRemoteReadBackSelectsTheExactRef(): void
+    {
+        $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));
+        self::assertTrue(mkdir($directory, 0700));
+        try {
+            $remote = $directory . '/remote';
+            self::assertSame(0, Process::run(['/usr/bin/git', 'init', '--bare', $remote], $directory, [], 5)[0]);
+            $delivery = new GitDelivery('/usr/bin/git', $directory, ['GIT_CONFIG_NOSYSTEM' => '1']);
+            $commit = $delivery->deliver($remote, 'snapshots', '1.0', 'key', static fn (): string => 'encrypted');
+            self::assertSame(0, Process::run(
+                ['/usr/bin/git', 'update-ref', 'refs/heads/other/refs/heads/snapshots', $commit],
+                $remote,
+                [],
+                5
+            )[0]);
+            $unused = static fn (): never => throw new RuntimeException('Pending snapshot was not reused.');
+            $refreshed = $delivery->deliver($remote, 'snapshots', '1.0', 'key', $unused);
+            self::assertSame(
+                [0, $commit . "\n"],
+                Process::run(['/usr/bin/git', 'rev-parse', $refreshed . '^'], $remote, [], 5)
+            );
+            self::assertSame(0, Process::run(
+                ['/usr/bin/git', 'update-ref', '-d', 'refs/heads/snapshots'],
+                $remote,
+                [],
+                5
+            )[0]);
+            $this->expectExceptionMessage('Could not establish an exact remote backup branch match.');
+            $delivery->deliver($remote, 'snapshots', '1.0', 'key', $unused);
+        } finally {
+            Process::run(['/bin/rm', '-rf', '--', $directory], sys_get_temp_dir(), [], 5);
+        }
+    }
+
     public function testDivergentRemoteDoesNotReplaceLastVerifiedReceipt(): void
     {
         $directory = sys_get_temp_dir() . '/delivery-' . bin2hex(random_bytes(12));

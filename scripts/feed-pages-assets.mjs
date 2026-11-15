@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 
@@ -28,6 +29,8 @@ async function call(url, token, payload) {
 }
 
 const files = new Map();
+const repeatedDigests = new Map();
+const digest = async (file) => createHash("sha256").update(await readFile(file)).digest("hex");
 for (const [path, key] of paths) {
     if (!/^\/(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+$/.test(path) ||
         path.split("/").some((part) => part === "." || part === "..") ||
@@ -36,7 +39,13 @@ for (const [path, key] of paths) {
     if (!file.startsWith(root + sep) || await realpath(file) !== file) throw new Error("Unsafe Pages asset");
     const info = await stat(file);
     if (!info.isFile() || info.size > 25 * 1024 * 1024) throw new Error("Invalid Pages asset size");
-    if (!files.has(key)) files.set(key, file);
+    if (!files.has(key)) {
+        files.set(key, file);
+    } else {
+        const existing = repeatedDigests.get(key) ?? await digest(files.get(key));
+        if (existing !== await digest(file)) throw new Error("Pages asset key maps to different file bytes");
+        repeatedDigests.set(key, existing);
+    }
 }
 if (checking) process.exit(0);
 

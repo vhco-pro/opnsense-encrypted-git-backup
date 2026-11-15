@@ -6,6 +6,9 @@ set -euo pipefail
 [[ $# == 10 ]]
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source "$root/feed-publication-mode.sh" "$1"
+temp=$(mktemp -d)
+trap 'rm -rf -- "$temp"' EXIT
+publication_headers "$temp"
 shift
 journal=$1
 source=$2
