@@ -1,15 +1,24 @@
 ---
 status: draft
-status_description: "Owner-selected publisher reuse; visual prototype prepared for review."
+status_description: "Owner selected independent page updates and public readback; R-1 revision prepared for review."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
   - web/packages/
   - docs/prototypes/vhco-packages/
   - scripts/feed-pages-assets.mjs
+  - scripts/feed-site.mjs
+  - scripts/publish-feed.sh
+  - scripts/feed-recovery.sh
+  - scripts/feed-close.sh
+  - scripts/feed-preflight.sh
+  - tests/package/feed-http-inputs.mjs
+  - tests/package/feed-preflight-test.sh
   - tests/package/feed-publisher-http.mjs
   - tests/package/hosted-feed-content.sh
   - tests/browser/packages.spec.mjs
+  - tests/browser/packages.config.mjs
+  - .github/workflows/feed.yml
   - .github/workflows/feed-fixture.yml
 ---
 
@@ -30,14 +39,16 @@ Installation commands, supported versions and signing fingerprints stay in the r
 This keeps the overview readable and gives those values one authoritative home.
 
 The page assets enter the existing retained candidate and recovery bundles.
-The native client continues to retrieve the same catalogue and package paths.
-Cloudflare Pages serves the static page using the current protected publication workflow and credentials.
-The publisher verifies the served page assets alongside its existing native verification before recording a successful publication.
+The owner selected separately reviewed homepage-only publications using the approved package, catalogue and tag.
+A link correction therefore uses the protected feed publication process and preserves the package version.
+Recovery restores the previous complete page and package bundle.
+Every page-bearing bundle includes a top-level 404 document so missing package paths return HTTP 404.
+Before recording success, the publisher checks the public asset bytes and Content-Type headers alongside native package verification.
 
 The requested visual prototype is a design artifact in `docs/prototypes/vhco-packages/`.
 Its browser checks cover layout, theme selection, copying and navigation.
-The production bundle, hosted content types and recovery tests below are planned implementation proof.
-This specification remains draft for owner critique of the design and preview.
+Production bundle assembly, Cloudflare serving and recovery checks remain implementation work.
+The specification remains draft for independent review and owner critique of the preview.
 
 ### Background
 
@@ -50,13 +61,15 @@ The site's `app/.vitepress/theme/style.css` defines its cyan, blue and purple br
 These source files belong to the private VitePress repository, while the logo and homepage are publicly served by vhco.pro.
 
 The Pages uploader currently provides explicit HTML and JSON content types and a binary fallback for other files (`scripts/feed-pages-assets.mjs:54-60`).
-Retained bundles already include a validated Pages path-to-asset manifest (`scripts/feed-payload.sh:5-23`, `scripts/feed-dispatch.sh:20-29`).
+Retained bundles already include a validated Pages path-to-asset manifest (`scripts/feed-preflight.sh:23`, `scripts/feed-pages-assets.mjs:34-50`).
 The established publisher and recovery process own the deployment and its native verification (`scripts/feed-recovery.sh:3-18`).
 
 ### Prototype verification
 
-The 32 focused prototype scenarios passed locally with the repository's locked Playwright 1.59.1 in Chromium and Firefox.
-The checks exercised six viewport sizes in both themes, keyboard access, theme persistence, URL copying, denied clipboard/storage access and reading with JavaScript disabled.
+The 36 focused prototype scenarios passed locally with the repository's locked Playwright 1.59.1 in Chromium and Firefox.
+The checks exercised six viewport sizes in both themes, keyboard access, theme persistence, URL copying, denied clipboard/storage access, explicit missing-route HTTP 404 responses, independent-channel signing guidance and reading with JavaScript disabled.
+The R-1 copy-state, signing-text and missing-route regressions first failed against the original prototype, then passed after correction.
+Their failing output remains under ignored `work/packages-preview-r1-red-host/`.
 Representative desktop and mobile captures were inspected.
 The actual owner-restricted HTTPS share also loaded its assets, changed theme and navigated to setup.
 Its browser clipboard policy used the tested URL-selection fallback.
@@ -70,7 +83,7 @@ Provide repository setup, compatibility, source and release-information links, p
 Support ordinary reading and link navigation through HTML, and progressively enhance theme selection and copying through browser APIs.
 
 The owner-selected v1 code home is the existing package-feed repository and publisher.
-Additional repository entries can be authored as static content when they become available.
+Additional repository entries and page corrections can be authored as static content and published through a separately approved homepage-only update.
 Appliance configuration, repository trust changes, package installation and future repository ownership are handled by their respective approved rollout or product tasks.
 The homepage presents repository information and setup references.
 
@@ -95,12 +108,13 @@ The page contains the current repository information and links to its maintained
 Version numbers, signing fingerprints and current-health assertions are read in those references.
 This makes the page usable when GitHub's newest release and a temporarily restored repository generation differ.
 Release-history links let the reader select the version relevant to their appliance.
+Signing-related text directs the reader to the installation guide and its independent trusted-channel check of the public key fingerprint.
 
 ### Browser behaviour
 
 The repository URL copy button writes only the URL after an explicit click.
 A successful copy produces visible status and a live-region announcement.
-If clipboard access is unavailable, the URL is selected and the page explains the device's manual copy action.
+If clipboard access is unavailable, the URL is selected, the button reads "Selected" and adjacent status explains the device's manual copy action.
 Reading, setup links and compatibility information remain accessible when JavaScript is disabled.
 
 The page uses semantic headings, keyboard-visible focus, a skip link and labelled controls.
@@ -109,28 +123,72 @@ The current entry's setup link scrolls to the guide and signing-information sect
 External links are ordinary links to published material.
 No account or provider credential is needed to read the page.
 
+### Assembly and browser verification
+
+The production page is the explicit static asset set in `web/packages/`.
+`scripts/feed-site.mjs` stages those files into a candidate directory and extends its existing Pages manifest using the publisher's pinned asset-hash calculation.
+It validates the explicit asset list, required licences and top-level `404.html` and rejects collisions with existing package, catalogue and publication metadata paths.
+The same preparation step places the approved recovery page assets into the recovery directory before either archive is retained.
+Both archives are independently downloaded and digest-verified through the existing retention commands.
+
+The helper also provides a loopback-only static serving command for the staged production directory.
+`tests/browser/packages.config.mjs` starts that server with Playwright's webServer facility, and `tests/browser/packages.spec.mjs` exercises the staged files.
+The read-only `.github/workflows/feed-fixture.yml` runs that focused Chromium/Firefox suite with the existing locked browser dependency.
+Its existing caller in `php.yml` provides public PR/main coverage.
+The design prototype retains its own focused test configuration.
+
 ### Publication and recovery
 
-The page is published as ordinary static assets through the existing Pages publisher.
-Candidate bundles include `index.html`, its styles, browser script, company logo, font and required licence file.
-Existing catalogue, metadata and package URL paths continue to serve their authenticated retained bytes.
-The native verifier continues to use its actual repository configuration and ABI.
+Candidate and recovery bundles include `index.html`, top-level `404.html`, styles, browser script, company logo, font and licence text whenever they carry a page.
+Unknown paths, absent catalogue aliases and withdrawn catalogue paths return HTTP 404.
+A missing native path must never fall back to homepage HTML with HTTP 200.
+The local Pages adapter models this routing, and the client-facing verification checks the actual response after a page-bearing deployment.
+Existing advertised packages and available signed catalogue paths serve their retained authenticated bytes.
 
-The asset uploader assigns explicit content types for HTML, CSS, browser JavaScript, PNG, WOFF2 and licence text.
-Its existing path validation, size limits, digest checks and authentication apply to every site asset.
-Local and hosted fixtures verify those content types and asset bytes through the actual upload/readback adapter.
+The asset uploader declares HTML, CSS, browser JavaScript, PNG, WOFF2 and text content types.
+Its existing path, size and digest validation applies to the site assets.
+`scripts/feed-site.mjs` verifies each served site asset against the retained file's SHA-256 and expected media type, accepting a compatible charset parameter.
+It checks the root HTML route as well as directly served assets and the required HTTP 404 responses.
+`scripts/publish-feed.sh` and `scripts/feed-recovery.sh` call this verification before candidate or recovery closure through `scripts/feed-close.sh`.
+A failed readback prevents successful closure and follows the existing recovery or hold rules for that attempt.
+The native verifier continues to authenticate the catalogue and fetch the exact package using its real repository configuration and ABI.
+Local fixtures check both uploader metadata and the client-facing verification failure paths.
+An authorised real publication must pass the same byte, Content-Type and HTTP status readback through `pkg.vhco.pro`.
 
-Retained candidate and recovery archives contain the complete page asset set for their generation.
-An update stages and approves the page within those archives before dispatch.
-The existing single-writer publication, durable submission and reconciliation rules apply to the resulting deployment.
-An interrupted publication is reconciled through its existing journal and attempt identity.
-The site assets are verified against the retained manifest before successful closure.
+The current single-writer, durable submission, lost-response reconciliation and recovery rules apply to the complete deployment.
+A retry uses its retained approved bundle identities and the existing journal correlation.
+A page-bearing established recovery restores the previous complete site and package state.
+An empty-catalogue bootstrap recovery may carry the generic page and documentation links while every absent catalogue alias returns HTTP 404.
+The initial homepage publication may recover to the previously approved bundle without a homepage, preserving its recorded root HTTP 404 and authenticated package bytes.
+For a previously retained bundle without `index.html` or `site.json`, preflight permits its existing standalone `404.html` and requires the other new page assets to be absent.
+It verifies that exact legacy bundle and uses its recorded prior-root HTTP 404 check.
+An index without its complete site metadata and assets, or other partially present new page assets, fails preflight.
 
-An established recovery restores its retained page and authenticated package generation together.
-Bootstrap recovery serves the generic information page and its documentation links while the native catalogue paths return their expected withdrawal responses.
-The homepage makes no assertion about live availability, an installed package or the appliance's trust state.
-A first deployment can recover to the previously approved archive which has no homepage; that returns the previously observed root response and preserves existing clients.
-The publication follows the existing separately authorised release path after implementation review and acceptance.
+### Homepage-only updates
+
+The owner selected page-only publications on 15 November 2026.
+The protected publisher keeps the existing reviewed package source, version-workflow run, immutable tag, signing key and exact package/catalogue bytes.
+A reviewed page source SHA is supplied separately from the package source and must be reachable from main.
+Bundle preparation checks out that exact page source and records it with the complete site asset list in `site.json`, which is retained inside the bundle.
+Candidate preflight validates that the recorded source matches the separately approved page SHA and that its complete asset list matches the bundle's Pages manifest.
+Established recovery retains the prior approved page source and assets, verified against the previous complete retained bundle.
+A page-bearing bootstrap recovery uses its explicitly approved page SHA.
+Each role's approved bundle digest binds its own source metadata and bytes.
+The source is provenance for the static page and does not change package release identity.
+The dispatch records the page SHA and candidate/recovery digests with its approval evidence.
+
+The new candidate archive contains the approved page and the currently verified catalogue and package files.
+The recovery archive contains the prior complete served page and catalogue, plus every package byte required by retained history.
+For a page-only update the advertised package history union remains identical and the package generation marker retains its existing meaning.
+The candidate and recovery archive digests, submission attempt and correlated Pages deployment distinguish the publication.
+Public site readback prevents an unchanged package marker from being treated as proof of the new page.
+The content-addressed archives are retained under the existing release tag using fresh digest names.
+Existing release assets are preserved and their retained digests are verified independently.
+A page update requires neither a new package build nor a moved tag.
+The protected workflow uses its reviewed operational scripts for the updated verification contract and separately checks the existing package identity.
+
+Publication follows separate owner authorisation after implementation review and acceptance.
+The homepage carries repository information and maintained references without an assertion about current package availability or appliance trust.
 
 ### Glossary
 
@@ -145,20 +203,20 @@ The publication follows the existing separately authorised release path after im
 - [ ] AC-01: The root page identifies VHCO Packages, presents the current OPNsense repository and its actual package, and links to working setup, compatibility, source and release references.
 - [ ] AC-02: The page uses the existing VHCO logo, Inter typography and brand colours, supports light and dark themes and provides readable keyboard-accessible layouts at the specified viewports.
 - [ ] AC-03: Explicit URL copying and theme selection work with visible feedback; reading and reference links work with JavaScript or storage/clipboard access unavailable.
-- [ ] AC-04: The actual Pages asset path serves the complete site with the correct content types, while existing native catalogue and package clients continue to retrieve and verify their expected retained bytes.
-- [ ] AC-05: Candidate publication, established recovery and bootstrap recovery retain and verify the appropriate page assets under the existing single-writer and interrupted-publication contract.
-- [ ] AC-06: The public page contains repository information without private deployment inputs or credentials, uses its glossary terms consistently and leaves package versions and signing fingerprints with their authoritative release and guide records.
+- [ ] AC-04: Public readback verifies the complete site bytes, media types and HTTP 404 responses for absent paths, while native clients retrieve and authenticate their expected catalogue and retained package bytes.
+- [ ] AC-05: Package and page-only publications, established recovery and bootstrap recovery retain and verify their complete approved page assets under the existing single-writer and interrupted-publication contract.
+- [ ] AC-06: The public page contains repository information without private deployment inputs or credentials, uses its glossary terms consistently and links to maintained package version information and the installation guide's independent trusted-channel verification of signing fingerprints.
 
 ## Test Plan
 
 | Criterion | Proof |
 | --- | --- |
-| AC-01 | Playwright opens the built page, checks the actual repository identifier and URL, follows the local setup anchor and validates each public reference's final route and expected document. A two-entry synthetic fixture verifies that an additional authored repository can be represented without another origin. |
+| AC-01 | `scripts/feed-site.mjs` stages `web/packages/`; the dedicated packages Playwright configuration starts its loopback server in `feed-fixture.yml`. Playwright opens that staged page, checks the actual repository identifier and URL, follows the local setup anchor and validates each public reference's final route and expected document. A two-entry synthetic fixture verifies that an additional authored repository can be represented without another origin. |
 | AC-02 | Chromium and Firefox exercise light/dark at 320×568, 390×844, 844×390, 768×1024, 1280×720 and 1440×900. Assert horizontal containment, heading readability, 44-pixel buttons, focus visibility and setup reachability. Inspect representative mobile and desktop captures. Exercise reduced motion and retain an actual 200-percent browser-zoom procedure with its effective viewport. |
-| AC-03 | In Chromium and Firefox copy the repository URL, verify the clipboard result and status, choose a theme, reload and verify preference persistence. Run clipboard-denied, storage-denied and JavaScript-disabled contexts. The denied clipboard case selects the actual URL and explains manual copying. |
-| AC-04 | Extend `tests/package/feed-publisher-http.mjs` and the hosted feed fixture to upload/read back HTML, CSS, JS, PNG, WOFF2 and licence bytes using the real uploader. Assert each MIME type and retained digest. Run native pkg catalogue authentication and exact package fetch before and after the homepage generation. |
-| AC-05 | The existing publisher/controller fixture exercises a live candidate, an established recovery and an empty-catalogue bootstrap recovery including all page assets. Interrupted/lost-response and duplicate-correlation checks show the same attempt is reconciled. An older retained generation without a page also restores its recorded prior root response and authenticates its package bytes. |
-| AC-06 | Scan the final approved site payload against synthetic private-marker fixtures and inspect its complete asset list, HTML and browser network requests. Check repository/package terminology and confirm canonical guide/release links carry the runtime and signing detail. The page's browser context needs no credentials to render. |
+| AC-03 | In Chromium and Firefox copy the repository URL, verify the clipboard result and status, choose a theme, reload and verify preference persistence. Run clipboard-denied, storage-denied and JavaScript-disabled contexts. The denied clipboard case after a successful copy selects the actual URL, resets the button label and explains manual copying beside the control. |
+| AC-04 | Extend `tests/package/feed-publisher-http.mjs`, `feed-http-inputs.mjs`, `feed-preflight-test.sh` and the hosted feed fixture to assemble, upload and read back HTML, CSS, JS, PNG, WOFF2 and licence bytes. Assert declared uploader media types separately from served bytes, media types and HTTP status. Inject wrong media types, wrong bytes, missing assets, incomplete page sets and homepage fallback for missing paths and require failure before closure. Unknown paths, absent catalogue aliases and a withdrawn catalogue return HTTP 404. Run native pkg catalogue authentication and exact package fetch before and after a homepage generation. At a separately authorised live publication run the same readback against the actual Cloudflare custom domain and retain its results before closure. |
+| AC-05 | The existing publisher/controller fixture exercises candidate publication, established recovery and empty-catalogue bootstrap recovery with their complete approved page assets and required HTTP 404 responses. A page-only fixture uses the same package source, tag, version, catalogue/package hashes, history and package marker with a changed page SHA and fresh archive digests, then restores the prior complete page and catalogue. Check exact retained bytes, source mismatch rejection, concurrent dispatch exclusion, interrupted/lost responses and duplicate-correlation holds. A pre-homepage retained generation restores its recorded root HTTP 404 and authenticates its package bytes. `hosted-feed-content.sh` supplies the native signed client proof for these controller cases. |
+| AC-06 | Scan the final approved site payload against synthetic private-marker fixtures and inspect its complete asset list, HTML and browser network requests. Check repository/package terminology and confirm the signing text directs readers to the guide's independent trusted-channel key check and that release links provide version/artifact information. The page's browser context needs no credentials to render. |
 
 ## Tasks
 
@@ -166,21 +224,8 @@ None yet; written after owner acceptance.
 
 ## Open Questions
 
-The owner selected reuse of the existing publisher for v1 on 15 November 2026.
-
-### Q1 — Homepage-only publication
-
-R-1 F-02 asks whether a homepage-only edit may reuse the approved package and tag with new retained page bundles, or must accompany a package release.
-Recommend allowing a separately approved page-only publication through the existing protected publisher.
-It would retain the exact package/catalogue bytes and package identity, verify the new complete site bundle and preserve the previous complete bundle for recovery.
-This requires implementation and its own proof.
-Owner answer pending.
-
-### Q2 — Served content verification
-
-R-1 F-04 asks whether publication must verify the actual public asset bytes and Content-Type headers, or the criterion should cover only uploader metadata in local fixtures.
-Recommend actual client-facing readback before successful closure.
-Owner answer pending.
+None.
+On 15 November 2026 the owner selected reuse of the existing publisher for v1, separately reviewed page-only publications reusing approved package identity, and public byte/header verification before successful closure.
 
 ## Review Log
 
@@ -250,5 +295,6 @@ PROPOSAL: Reset or update the button label on the fallback path, or clear the co
 - [Pages uploader](../../scripts/feed-pages-assets.mjs) owns the current path checks, asset upload and content-type selection.
 - [Recovery verifier](../../scripts/feed-recovery.sh) owns retained recovery checks.
 - [FreeBSD pkg repository manual](https://man.freebsd.org/cgi/man.cgi?query=pkg-repo&sektion=8) defines a catalogue containing available packages.
+- [Cloudflare Pages serving behaviour](https://developers.cloudflare.com/pages/configuration/serving-pages/) documents root 404 handling and the default SPA fallback when a top-level `404.html` is absent.
 - [Cloudflare Pages custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/) describes the existing static hosting and custom hostname boundary.
 - [Inter licence](https://github.com/rsms/inter/blob/v4.1/LICENSE.txt) permits the bundled font under the SIL Open Font License.

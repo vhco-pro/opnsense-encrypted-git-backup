@@ -40,6 +40,7 @@ copyButton.addEventListener('click', async () => {
     range.selectNodeContents(document.querySelector('#repository-url'));
     selection.removeAllRanges();
     selection.addRange(range);
+    copyButton.textContent = 'Selected';
     status.textContent = 'Select Copy on your device to copy the repository URL.';
   }
 });

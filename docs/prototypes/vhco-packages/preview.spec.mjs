@@ -55,6 +55,7 @@ test('URL copy resolves through the browser and denial selects the URL', async (
   await page.goto('/');
   await page.getByRole('button', { name: 'Copy repository URL' }).click();
   await expect(page.getByRole('status')).toHaveText('Repository URL copied.');
+  await expect(page.getByRole('button', { name: 'Copy repository URL' })).toHaveText('Copied');
   if (browserName === 'chromium') {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('https://pkg.vhco.pro');
   }
@@ -64,6 +65,8 @@ test('URL copy resolves through the browser and denial selects the URL', async (
   await page.getByRole('button', { name: 'Copy repository URL' }).click();
   await expect(page.getByRole('status')).toHaveText('Select Copy on your device to copy the repository URL.');
   expect(await page.evaluate(() => window.getSelection().toString())).toBe('https://pkg.vhco.pro');
+  await expect(page.getByRole('button', { name: 'Copy repository URL' })).toHaveText('Selected');
+  await expect(page.getByRole('status')).toBeInViewport();
 });
 
 test('storage denial preserves theme controls', async ({ page }) => {
@@ -83,10 +86,30 @@ test('reading and documentation links work without JavaScript', async ({ browser
     await page.goto(process.env.VHCO_PACKAGES_PREVIEW_URL);
     await expect(page.locator('h1')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Read the installation guide' })).toHaveAttribute('href', /\/docs\/installation\.md$/);
-    await expect(page.getByRole('link', { name: 'Signing keys and release notes' })).toHaveAttribute('href', /\/releases$/);
+    await expect(page.getByRole('link', { name: 'Release history' })).toHaveAttribute('href', /\/releases$/);
     await expect(page.locator('.copy-button')).toBeHidden();
     await expect(page.locator('.theme-toggle')).toBeHidden();
   } finally {
     await context.close();
+  }
+});
+
+
+test('signing guidance directs readers to independent key verification', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.signing-guide')).toContainText('independent trusted channel');
+  await expect(page.getByRole('link', { name: 'Signing instructions' })).toHaveAttribute('href', /\/docs\/installation\.md$/);
+  await expect(page.getByRole('link', { name: 'Release history' })).toHaveAttribute('href', /\/releases$/);
+});
+
+test('missing asset and catalogue routes return the explicit 404 document', async ({ request }) => {
+  const notFound = await request.get('/404.html');
+  expect(notFound.status()).toBe(200);
+  const expected = await notFound.text();
+  expect(expected).toContain('Page not found');
+  for (const path of ['/unknown', '/packagesite.txz', '/retired/meta.conf']) {
+    const response = await request.get(path);
+    expect(response.status()).toBe(404);
+    expect(await response.text()).toBe(expected);
   }
 });

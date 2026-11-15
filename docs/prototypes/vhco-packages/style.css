@@ -416,7 +416,9 @@ h2 {
 }
 
 .copy-status {
-  min-height: 22px;
+  min-height: 30px;
+  padding: 0 28px 10px;
+  background: var(--background);
   color: var(--brand);
   font-size: 12px;
 }

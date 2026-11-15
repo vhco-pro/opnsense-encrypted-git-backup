@@ -11,7 +11,7 @@ bun docs/prototypes/vhco-packages/preview.mjs
 
 The command prints a JSON readiness record containing its allocated loopback URL.
 Use the installed remote-gui share procedure to obtain an owner-restricted Tailscale preview.
-The process serves only the six explicitly named page assets and returns 404 for other paths.
+The process serves only the seven explicitly named page assets, including a top-level `404.html`, and serves that document with HTTP 404 for other paths.
 Stop it with Ctrl+C when the review ends.
 
 Install the repository's existing pinned browser-test dependencies with `bun install --frozen-lockfile --ignore-scripts`.
@@ -22,7 +22,7 @@ VHCO_PACKAGES_PREVIEW_URL=http://127.0.0.1:<allocated-port> bun node_modules/@pl
 ```
 
 The suite uses Chromium and Firefox at six viewports in both themes.
-It also checks URL copying and clipboard denial, theme persistence, keyboard navigation, unavailable storage and reading with JavaScript disabled.
+It also checks the explicit 404 response, independent-channel signing guidance, URL copying and clipboard denial after success, theme persistence, keyboard navigation, unavailable storage and reading with JavaScript disabled.
 Screenshots and failures are retained under the ignored `work/packages-preview/` directory.
 Chromium's copy case reads the resulting clipboard, and Firefox's observes the native write completing and its UI feedback.
 The production workflow and actual browser-zoom checks remain in the feature's implementation test plan.
