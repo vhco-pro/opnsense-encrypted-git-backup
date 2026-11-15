@@ -266,6 +266,7 @@ jobs:
           actual=$(openssl pkey -pubin -in "$FEED_PUBLIC_KEY" -outform DER | sha256sum | cut -d ' ' -f 1)
           test "$actual" = "$PUBLIC_KEY_SHA256"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERSION_RUN/attempts/$VERSION_ATTEMPT" > "$directory/run.json"
+          jq -e '.head_branch == "main"' "$directory/run.json" >/dev/null
           gh release download "$RELEASE" --repo "$GITHUB_REPOSITORY" --pattern "version-$VERSION_RUN-$VERSION_ATTEMPT.json" --dir "$directory"
           gh release download "$RELEASE" --repo "$GITHUB_REPOSITORY" --pattern advertised-packages.json --dir "$directory"
           if gh release download "$RELEASE" --repo "$GITHUB_REPOSITORY" --pattern operator-evidence.json \
