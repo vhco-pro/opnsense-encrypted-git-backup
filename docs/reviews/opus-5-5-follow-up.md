@@ -60,9 +60,31 @@ PR #2 was merged after owner approval. The authorized after-merge cleanup
 removed the original remote feature branch. The owner directed the same
 author to continue the revision and already approved source repairs on
 draft PR #5, on `docs/merged-implementation-status`. The branch in the
-specification now names that follow-up. The exact revised baseline awaits
-renewed acceptance before the lifecycle advances. The draft repairs do
-not authorize merge or production publication.
+specification now names that follow-up.
+
+R-55 reviewed `c21c21bc36bd57e6ebed2495745a1c07ac0ab67d` in Claude Code with the
+first-party `claude-opus-5-5` model and read-only source and Git mounts. It
+returned two documentation nits. Both selected blocks are verbatim. The
+additional AC-09 proof checks from R-53 and R-54 exercise what the selected
+contract already requires. They cover incomplete journal reads and
+missing or mismatched submission records.
+
+The R-55 acceptance row records the owner's selection of the described
+contract in session. The reviewed revision matches that selection.
+The owner was presented with the contract, and R-55 identifies the
+matching source commit. Merge and production publication still require
+separate approval.
+
+## Single-record verification
+
+At R-55 source `c21c21bc36bd57e6ebed2495745a1c07ac0ab67d`,
+`node --test tests/package/feed-publisher-http.mjs` passed the local
+publisher test. The loopback fixture checked that a truncated journal
+prevents restaging and create. It also checked that candidate read-back
+returning 404 or a different record prevents create and leaves a later
+dispatch on reconciliation hold. The recovery counterparts run in the
+native fixture. They were outside the local command and remain in T14
+pending native execution and implementation review.
 
 ## Exact repair verification
 
