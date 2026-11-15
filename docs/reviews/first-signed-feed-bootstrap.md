@@ -115,3 +115,13 @@ The package checkout still targets its approved source. The protected caller
 uses publication scripts from its own workflow commit so delivery fixes can
 reconcile an older release without rebuilding or moving its tag.
 [Failed reconciliation](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43729489795)
+
+First-party Claude Code Opus 5.5 reviewed the repair in a read-only
+checkout. The first pass found a missing completeness check in the
+definitive rejection path and an outdated documented limit. The follow-up
+at `70b3fa55725a7aaa9b67e7ee85e067d679b8683e` found no remaining
+issues in the scoped changes. The static review did not execute tests.
+The local loopback regression reproduced the HTTP 400 and premature
+rejection closure before their fixes, then passed with no new request
+or closure when the listing was incomplete. Hosted native verification
+runs separately.
