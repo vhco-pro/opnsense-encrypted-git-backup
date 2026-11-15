@@ -1,0 +1,19 @@
+name: Signed feed fixture registration
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Run the disconnected fixture on the reviewed feature branch
+        required: true
+        type: choice
+        options: [fixture]
+
+permissions: {}
+
+jobs:
+  registration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - run: echo 'Registration only. Select the reviewed feature branch to run the fixture.'
