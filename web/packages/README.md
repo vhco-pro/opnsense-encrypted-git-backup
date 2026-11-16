@@ -12,7 +12,7 @@ bun x playwright install chromium firefox
 bun run packages:preview
 ```
 
-The native Wrangler preview listens on `http://127.0.0.1:39441`. Stop it with Ctrl+C. Wrangler's ignored `.wrangler/` cache can remain between runs. Use the installed remote-gui procedure when sharing this local preview with the owner.
+The native Wrangler preview listens on `http://127.0.0.1:39441`. Stop it with Ctrl+C. Wrangler's ignored `.wrangler/` cache can remain between runs.
 
 ## Verify
 
@@ -29,6 +29,12 @@ bun run packages:browser --grep 'theme switch'
 ```
 
 The source scan uses `.gitleaks.toml`, extending upstream defaults and excluding generated Wrangler state and dependencies. Upstream defaults exclude scanner configuration, images and fonts. Review the configuration and the explicit public asset list directly. The workflow is the authoritative scanner image pin, and the local command reads it through Bun's YAML parser.
+
+When reference URLs change or preparing acceptance, follow every public reference and verify its final HTTP 200 route. This network check is separate from the deterministic local suite.
+
+```sh
+bun run packages:references
+```
 
 ## Publication
 

@@ -18,7 +18,9 @@ export async function verifySite(baseURL: string, options: { directory?: string;
   while (true) {
     try {
       for (const item of requests) {
-        const response = await fetch(new URL(item.url, origin), { signal: AbortSignal.timeout(10_000), cache: "no-store" });
+        const remaining = options.timeoutMs === 0 ? 10_000 : deadline - Date.now();
+        if (remaining <= 0) throw new Error("Public response verification timed out");
+        const response = await fetch(new URL(item.url, origin), { signal: AbortSignal.timeout(Math.min(10_000, remaining)), cache: "no-store" });
         const type = response.headers.get("content-type")?.split(";", 1)[0].trim();
         const expected = Buffer.from(await Bun.file(`${directory}/${item.file}`).arrayBuffer());
         const actual = Buffer.from(await response.arrayBuffer());

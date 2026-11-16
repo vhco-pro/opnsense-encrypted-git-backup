@@ -32,6 +32,6 @@ decision and would require upstream review.
 
 ## Package homepage
 
-The [VHCO Packages homepage](https://pkg.vhco.pro) lists repositories and setup guides.
+The VHCO Packages homepage source lists repositories and setup guides.
 See [homepage development and verification](web/packages/README.md) for its native preview,
 browser checks and independent Cloudflare pipeline.

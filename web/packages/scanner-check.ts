@@ -6,10 +6,10 @@ import { scan } from "./scan";
 const temporary = await mkdtemp(join(tmpdir(), "vhco-packages-scan-"));
 const token = "ghp_" + "Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr1St2Uv3Wx4";
 const cases = [
-  { path: "README.md", code: 1 },
-  { path: "wrangler.toml", code: 1 },
-  { path: "public/index.html", code: 1 },
-  { path: "public/_site/page.js", code: 1 },
+  { path: "README.md", code: 2 },
+  { path: "wrangler.toml", code: 2 },
+  { path: "public/index.html", code: 2 },
+  { path: "public/_site/page.js", code: 2 },
   { path: ".wrangler/probe.txt", code: 0 },
   { path: "node_modules/probe.txt", code: 0 },
 ];

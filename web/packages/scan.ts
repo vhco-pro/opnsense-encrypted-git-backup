@@ -9,7 +9,7 @@ export async function scan(directory = import.meta.dir) {
   const process = Bun.spawn([
     "docker", "run", "--rm", "--network", "none", "--read-only", "--cap-drop", "ALL",
     "--security-opt", "no-new-privileges", "--mount", `type=bind,source=${resolve(directory)},target=/scan,readonly`,
-    reference.slice("docker://".length), "dir", "--config", "/scan/.gitleaks.toml", "--redact=100", "--no-banner", "/scan",
+    reference.slice("docker://".length), "dir", "--config", "/scan/.gitleaks.toml", "--redact=100", "--no-banner", "--exit-code", "2", "/scan",
   ], { stdout: "inherit", stderr: "inherit" });
   return process.exited;
 }
