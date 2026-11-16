@@ -421,7 +421,11 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 
 ## Tasks
 
-Tasks follow owner acceptance.
+- [ ] T1 `tests/packages/source.test.ts`, `tests/packages/playwright.config.mjs`, `tests/packages/page.spec.mjs` - source and browser checks fail while production assets and the native preview command are absent (AC-01, AC-02, AC-03)
+- [ ] T2 `web/packages/public/`, `web/packages/wrangler.toml`, `web/packages/preview.ts`, `package.json`, `bun.lock`, `.gitignore` - adopt the reviewed page and native Wrangler preview so T1 and the browser matrix pass (AC-01, AC-02, AC-03)
+- [ ] T3 `tests/packages/delivery.test.ts` - byte/media-type, stale/restored content, native scanner exclusions and workflow checks fail before their production tooling exists (AC-04, AC-06, AC-07)
+- [ ] T4 `web/packages/`, `.github/workflows/packages-site.yml`, `renovate.json`, `package.json`, `bun.lock`, `README.md`, `AGENTS.md`, `docs/prototypes/vhco-packages/README.md` - implement the native verification and official-action pipeline, normal updater configuration and documented commands so T3 and the aggregate verification pass (AC-04, AC-06, AC-07)
+- [ ] T5 `docs/specs/vhco-packages-landing-page.md` - record actual managed-bot activation, independent implementation review, successful public CI and the authorised site cutover with live HTTP and native package re-observation (AC-04, AC-06, AC-07)
 
 ## Open Questions
 
