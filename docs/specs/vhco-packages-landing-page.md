@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "R-17 recorded with one should-fix finding and one nit. The remaining local routing model will be removed in favor of native asset checks and live route observations."
+status_description: "Local proof uses native asset serving and smoke checks. Route isolation is observed at cutover. The simplified draft awaits coordinated fresh review."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -211,7 +211,7 @@ flowchart LR
   Release[Versioned package release] --> Packages
 ```
 
-The fixture exercises the configured public files through native Wrangler and checks the intended routing boundary.
+The local fixture exercises the configured public files and error page through native Wrangler.
 The authorised cutover checks actual edge routing and redirect behaviour against the existing Pages custom domain.
 Missing catalogue and package paths return HTTP 404.
 Initial route activation follows the bootstrap's successful site upload and settings readback.
@@ -301,7 +301,7 @@ Retry failed public checks at five-second intervals for at most 60 seconds to al
 A stale HTTP 200 page fails the byte comparison.
 The ordinary Actions run reports the result.
 Local restoration and stale-response tests pass an owned loopback fixture URL to that same checker and require the selected host to be loopback.
-They use native Wrangler asset serving plus the owned HTTP fixture to vary responses and package-origin availability.
+They serve temporary copies of the current and restored page files through native Wrangler and compare the returned bytes/media types.
 These are local delivery simulations.
 The real official-action deployment and public checks are verified during the authorised production cutover.
 
@@ -322,7 +322,7 @@ The Actions run and Cloudflare deployment history identify the selected source a
 Existing PHP, native-browser, native-feed and package-publisher workflow definitions retain their current verification, triggers and source-proof contract.
 The site workflow's verification and deployment are independent of their results.
 Its source paths and workflow select its own checks.
-Review the feature diff to confirm that package workflow definitions were not changed, then verify that a failing native-feed run cannot become a passing package-source proof by skipping its fixture on a page-only commit.
+Static feature-diff review confirms that the existing package workflow definitions and native fixture checks remain intact.
 
 Other static-site consumers reuse the same upstream action with their own build, native command and hosting configuration.
 The shared standard and complete example are available on the shared docs main branch through Docs PR #46.
@@ -359,12 +359,12 @@ Ordinary page CI checks the explicit public files, required notices, its own blo
 The deployment publishes the checked-out site through the official action and performs the bounded public byte/media-type checks above.
 Page CI uses the exact native trigger paths listed above.
 One native package-client check during the separately authorised hosting cutover confirms that route isolation preserves catalogue authentication and package fetch.
-The routing fixture provides repeatable coverage for later page edits.
+Native asset and smoke checks provide repeatable local coverage for later page edits.
 
 Document the local workflow in `web/packages/README.md`, link it from the root README and add its commands to the AGENTS.md verification route.
 Bootstrap with `bun install --frozen-lockfile --ignore-scripts` and `bun x playwright install chromium firefox`.
 `bun run packages:preview` starts the owned loopback fixture with the static repository entries and prints its local URL.
-`bun run packages:verify` runs static checks, the pinned redacted scanner, the native routing fixture and the explicit `tests/packages/` Chromium/Firefox suite.
+`bun run packages:verify` runs static checks, the pinned redacted scanner, native Wrangler asset/404 smoke checks and the explicit `tests/packages/` Chromium/Firefox suite.
 Document Docker with daemon access as a local scanner prerequisite.
 The local scanner reads the `secrets` step's immutable `uses: docker://` reference from `.github/workflows/packages-site.yml` with Bun's built-in YAML parser and runs that same image through Docker, with a read-only `web/packages/` mount and network disabled.
 This workflow reference is the single authoritative scanner pin.
@@ -400,9 +400,9 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 | AC-01 | Serve the production static directory in the packages Playwright fixture. Check the actual package identifier and repository URL, follow the setup anchor and verify each public reference's final route. A two-entry synthetic page checks that another authored repository can be listed. |
 | AC-02 | Run the specified viewport/theme matrix in Chromium and Firefox. Check overflow, readable type, 44-pixel touch targets, focus and headings. Inspect representative screenshots. Exercise actual 200 percent browser zoom and record its method and resulting viewport. |
 | AC-03 | Run the current prototype's keyboard switch, saved theme, storage denial, URL copy, clipboard failure after success and JavaScript-disabled cases against the production static files. Check the switch state and reduced-motion behaviour. |
-| AC-04 | **Static checks** require the Wrangler file to have no `route` or `routes` key. **Local checks** serve production files through native Wrangler, verify root/prefixed assets and media types, missing-asset HTTP 404 and a synthetic package origin through the routing fixture. **Live cutover observation** checks the actual root with/without a query, queried asset, missing paths, exact public bytes/media types and native signed catalogue authentication/package fetch. **Independent re-observation** repeats public GETs and native pkg verification from the identified source and public signing inputs. Record response status/hash/media-type summaries, source SHA, run/attempt and native deployment/version ID in this document. The opaque Lab revision is a rollout reference only. Public behavior is verified through these actual reads; private Lab review is outside this criterion's proof. |
+| AC-04 | **Static checks** require the Wrangler file to have no `route` or `routes` key. **Local checks** serve production files through native Wrangler, verify root/prefixed assets and media types, missing-asset HTTP 404 and the smoke checker. **Live cutover observation** checks the actual root with/without a query, queried asset, missing paths, exact public bytes/media types and native signed catalogue authentication/package fetch. **Independent re-observation** repeats public GETs and native pkg verification from the identified source and public signing inputs. Record response status/hash/media-type summaries, source SHA, run/attempt and native deployment/version ID in this document. The opaque Lab revision is a rollout reference only. Public behavior is verified through these actual reads. Private Lab review is outside this criterion's proof. |
 | AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks source scan. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require every introduced action/container ref, verified release/digest and runtime input to appear, including checkout, setup-bun, wrangler-action, Bun and the scanner image. Require Bun extraction of Wrangler and Playwright with `bun.lock` and a tool update whose regenerated lock passes the frozen install. Validate the consumer against the actual shared Renovate baseline and require managed App access plus a Dashboard entry or update proposal for the scanner image. Record an unavailable updater as unmet or through a separately approved tracked residual. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
-| AC-07 | **Static checks** run actionlint, validate official action inputs, read-only PR permissions, absence of PR Cloudflare inputs, successful-verification dependency, publication-flag/main conditions, independent site concurrency group and absence of package-tag/publish mutations. Desk-review the exact native `if:` and `needs` conditions against GitHub's documented contexts. PR verification runs read-only without Cloudflare inputs; a non-main ref, disabled flag or failed verification excludes deployment; successful verification on enabled main permits deployment. Compare the job-level verification cancellation and independent non-cancelling deployment groups with GitHub's documented semantics, requiring no workflow-level cancelling group and no extra live deployments. **Local checks** run the documented aggregate command, synthetic secret/error cases, source-restoration/stale-byte HTTP fixture with the package origin unavailable, exact restored bytes/media types and root-lockfile trigger coverage. The source-restoration proof is local. **Live cutover observation** is the one normal protected main dispatch already named in Design, including its actual verification/deployment jobs and public smoke; read the native GitHub environment policy then. **Independent re-observation** reads the public run/job/workflow and environment-policy records, repeats public HTTP/pkg checks and labels one-time operator actions as recorded evidence. Public criterion evidence holds the run/attempt, source SHA, optional opaque rollout revision and native deployment/version identifiers. The private Lab rollout reference is recorded outside the public criterion proof, in the private VitePress execution record, with its opaque revision in public evidence. |
+| AC-07 | **Static checks** run actionlint, validate official action inputs, read-only PR permissions, absence of PR Cloudflare inputs, successful-verification dependency, publication-flag/main conditions, independent site concurrency group and absence of package-tag/publish mutations. Desk-review the exact native `if:` and `needs` conditions against GitHub's documented contexts. PR verification runs read-only without Cloudflare inputs. A non-main ref, disabled flag or failed verification excludes deployment. Successful verification on enabled main permits deployment. Compare the job-level verification cancellation and independent non-cancelling deployment groups with GitHub's documented semantics, requiring no workflow-level cancelling group and no extra live deployments. **Local checks** run the documented aggregate command, synthetic secret/error cases, source-restoration/stale-byte checks against native Wrangler serving temporary asset copies, exact restored bytes/media types and root-lockfile trigger coverage. The source-restoration proof is local. **Live cutover observation** is the one normal protected main dispatch already named in Design, including its actual verification/deployment jobs and public smoke. Read the native GitHub environment policy then. **Independent re-observation** reads the public run/job/workflow and environment-policy records, repeats public HTTP/pkg checks and labels one-time operator actions as recorded evidence. Public criterion evidence holds the run/attempt, source SHA, optional opaque rollout revision and native deployment/version identifiers. The private Lab rollout reference is recorded outside the public criterion proof, in the private VitePress execution record, with its opaque revision optionally in public evidence. |
 
 ## Tasks
 
