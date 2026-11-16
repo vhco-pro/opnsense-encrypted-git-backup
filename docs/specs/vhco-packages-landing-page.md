@@ -1,15 +1,19 @@
 ---
 status: draft
-status_description: "Independent static homepage draft awaits routing proof and fresh review."
+status_description: "Native static hosting and the official deployment action are selected for fresh spec review."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
   - README.md
   - web/packages/
+  - package.json
+  - bun.lock
   - docs/prototypes/vhco-packages/
   - tests/browser/packages.spec.mjs
   - tests/browser/packages.config.mjs
   - .github/workflows/packages-site.yml
+  - .github/workflows/php.yml
+  - .github/workflows/native-browser.yml
 ---
 
 # VHCO Packages landing page
@@ -33,10 +37,12 @@ They identify the artifact digest and the producing workflow/source identity.
 The package build and release path owns their adoption.
 FreeBSD's native signed catalogue remains the installation trust mechanism described in the current guide.
 
-The remaining hosting work is to prove independent page and package routing under the same hostname.
-The design must preserve package URLs and permit page deployment during a package-publication failure.
+The owner selected native Cloudflare static hosting with narrow homepage routes and pipeline-managed deployment on 16 November 2026.
+The site uses the official Cloudflare Wrangler action after its verification passes.
+Package URLs continue directly to their existing Pages origin.
 A normal redeploy or Cloudflare rollback recovers a broken page.
-The page adds its own static deployment and browser checks.
+The site pipeline uses a credential for the existing site Worker.
+Lab owns the initial Worker, route, redirect and deployment-environment setup.
 
 The prototype passed 40 local Chromium/Firefox cases.
 Production hosting and native attestation integration are still unimplemented.
@@ -56,6 +62,12 @@ The existing publisher deploys a complete retained Pages bundle through `scripts
 Deploying only a homepage directory into that Pages project would replace the package snapshot.
 Cloudflare documents static asset hosting and path-based routing, which provide a platform-native approach to examine before implementation.
 The precise route configuration requires verification against the existing Pages custom domain.
+
+The owner also selected the official action as the shared default for pipeline-driven static Cloudflare hosting.
+The proposed shared standard is [Docs PR #46](https://github.com/vhco-pro/docs/pull/46).
+The current VHCO Worker CI action explicitly rejects an `assets` configuration and requires a single JavaScript module (`worker-ci-action@5ef3cf6`, `scripts/verify.ts:40-44`).
+The existing Worker deploy action verifies an exact release tag and `worker.mjs` (`worker-deploy-action@bcf1117`, `scripts/activate.ts:26-44`).
+The official action supports Bun and multiple native Wrangler commands through its declared inputs at `953926a2e2182532811c01a25e53647d93bf07c0`.
 
 ### Prototype verification
 
@@ -94,8 +106,9 @@ Add a generic homepage at pkg.vhco.pro with the VHCO mark, website styling and c
 Provide setup, compatibility, source and release links and a copyable repository URL.
 Support reading and navigation through HTML, with theme selection and URL copying as progressive browser enhancements.
 
-Keep the v1 page source in this repository under `web/packages/`.
-Deploy those static files independently through Cloudflare using its supported tooling.
+Keep the v1 page source and generic static configuration in this repository under `web/packages/`.
+Deploy through the official `cloudflare/wrangler-action` from the site's GitHub workflow.
+Lab supplies the deployment-specific infrastructure and GitHub environment inputs ahead of the first live deployment.
 Page delivery uses the reviewed Git commit and ordinary workflow results.
 Any package version displayed on the page comes from that artifact's published release.
 The release link remains the reference for its version and download.
@@ -130,10 +143,18 @@ Use semantic headings, a skip link, visible keyboard focus and responsive text.
 
 ### Independent hosting
 
-The intended routing separates the page and its dedicated static asset paths from native repository paths.
-Cloudflare serves each through its own deployment target.
-A homepage workflow deploys only its page target from the checked-out source.
-Package publication addresses the existing feed target.
+Use Cloudflare Workers Static Assets for the homepage and a dedicated `/_site/` asset prefix.
+Production files live in `web/packages/public/`, with `index.html` and `404.html` at that directory's root and the stylesheet, browser script, logo, font and both notices under `_site/`.
+HTML and stylesheet references use the same public prefix.
+The generic Wrangler configuration at `web/packages/wrangler.toml` points its assets directory at `public/`, uses the native `404-page` setting and disables workers.dev and preview URLs.
+
+Lab provisions the site Worker and two routes, `pkg.vhco.pro/` and `pkg.vhco.pro/_site/*`.
+Initial setup verifies the proxied hostname and checks the site-specific routes and redirect for conflicts with existing rules.
+Other request paths reach the existing Pages package origin through the current DNS configuration.
+The exact-root route matches query-free root URLs.
+A native Single Redirect matches host `pkg.vhco.pro`, path `/` and a nonempty query, returns HTTP 301 to `https://pkg.vhco.pro/` and sets `preserve_query_string=false`.
+This canonicalises a homepage query URL before the visitor requests the exact root.
+Site asset queries match the prefixed wildcard route.
 
 ```mermaid
 flowchart LR
@@ -145,18 +166,37 @@ flowchart LR
   Release[Versioned package release] --> Packages
 ```
 
-Cloudflare's static Workers assets and narrow routes are a candidate for keeping the canonical root and a dedicated asset prefix on the existing hostname.
-Routing must be proved before accepting that topology.
-The fixture must exercise the actual supported Cloudflare configuration, including query strings and native package requests.
+The fixture exercises the configured public files through native Wrangler and checks the intended routing boundary.
+The authorised cutover checks actual edge routing and redirect behaviour against the existing Pages custom domain.
 Missing catalogue and package paths return HTTP 404.
-An incompatible topology returns to design before any production route change.
+Initial route activation follows a successful site upload, with native package verification immediately after cutover.
 
-Production deployment uses Cloudflare's supported CLI or native Git integration.
-It publishes the site directly after its own successful browser checks.
-Use one site-deployment concurrency group and normal workflow cancellation for superseded page work.
-Page deployment needs its Cloudflare deployment permission.
-Package signing credentials belong to the package path.
-Exact route configuration and the Cloudflare credential requirements follow the verified hosting choice.
+### Pipeline and reuse
+
+Use `cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0` (v4.1.3) directly in `.github/workflows/packages-site.yml`.
+Install Wrangler as an exact root development dependency through the existing Bun lockfile, then select `packageManager: bun` in the action.
+The action uses the installed tool.
+The consumer's workflow owns its static-file checks, browser suite and HTTP smoke check.
+Pull requests run read-only verification, and a main-branch push deploys after that same verification succeeds.
+
+The deployment job uses the site's GitHub environment for the Cloudflare account, Worker name and deployment credential.
+Its credential grants native Editor access to the existing site Worker.
+Initial infrastructure setup owns Worker creation, the two routes and the redirect.
+The consumer pipeline operates on the configured Worker through two native commands in the official action's multiline `command` input.
+Run `versions upload` with the static config, configured Worker name and an annotation tag formed from the GitHub run ID and attempt.
+Then run `versions deploy` for that annotation tag at 100 percent, using `--version-tag` and `--yes`.
+These are Cloudflare's deployment identifiers for the Actions run.
+Any package version displayed by the page is the package artifact's release version.
+The pipeline's root and asset HTTP smoke check reports its deployment result through the normal Actions run.
+
+Use one deployment concurrency group for this site and cancel superseded page work.
+An interrupted or failed page run is followed by a normal rerun or source redeploy.
+Appliance and native-feed CI run for changes affecting those artifacts, while page-only changes use the site checks.
+Shared dependency and workflow changes receive all affected verification.
+The workflow-trigger checks cover page-only, plugin-only, mixed and shared-lockfile changes.
+
+Other static-site consumers reuse the same upstream action with their own build, native command and hosting configuration.
+The shared standard and complete example are proposed in Docs PR #46.
 
 A page failure is recovered by redeploying a known source commit or using Cloudflare's native deployment rollback.
 A concurrent package publication or package recovery can proceed against the feed target.
@@ -183,7 +223,7 @@ Check keyboard navigation, the switch, saved preference, clipboard denial, unava
 Inspect representative mobile and desktop captures and run actual 200 percent browser zoom before implementation completion.
 
 Ordinary page CI checks the explicit public files, required notices, existing secret scan and browser suite.
-The deployment publishes the checked-out site through native Cloudflare tooling and performs a root/assets HTTP smoke check.
+The deployment publishes the checked-out site through the official action and performs a root/assets HTTP smoke check.
 Page CI is scoped to the site source and its workflow/tests.
 One native package-client check during the separately authorised hosting cutover confirms that route isolation preserves catalogue authentication and package fetch.
 The routing fixture provides repeatable coverage for later page edits.
@@ -213,9 +253,9 @@ The routing fixture provides repeatable coverage for later page edits.
 | AC-01 | Serve the production static directory in the packages Playwright fixture. Check the actual package identifier and repository URL, follow the setup anchor and verify each public reference's final route. A two-entry synthetic page checks that another authored repository can be listed. |
 | AC-02 | Run the specified viewport/theme matrix in Chromium and Firefox. Check overflow, readable type, 44-pixel touch targets, focus and headings. Inspect representative screenshots. Exercise actual 200 percent browser zoom and record its method and resulting viewport. |
 | AC-03 | Run the current prototype's keyboard switch, saved theme, storage denial, URL copy, clipboard failure after success and JavaScript-disabled cases against the production static files. Check the switch state and reduced-motion behaviour. |
-| AC-04 | Exercise the actual Cloudflare routing configuration in an owned fixture. Root and site assets serve successfully, including root query strings. Native catalogue and package requests reach the feed target. Missing native paths return HTTP 404. Replace and roll back the site while a synthetic feed target serves recorded fixture bytes, then compare the responses with those bytes. At authorised cutover perform root/assets smoke checks and native catalogue authentication plus exact package fetch against the real hostname. |
+| AC-04 | Serve the production directory through native Wrangler. Check the root and every prefixed asset's HTTP response and media type, plus native missing-asset HTTP 404. The routing fixture checks the exact root, the `/_site/*` prefix and the canonical-query redirect, with package and catalogue requests reaching a synthetic feed target. Replace and roll back the site while that target serves recorded fixture bytes, then compare responses with those bytes. At authorised cutover verify the actual hostname's root with and without a query, an asset with a query, missing paths, root/assets smoke responses and native catalogue authentication plus exact package fetch. Local Wrangler proof is recorded separately from live edge proof. |
 | AC-06 | Check the explicit public asset list, both licence notices and existing Gitleaks scan. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
-| AC-07 | Run the site's normal workflow against an owned isolated deployment. Publish a changed page and redeploy its previous commit while a synthetic package publisher is unavailable. Verify the page changes, its prior content can be restored and the package target retains its recorded file hashes. Review the workflow's mutations and require them to be confined to site deployment. Native platform deployment history provides the page deployment record. |
+| AC-07 | Run actionlint and verify the selected official action's supplied inputs against its exact metadata. The site workflow installs the locked tool and uses the upstream action for native upload and deployment. Check that PR verification has read-only GitHub permissions and can finish without a Cloudflare credential, failed verification prevents deployment and successful main verification permits the configured site job. Exercise workflow selection for page-only, plugin-only, mixed and shared-lockfile changes. Run the normal site workflow against an owned isolated deployment. Publish a changed page and redeploy its previous commit while a synthetic package publisher is unavailable. Verify the page changes, its prior content can be restored and the package target retains its recorded file hashes. Review the workflow's mutations and require them to be confined to site deployment. Native platform deployment history provides the page deployment record. |
 
 ## Tasks
 
@@ -223,26 +263,7 @@ Tasks follow owner acceptance.
 
 ## Open Questions
 
-### Q8 — Which native hosting arrangement should serve the independent page?
-
-The owner selected an independently deployed static homepage and native artifact provenance on 16 November 2026.
-That direction supersedes Q7's joint-lifecycle decisions.
-
-Recommend an assets-only Cloudflare deployment reached through `pkg.vhco.pro/` and `pkg.vhco.pro/_site/*`.
-The existing Pages project remains the origin for package paths.
-Cloudflare's documented route matching includes the query string, so an exact-root route needs a canonical redirect for root URLs carrying a query.
-One native Single Redirect would match this hostname, path `/` and a nonempty query, return HTTP 301 to `https://pkg.vhco.pro/` and set `preserve_query_string=false`.
-This uses the existing hosting platform's static assets and routing controls.
-
-| Option | You get | It costs |
-| --- | --- | --- |
-| A. Static assets and narrow routes, recommended | Independent page deployment at the existing root, with package paths routed directly to their existing origin. | One static deployment, two routes and one canonical-query redirect to configure and verify at cutover. |
-| B. Adjust the hosting topology | A different hosting or address arrangement selected by the owner. | Another design choice about the public address or request routing. |
-
-This choice determines which hosted target and rules serve the public homepage.
-The local dry run and browser checks passed for the proposed assets-only target.
-Actual edge routing, existing-rule compatibility, native package retrieval and independent rollback remain live cutover checks.
-The design choice is pending the owner's answer.
+None. The owner selected native static hosting and the official action on 16 November 2026.
 
 ## Review Log
 
@@ -543,6 +564,12 @@ PROPOSAL: Name where the observation is stored, or drop the recording step and k
 - [GitHub artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations) documents digest-bound provenance and workflow/source identity.
 - [Native attestation generation](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations) documents the producing job, native action and required OIDC/attestation permissions.
 - [GitHub CLI verification](https://cli.github.com/manual/gh_attestation_verify) documents verification of the downloaded artifact and signer restrictions.
+- [Official Wrangler action metadata](https://github.com/cloudflare/wrangler-action/blob/953926a2e2182532811c01a25e53647d93bf07c0/action.yml) declares the Bun package manager and multiline native command inputs.
+- [Worker CI source](https://github.com/vhco-pro/worker-ci-action/blob/5ef3cf6b375c6247a28fffb7c19b8d6c5aae97c3/scripts/verify.ts) rejects static assets in its single-module profile.
+- [Worker deploy source](https://github.com/vhco-pro/worker-deploy-action/blob/bcf11171c29a610971f45a867daba8c684c7d198/scripts/activate.ts) verifies exact tag and module release inputs.
+- [Proposed static-site standard](https://github.com/vhco-pro/docs/blob/3429803126d0a6599c1f3f9ce55f6362d102492c/conventions/cloudflare-static-sites.md) records the owner-selected shared default in Docs PR #46.
+- [Native Worker commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/) document upload and deployment through native version annotations.
+- [Workers permissions](https://developers.cloudflare.com/workers/authorization/workers/) documents existing-Worker Editor access and separate route-write permissions.
 - [Cloudflare static assets](https://developers.cloudflare.com/workers/static-assets/) documents native static hosting and its deployed asset versions.
 - [Cloudflare routes](https://developers.cloudflare.com/workers/configuration/routing/routes/) documents path matching, query-string behaviour and the proxied-host requirement.
 - [Cloudflare Single Redirect settings](https://developers.cloudflare.com/rules/url-forwarding/single-redirects/settings/) documents static targets and query-string removal.
