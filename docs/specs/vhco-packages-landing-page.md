@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "R-8 findings addressed by removing backend CI filtering and clarifying independent site verification, deployment concurrency and source restoration. Fresh review pending."
+status_description: "R-9 recorded with four should-fix findings for suite isolation, live smoke checks, scanner updates and shared version history."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -325,6 +325,8 @@ None. The owner selected native static hosting and the official action on 16 Nov
 | 2026-11-16 | R-6 | spec | `2589d822e1be608a5867232dba7a995cccf98bba` | claude-opus-5-5 | procedural | Four should-fix findings and one nit. Static read-only source/Git snapshots matched. Pinned lint/fresh and repository checks were not executed after host refusal. |
 | 2026-11-16 | R-7 | spec | `daaadce631326105842f7165640d697dc9e8fe67` | claude-opus-5-5 | procedural | Five should-fix findings. First-party primary reviewer attested, with Haiku also listed separately in usage metadata. Independent lint passed, fresh reported baseline/covered drift, and the boundary denied the planned gate and repository tests. Read-only snapshots matched. |
 | 2026-11-16 | R-8 | spec | `a19054e76b712b303c936efdf2d6558d3b40fe83` | claude-opus-5-5 | procedural | Five should-fix findings. First-party primary reviewer attested, with Haiku also listed separately in usage metadata. Independent lint passed, fresh reported the expected baseline change, and the planned gate and two shell requests were denied. Repository tests were unexecuted. Read-only snapshots matched. |
+
+| 2026-11-16 | R-9 | spec | `7b9348cea8ccbaccc0333e4e73010d9491e4ccad` | claude-opus-5-5 | procedural | Four should-fix findings. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint passed, fresh reported expected baseline change, and gate/repository checks were denied or unexecuted. Read-only snapshots matched. |
 
 ### R-1
 
@@ -686,6 +688,38 @@ SEVERITY: should-fix
 WHERE: Owner summary lines 45 and 49, Scope line 118, Design (Pipeline and reuse) lines 228-231 and 243, Test Plan AC-07
 EVIDENCE: The design recovers a page by "a normal rerun or source redeploy" (line 228) or by "redeploying a known source commit" (line 243). The only defined way to deploy a chosen older commit is a rerun, which uses the original run's commit (line 229). GitHub's re-run documentation says a run can be re-run "up to 30 days after its initial run", at most 50 times, with "the privileges of the actor who initially triggered the workflow". The design defines triggers only for pull requests and main pushes (line 212) and no `workflow_dispatch` with a source input. Docs PR #46 at 105e87c allows "an explicitly authorised dispatch", while line 215 lets only branch `main` use the environment. So after 30 days, "redeploying a known source commit" has no defined mechanism. One implementer would add a dispatch with a commit input, and that checks out arbitrary history under the main-only environment. Another would rely only on revert commits or Cloudflare rollback. The document also does not say who performs a Cloudflare rollback or with which credential. AC-07 tests only a rerun of a recent run.
 PROPOSAL: State the recovery paths and their limits: rerun within 30 days, Cloudflare rollback naming the actor and credential, and a revert commit or a defined dispatch for older content. If a dispatch is kept, state whether it may select a source other than main's head. Add the selected path to AC-07.
+
+### R-9
+
+TARGET: 7b9348cea8ccbaccc0333e4e73010d9491e4ccad
+
+FINDING: F-01
+KIND: factual
+SEVERITY: should-fix
+WHERE: Frontmatter covers lines 6-14, Owner summary line 47, Design (Pipeline and reuse) lines 241-244, Design (Browser and workflow checks) lines 268 and 273-277, Test Plan AC-01, AC-03, AC-07
+EVIDENCE: The design puts the site suite at `tests/browser/packages.spec.mjs` (covers line 12) and says the PHP, native-browser, native-feed and publisher workflows "retain their current verification, triggers and source-proof contract" (line 241). The root `playwright.config.ts:4` sets `testDir: './tests/browser'` with no `testMatch` or `testIgnore`, so Playwright's default spec pattern also picks up `packages.spec.mjs`. The appliance run calls `bun x playwright test` with that root config and no grep (tests/appliance/browser.sh:50), and native-browser.yml runs that script on every pull request and main push (.github/workflows/native-browser.yml:3-7,37-40). So the homepage suite would run inside the appliance job against `baseURL: process.env.FIXTURE_APPLIANCE_URL` (playwright.config.ts:9). It would either fail native-browser on every change or quietly change what that check covers, even though no workflow file changed. Adding Wrangler to the shared `package.json` and `bun.lock` also changes what native-browser.yml installs (`bun install --frozen-lockfile`, line 33). `playwright.config.ts` and `tests/appliance/browser.sh` are not in `covers`. The AC-07 check "package workflow files retain their existing definitions" passes in this case, because it compares only workflow definitions. Tool record for this pass: `vh-adlc lint docs/specs/vhco-packages-landing-page.md --repo <clone> --plugin-pin 1ccf8f314575ece1f3fcc8e48c4fd804a1ca88ff` passed with no findings. `vh-adlc fresh` with the same arguments reported R-8 stale (`baseline-changed`), no implementation review (`no-review`) and a clean feature tree. The host permission mode denied `vh-adlc gate planned`, a combined lint/fresh/gate/next command, `git diff` against the R-8 commit and a final `git status`. Repository checks (PHP lint, phpcs, phpstan, phpunit, actionlint, Playwright) were not run. The other evidence came from reading files and from public documentation fetches. I used no live provider access.
+PROPOSAL: Either keep the site suite out of the root config's collection (a separate directory or a root `testIgnore`), or list `playwright.config.ts` in `covers` and state the exclusion. Add an AC-07 check that the appliance Playwright run collects only its existing specs after the change.
+
+FINDING: F-02
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) line 226, Design (Browser and workflow checks) line 274, Owner summary line 46, Test Plan AC-04, AC-07
+EVIDENCE: The pipeline's only post-deployment observation is "root and asset HTTP smoke check" (lines 226 and 274). The document does not say which URL it targets. workers.dev and preview URLs are disabled (line 152), so only the public routes remain. It also does not say what the check compares. One implementer would accept HTTP 200 from `/` and one asset. Another would compare the served bytes and media types with this run's checked-out `web/packages/public/` files, with a bounded retry for propagation. A status-only check passes when `versions deploy` did not take effect and the previous content is still served, or when a source restoration (line 235) left old bytes live. Both the AC-07 restoration proof and the shared standard's "Run a public HTTP smoke check after deployment" (Docs PR #46 at 2028365) would accept that result. The AC-04 row lists "root/assets smoke responses" without a pass condition.
+PROPOSAL: State the smoke check's target URLs and pass condition: the root and each `_site/` asset must return the checked-out bytes and expected media types, within a stated retry bound. Add an AC-07 case where stale content is served after deployment and the smoke check must fail.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 209-212, Design (Browser and workflow checks) line 273, Test Plan AC-06, AC-07, Sources line 703
+EVIDENCE: Line 210 says to "let the repository's updater discover the container pin". The repository has no updater configuration: no `renovate.json` and no `.github/dependabot.yml` (Grep over the tree finds only the stale `renovate.json` entry at docs/specs/native-encrypted-git-backup.md:26). The pinned delivery convention says every dependency must be discoverable by the update tool and "Adding a dependency includes confirming the updater will propose its next version" (conventions/delivery.md:153-160). The document leaves open how the image is referenced. Renovate's GitHub Actions manager reads `uses: docker://...` and job `container:` images, but not an image inside a `docker run` shell step. So one implementer would write a `docker run ghcr.io/gitleaks/gitleaks:<v>@sha256:...` step that never gets updates, and another would write a `uses: docker://` step. Both pass the AC-06 and AC-07 rows, because neither row checks updater discovery. The Gitleaks README also says the project is feature complete and future releases are security patches only, which makes receiving those updates more important. The rest of the scanner contract matches upstream: `gitleaks dir`, `--redact` defaulting to 100, `--no-banner`, exit code 1 for leaks or errors, the ghcr.io and Docker Hub images, and the MIT licence at v8.30.1.
+PROPOSAL: Name the reference form for the Gitleaks image, for example `uses: docker://ghcr.io/gitleaks/gitleaks:<version>@sha256:<digest>`, and the updater that will track it. Add an AC-06 or AC-07 check that the updater lists the pin.
+
+FINDING: F-04
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Owner summary line 29, Scope lines 115-117, Acceptance Criteria AC-07, Test Plan AC-07
+EVIDENCE: The Owner summary says "The package artifact keeps its existing shared GitVersion version", and AC-07 requires page edits to deploy independently of "version calculation". The page source lives in the same repository and on the same `main` that the package tag job versions (.github/workflows/feed.yml:82-108, shared GitVersion action). The pinned convention makes commit subjects decide version intent: `feat` is minor, `fix` and `chore` are patch, and `docs`, `style`, `test` and `ci` do not normally bump (conventions/delivery.md:30-40). So a `feat(packages): add repository entry` or `fix(packages): correct link` page commit raises the next plugin package version even when no plugin bytes changed. Wrangler or Playwright `chore(deps)` updates do the same. Page deployment does not depend on version calculation, but version calculation does depend on page commits, and the document never says whether that is intended. Implementers and committers could follow either convention, and the AC-07 row has no check either way.
+PROPOSAL: State whether page-only commits may change the package's next GitVersion number. If they should not, name the commit type page and site-tooling changes use and check it in AC-07. If they may, say so in the Owner summary.
 
 ## Sources
 
