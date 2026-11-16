@@ -1,9 +1,10 @@
 ---
 status: draft
-status_description: "R-4 recommendations applied to the draft following owner continuation; final acceptance pending."
+status_description: "R-5 owner choices recorded; technical revision and logo notice prepared for review."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
+  - README.md
   - web/packages/
   - docs/prototypes/vhco-packages/
   - scripts/feed-pages-assets.mjs
@@ -15,12 +16,18 @@ covers:
   - scripts/feed-recovery.sh
   - scripts/feed-close.sh
   - scripts/feed-preflight.sh
+  - scripts/feed-retirement.sh
+  - scripts/feed-journal-generation.jq
+  - scripts/feed-history.jq
+  - scripts/feed-bundles.sh
+  - scripts/retain-feed-bundles.sh
   - tests/package/feed-http-inputs.mjs
   - tests/package/feed-preflight-test.sh
   - tests/package/feed-publisher-http.mjs
   - tests/package/hosted-feed-content.sh
   - tests/browser/packages.spec.mjs
   - tests/browser/packages.config.mjs
+  - .github/workflows/php.yml
   - .github/workflows/feed.yml
   - .github/workflows/feed-fixture.yml
 ---
@@ -34,6 +41,7 @@ covers:
 Give `pkg.vhco.pro` a VHCO-branded homepage listing its package repositories and setup guides.
 The first entry is the published OPNsense repository and encrypted Git backup plugin.
 Use the actual company logo, Inter font, brand gradient and light/dark themes.
+A logo-specific rights notice accompanies the company mark.
 The static page supports reading and links through HTML, with theme selection and URL copying as browser enhancements.
 
 The existing protected publisher carries the page in its approved candidate and recovery archives.
@@ -44,14 +52,18 @@ An explicit 404 document preserves the package clients' missing-path behaviour.
 Recovery restores the prior served page and catalogue and verifies metadata for the recovery attempt.
 Replay uses the original predecessor, including after a lost closure response.
 An empty predecessor is verified as an empty site.
+A predecessor serving a bootstrap recovery page is verified as that page with an empty catalogue.
 Completed catalogue withdrawals carry forward with `authorize_retirement=false` for page-only updates.
 
 Complete pagination replaces the current 25-deployment and single-page journal read limits.
 Incomplete, inconsistent or changing inventories hold publication.
+GitHub's separate 1,000-assets-per-release quota remains a capacity limit, with a hold before further feed publication when required retention exceeds it.
 Approved public-file provenance, the existing Gitleaks checks and a final payload review cover public content.
-The protected job verifies page commits against main, and retained page-source metadata stays inside the archives.
+The protected job verifies page commits against main and their successful source-CI run.
+Its required environment approval records manual review of the exact run's bundle inputs.
+Retained page-source metadata stays inside the archives, and publication mode is bound into the approval and submission record.
 
-The committed prototype passed 36 local Chromium/Firefox scenarios.
+The committed prototype passed 38 local Chromium/Firefox scenarios.
 Production assembly, paginated inventory, native recovery and live Cloudflare checks remain planned implementation proof.
 The specification stays draft for independent review and final owner acceptance.
 
@@ -74,10 +86,12 @@ The pagination design below replaces these single-page restrictions.
 
 ### Prototype verification
 
-The 36 focused prototype scenarios passed locally with the repository's locked Playwright 1.59.1 in Chromium and Firefox.
+The 38 focused prototype scenarios passed locally with the repository's locked Playwright 1.59.1 in Chromium and Firefox.
 The checks exercised six viewport sizes in both themes, keyboard access, theme persistence, URL copying, denied clipboard/storage access, explicit missing-route HTTP 404 responses, independent-channel signing guidance and reading with JavaScript disabled.
 The R-1 copy-state, signing-text and missing-route regressions first failed against the original prototype, then passed after correction.
 Their failing output remains under ignored `work/packages-preview-r1-red-host/`.
+The logo-notice regression also failed in both engines before the notice and link were added, then passed in the complete 38-case run.
+Its initial output remains under ignored `work/packages-preview-logo-red/`.
 Representative desktop and mobile captures were inspected.
 The actual owner-restricted HTTPS share also loaded its assets, changed theme and navigated to setup.
 Its browser clipboard policy used the tested URL-selection fallback.
@@ -108,7 +122,9 @@ The overview links to the repository's compatibility and installation guides and
 
 The landing page uses the site's Inter font, cyan/blue/purple gradient, rounded controls and restrained card styling.
 The company logo is copied from its actual site asset.
-Font licensing and asset provenance accompany the source.
+The logo uses the owner-selected `VHCO-LOGO-NOTICE.txt`, reserving VH & Co's logo rights and permitting display and redistribution with this project when that notice is retained.
+The source, preview and published asset sets retain this notice with `vhco.png`.
+Inter retains its `INTER-LICENSE.txt` notice and both assets retain their provenance.
 The default theme follows the browser preference, and an explicit theme selection is stored locally when storage is available.
 Storage denial preserves a working page and a theme selection for the current view.
 
@@ -135,7 +151,7 @@ No account or provider credential is needed to read the page.
 
 The production page is the explicit static asset set in `web/packages/`.
 `scripts/feed-site.mjs` stages those files into a candidate directory and extends its existing Pages manifest using the publisher's pinned asset-hash calculation.
-It validates the explicit asset list, required licences and top-level `404.html` and rejects collisions with existing package, catalogue and publication metadata paths.
+It validates the explicit asset list, `VHCO-LOGO-NOTICE.txt`, `INTER-LICENSE.txt` and top-level `404.html` and rejects collisions with existing package, catalogue and publication metadata paths.
 The same preparation step places the approved recovery page assets into the recovery directory before either archive is retained.
 Both archives are independently downloaded and digest-verified through the existing retention commands.
 
@@ -149,14 +165,23 @@ The design prototype retains its own focused test configuration.
 
 Assembly copies only the explicitly approved public files from the reviewed page commit, byte-for-byte, and verifies their SHA-256 values in the staged site.
 The repository's existing pinned Gitleaks job scans the source history.
+For each new page-source commit, the retained `site.json` records the exact `ci_run` and `ci_attempt` for a successful main-push `.github/workflows/php.yml` run.
 The site adds exact file-list and source-provenance checks to that established secret-checking path.
 Retained metadata and private source files fail the served-manifest allowlist.
-A reviewer inspects every final text asset and the page's request URLs for deployment-specific addresses, credentials, configuration exports and private key material, and records that review against the approved bundle digest.
+The protected job fetches that run/attempt from GitHub and requires the expected repository, page SHA, main branch, push event, workflow path and success conclusion, plus a successful required `php` job that includes the adopted PHP/Gitleaks checks.
+Missing, failed, skipped, mismatched or unavailable CI proof holds before feed publication.
+The same proof is required for a new page-bearing bootstrap recovery source.
+An established page-bearing recovery retains its previously approved source and CI metadata from the selected baseline.
+
+A reviewer inspects every final text asset and the page's request URLs for deployment-specific addresses, credentials, configuration exports and private key material before approving the protected publication job.
+The existing required `signed-feed-production` environment approval, associated with the exact workflow run and its fixed candidate/recovery input digests, is the manual payload-review record.
+GitHub enforces that approval before the job executes.
+Dispatch binds it to the retained bytes by checking the run inputs against the downloaded archives and their digests before effects.
 The signing paragraph directs readers to the maintained guide's independent trusted-channel check.
 
 ### Publication and recovery
 
-Candidate and recovery bundles include `index.html`, top-level `404.html`, styles, browser script, company logo, font and licence text whenever they carry a page.
+Candidate and recovery bundles include `index.html`, top-level `404.html`, styles, browser script, company logo, font, logo notice and font licence whenever they carry a page.
 Unknown paths, absent catalogue aliases and withdrawn catalogue paths return HTTP 404.
 A missing native path must never fall back to homepage HTML with HTTP 200.
 The local Pages adapter models this routing, and the client-facing verification checks the actual response after a page-bearing deployment.
@@ -185,7 +210,13 @@ For an established predecessor, unchanged-feed closure checks the actual prior s
 For a bootstrap predecessor with `canonical_deployment == null`, `verify_unchanged_feed` requires that empty provider state and HTTP 404 at the root, an unknown path and every catalogue alias.
 It applies that empty-state check to rejection closure and failed-candidate closure even when the proposed bootstrap recovery archive contains a homepage.
 That recovery archive's page-byte check runs after a recovery deployment becomes live.
-Every closure path verifies the site state appropriate to the deployment actually being checked.
+A prior closure may also refer to a deployed empty-catalogue bootstrap recovery.
+That predecessor has a live deployment and may serve the homepage with HTTP 200, while catalogue aliases return HTTP 404 and its retained archive has no `release.json`.
+`verify_unchanged_feed` selects this branch from the digest-verified selected archive's catalogue shape and its journal provenance, independently of whether the prior deployment ID is empty.
+It checks the actual retained page and absent catalogue responses.
+Subsequent recovery construction retains that page and its provenance, omits `release.json` and all catalogue aliases, and generates the current recovery marker and Pages manifest.
+The distinction is between no prior deployment, a deployed catalogue-absent archive, and an archive with an authenticated catalogue.
+Every closure path verifies the site state appropriate to the selected shape and actual deployment.
 The native verifier continues to authenticate the catalogue and fetch the exact package using its real repository configuration and ABI.
 Local fixtures check both uploader metadata and the client-facing verification failure paths.
 An authorised real publication must pass the same byte, Content-Type and HTTP status readback through `pkg.vhco.pro`.
@@ -214,7 +245,7 @@ An original retained pre-homepage submission may replay with its legacy input sh
 For a page-bearing bootstrap recovery, `recovery_page_source` supplies its separately approved SHA for the same main-ancestry and retained-metadata checks.
 Established recovery is checked against the selected prior archive's approved provenance; legacy recovery uses its verified pre-homepage archive.
 Bundle preparation checks out that exact page source and records it with the complete site asset list in `site.json`, which is retained inside the bundle.
-`site.json` contains the approved page source SHA and an explicit map of served site paths, SHA-256 values and expected media types.
+`site.json` contains the approved page source SHA, its verified `ci_run`/`ci_attempt`, and an explicit map of served site paths, SHA-256 values and expected media types.
 It is retained archive metadata and is excluded from the Pages manifest.
 Candidate preflight validates the source SHA and every listed file's bytes and media type.
 The Pages paths must equal the union of those listed site paths and the approved native package, catalogue and publication-metadata paths.
@@ -224,7 +255,12 @@ Established recovery retains the prior served page source and assets, checked ag
 A page-bearing bootstrap recovery uses its explicitly approved page SHA.
 Each role's approved bundle digest binds its own source metadata and bytes.
 The source is provenance for the static page and does not change package release identity.
-The dispatch records the page SHA and candidate/recovery digests with its approval evidence.
+New retained approvals and `submission-started` records include the boolean `page_only` mode alongside the page source and candidate/recovery digests.
+Reconciliation derives mode from that approved submission record and checks that the dispatch input agrees before any upload, journal append or retirement action.
+A mismatch holds in both directions, including on a retirement release.
+Older pre-homepage package submissions use their original approval schema and implicit `page_only=false`; replay preserves that schema's existing hash and fields.
+A new submission always records its mode explicitly.
+Carried-forward withdrawal recognition requires the recorded page-only mode, the verified native-byte identity and the completed journal evidence.
 
 The new candidate archive contains the approved page and the currently verified catalogue and package files.
 The recovery archive contains the prior complete served page and catalogue, plus every package byte required by retained history.
@@ -299,13 +335,14 @@ The recovery comparison requires exact equality of the prior served site's asset
 For the native catalogue it compares the presence and bytes of `meta.conf`, `meta.pkg`, `meta.txz`, `packagesite.pkg`, `packagesite.txz`, `data.pkg` and `data.txz` at the root and every retained catalogue path.
 Required absent aliases and withdrawn catalogue paths stay absent.
 `release.json`, `generation.json` and `pages-manifest.json` have their publication roles and are verified separately from that byte-equality set.
-The recovery's `release.json` describes the prior authenticated catalogue's version, package and catalogue hashes, signing identity and any retained predecessor catalogue; native verification checks those identities against the recovered bytes.
-It is constructed from the selected baseline's verified release information under the existing recovery schema.
+For a baseline with an authenticated catalogue, the recovery's `release.json` describes its version, package and catalogue hashes, signing identity and any retained predecessor catalogue; native verification checks those identities against the recovered bytes.
+That manifest is constructed from the selected baseline's verified release information under the existing recovery schema.
+For a selected catalogue-absent bootstrap recovery, the new recovery has no `release.json` and verifies the retained page, catalogue HTTP 404 responses and required advertised package bytes.
 When the predecessor closed on its candidate, the new recovery uses its own recovery marker and manifest alongside that candidate's exact page and native catalogue.
 When the predecessor closed on its recovery, the new recovery likewise keeps that archive's exact page and native catalogue and constructs metadata for the current recovery attempt.
 In both cases `generation.json` uses the current recovery's approved marker, and `pages-manifest.json` is rebuilt for its complete asset and required-package set.
 Advertised package files are checked separately against the full required history, so the recovery archive can also retain package bytes advertised by a failed candidate.
-For a recovered predecessor, the page-only approval pins the package source and release identity authenticated by the selected live catalogue, independently of the failed candidate's version.
+When a recovered predecessor serves a catalogue, the page-only approval pins the package source and release identity authenticated by that catalogue, independently of the failed candidate's version.
 Previously advertised failed-candidate packages remain in retained history.
 The candidate's package marker and the recovery's attempt marker retain their existing distinct roles and are verified through their respective existing contracts.
 An older bundle without a page uses the legacy root HTTP 404 rule above.
@@ -313,10 +350,10 @@ A prior closure that ended on recovery is tested through this same archive-selec
 
 ### Complete inventory reads
 
-`scripts/feed-inventory.mjs` owns the existing journal and Pages inventory reads for `feed-dispatch.sh` and `publish-feed.sh`.
+`scripts/feed-inventory.mjs` owns journal, Pages-deployment and release-asset inventory reads used by dispatch, publication and the retention commands.
 It uses Node's existing HTTP runtime and the credentials already available to each caller.
 Read-only preparation obtains GitHub access through the existing CLI login, and the protected job supplies its repository token and Pages environment credential.
-Requests stay on the configured API origin and deployment collection with the selected repository/project and environment filters.
+Requests stay on the configured API origin and selected journal, Pages project or release-asset collection with its repository/project and environment scope.
 
 The GitHub reader requests up to 100 journal records per page and follows the advertised next-page links through the terminal page.
 It accepts a full terminal page of exactly 100 rows when no next link exists.
@@ -329,12 +366,29 @@ The accumulated unique deployment count must match the advertised total.
 The page size sets request size and the total inventory may span multiple pages.
 
 The APIs provide separate responses for each page.
-Under the existing single-writer lock, the reader obtains two complete views and requires identical authoritative journal records and identical Pages deployment identities/correlation metadata.
+In the protected job, the reader obtains two complete views under the existing single-writer lock and requires identical authoritative journal records and identical Pages deployment identities/correlation metadata.
+Read-only preparation performs its consistency reads outside that workflow lock; its selection is advisory until the protected job repeats and verifies it.
 Pages stage progress is read fresh for the normal reconciliation outcome check.
 The protected job then checks the actual canonical deployment before effects.
 Changes between views, missing or malformed pages, inconsistent pagination, duplicate identities, rate-limit or request failures and the existing job deadline hold the run.
 An incomplete response never becomes a shorter accepted inventory.
 The reader performs GET requests and returns validated data to the existing publication flow.
+
+### Retained release assets and capacity
+
+The release-asset reader resolves the selected release ID and traverses its asset-list pages through the GitHub API's terminal page.
+It requires unique asset IDs and names and keeps the complete mapping for digest-named archives, history and approval records.
+`feed-bundles.sh`, `retain-feed-bundles.sh` and the publisher resolve names against that complete inventory, download by the selected asset identity and verify the expected content bytes or SHA-256.
+Assets beyond the first list page receive the same checks.
+
+GitHub permits at most 1,000 assets per release.
+Before each retention phase uploads new files, it counts the missing names required by that phase against the complete asset inventory.
+The archive-retention phase accounts for candidate and recovery archives; the protected publisher accounts for any missing approval and history assets before submission.
+An existing exact asset is read back and verified for reuse.
+Insufficient capacity or an upload failure holds feed publication and reports the release, observed count and required missing names.
+A partial retention failure preserves completed immutable uploads for an identical-byte retry, while the active feed keeps its existing generation.
+Capacity handling preserves retained history and tags; a storage or retention redesign requires its own reviewed decision.
+The owner selected this quota hold for v1.
 
 Publication follows separate owner authorisation after implementation review and acceptance.
 The homepage carries repository information and maintained references without an assertion about current package availability or appliance trust.
@@ -353,7 +407,7 @@ The homepage carries repository information and maintained references without an
 - [ ] AC-02: The page uses the existing VHCO logo, Inter typography and brand colours, supports light and dark themes and provides readable keyboard-accessible layouts at the specified viewports.
 - [ ] AC-03: Explicit URL copying and theme selection work with visible feedback; reading and reference links work with JavaScript or storage/clipboard access unavailable.
 - [ ] AC-04: Public readback verifies the complete site bytes, media types and HTTP 404 responses for absent paths, while native clients retrieve and authenticate their expected catalogue and retained package bytes.
-- [ ] AC-05: Package and page-only publications, established recovery and bootstrap recovery retain and verify their complete approved page assets under the existing single-writer and interrupted-publication contract.
+- [ ] AC-05: Package and page-only publication and recovery verify their approved page/catalogue state, reconcile the recorded publication mode, traverse multi-page inventories and carry completed withdrawals without new retirement authorisation under the single-writer contract.
 - [ ] AC-06: The public page contains repository information without private deployment inputs or credentials, uses its glossary terms consistently and links to maintained package version information and the installation guide's independent trusted-channel verification of signing fingerprints.
 
 ## Test Plan
@@ -363,9 +417,9 @@ The homepage carries repository information and maintained references without an
 | AC-01 | `scripts/feed-site.mjs` stages `web/packages/`; the dedicated packages Playwright configuration starts its loopback server in `feed-fixture.yml`. Playwright opens that staged page, checks the actual repository identifier and URL, follows the local setup anchor and validates each public reference's final route and expected document. A two-entry synthetic fixture verifies that an additional authored repository can be represented without another origin. |
 | AC-02 | Chromium and Firefox exercise light/dark at 320×568, 390×844, 844×390, 768×1024, 1280×720 and 1440×900. Assert horizontal containment, heading readability, 44-pixel buttons, focus visibility and setup reachability. Inspect representative mobile and desktop captures. Exercise reduced motion and retain an actual 200-percent browser-zoom procedure with its effective viewport. |
 | AC-03 | In Chromium and Firefox copy the repository URL, verify the clipboard result and status, choose a theme, reload and verify preference persistence. Run clipboard-denied, storage-denied and JavaScript-disabled contexts. The denied clipboard case after a successful copy selects the actual URL, resets the button label and explains manual copying beside the control. |
-| AC-04 | Extend `tests/package/feed-publisher-http.mjs`, `feed-http-inputs.mjs`, `feed-preflight-test.sh` and the hosted feed fixture to assemble, upload and read back HTML, CSS, JS, PNG, WOFF2 and licence bytes. Assert declared uploader media types separately from served bytes, media types and HTTP status. The Pages adapter redirects `/index.html` to `/`; verification compares root HTTP 200 to `index.html` and an unmatched HTTP 404 body to `404.html`. Wrong error-page bytes must fail. Inject wrong media types, wrong bytes, missing assets, incomplete page sets, unlisted extra HTML, a public `site.json`, collisions and homepage fallback for missing paths and require failure before closure. An ordinary successful candidate deployment with wrong site bytes/headers/status enters authorised recovery or holds without that authority. A confirmed terminal recovery with a site mismatch admits only its eligible identical-byte retry per separately authorised dispatch. For an established predecessor, rejection/failed-candidate closure holds on a wrong previously served site. For a bootstrap predecessor with no live deployment and a page-bearing proposed recovery, both closure types verify canonical null and root/unknown/catalogue HTTP 404 without demanding a served recovery page. The page-bearing recovery verifies its bytes after actual deployment. An already closed generation or retirement-finalisation verification failure holds. Unknown paths, absent catalogue aliases and a withdrawn catalogue return HTTP 404. Run native pkg catalogue authentication and exact package fetch before and after a homepage generation. At a separately authorised live publication run the same readback against the actual Cloudflare custom domain and retain its results before closure. |
-| AC-05 | The existing publisher/controller fixture exercises candidate publication, established recovery and empty-catalogue bootstrap recovery with complete approved page assets and HTTP 404 responses. Run the input-preparation entry point used by `feed.yml` against a tag with an existing closed generation, its original empty fixed-name seed and its non-empty retained closed history. A page-only update uses that closed history, the same package source, tag, version, catalogue/package hashes and package marker, with a changed page SHA and fresh archive digests. Reusing the verified unchanged history succeeds with a fresh approval; a mismatched/orphan successor, missing or mismatched approval readback and changed predecessor hold before submission. Repeat after both candidate and recovery predecessor closures. Preparation selects through the GitHub journal using existing CLI access; the protected job independently correlates the provider deployment. Assert exact page and named native catalogue bytes and separately validate the constructed recovery release manifest, recovery marker and rebuilt Pages manifest. Inventory fixtures accept at least 26 Pages deployments and 101 journal rows across pages, plus exact page boundaries and empty inventories. They reject missing/malformed pages, repeated next links, duplicate IDs, cross-resource links, inconsistent totals, changing complete views and API failures before publication. Replay both a package and a page-only publication after their closure POST committed but its response was lost. Use the original predecessor for history, recovery-source provenance, complete recovery-archive comparison and page-only native identity, while reconciling the submission's own live candidate or recovery. Preserve its existing attempt/closure and create no extra deployment. Repeat with a pre-homepage retained submission's legacy input shape. Exercise a completed catalogue retirement with a reused non-empty retirement manifest: require `authorize_retirement=false`, verify the earlier matching pending-scope/closed-withdrawal evidence, preserve HTTP 404, and assert no new trust-finalisation row in submission or reconciliation. A `true` flag or absent/conflicting completion evidence holds. A new or conflicting retirement plan under page-only mode holds. Check missing/ambiguous baseline, extra page files, missing/malformed/mismatched/unreachable page-source SHA against fetched main, concurrent dispatch exclusion, interrupted/lost responses and duplicate-correlation holds. A pre-homepage baseline verifies the initial root HTTP 404 observation and recovery HTTP 404 with its retained error-page bytes when present. `hosted-feed-content.sh` supplies native signed client proof for the controller cases. |
-| AC-06 | Verify the staged public asset list and SHA-256 values against the explicit reviewed source files and run the existing pinned Gitleaks checks. The approved HTML, CSS, script, logo, font and licence files must pass. A served `.env`, `config.xml`, private-key file or retained `site.json` entry must fail the explicit file-list check; altered staged bytes must fail source-provenance comparison. Record a manual review of every final text asset and the browser request URLs against the approved bundle digest, checking deployment-specific addresses, credentials, exports and private key material. Check repository/package terminology and public reference routes. For signing copy, "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" must pass. "Compare the public key's fingerprint with the release notes before trusting it" and "Trust this downloaded key without verification" must fail. Reading the page needs no credentials. |
+| AC-04 | Extend `tests/package/feed-publisher-http.mjs`, `feed-http-inputs.mjs`, `feed-preflight-test.sh` and the hosted feed fixture to assemble, upload and read back HTML, CSS, JS, PNG, WOFF2 and licence bytes. Assert declared uploader media types separately from served bytes, media types and HTTP status. The Pages adapter redirects `/index.html` to `/`; verification compares root HTTP 200 to `index.html` and an unmatched HTTP 404 body to `404.html`. Wrong error-page bytes must fail. Inject wrong media types, wrong bytes, missing assets, incomplete page sets, unlisted extra HTML, a public `site.json`, collisions and homepage fallback for missing paths and require failure before closure. An ordinary successful candidate deployment with wrong site bytes/headers/status enters authorised recovery or holds without that authority. A confirmed terminal recovery with a site mismatch admits only its eligible identical-byte retry per separately authorised dispatch. For an established predecessor, rejection/failed-candidate closure holds on a wrong previously served site. For a bootstrap predecessor with no live deployment and a page-bearing proposed recovery, both closure types verify canonical null and root/unknown/catalogue HTTP 404 without demanding a served recovery page. The page-bearing recovery verifies its bytes after actual deployment. Repeat rejection, failed-candidate and recovery cases with a live predecessor that closed on a page-bearing empty-catalogue recovery: verify its HTTP 200 page and catalogue HTTP 404s with no `release.json`. A predecessor with an authenticated catalogue must fail if its required manifest is missing. An already closed generation or retirement-finalisation verification failure holds. Unknown paths, absent catalogue aliases and a withdrawn catalogue return HTTP 404. Run native pkg catalogue authentication and exact package fetch before and after a homepage generation. At a separately authorised live publication run the same readback against the actual Cloudflare custom domain and retain its results before closure. |
+| AC-05 | The existing publisher/controller fixture exercises candidate publication, established recovery and empty-catalogue bootstrap recovery with complete approved page assets and HTTP 404 responses. Run the input-preparation entry point used by `feed.yml` against a tag with an existing closed generation, its original empty fixed-name seed and its non-empty retained closed history. A page-only update uses that closed history, the same package source, tag, version, catalogue/package hashes and package marker, with a changed page SHA and fresh archive digests. Reusing the verified unchanged history succeeds with a fresh approval; a mismatched/orphan successor, missing or mismatched approval readback and changed predecessor hold before submission. Repeat after both candidate and recovery predecessor closures. Preparation selects through the GitHub journal using existing CLI access; the protected job independently correlates the provider deployment. Assert exact page and named native catalogue bytes and separately validate the constructed recovery release manifest, recovery marker and rebuilt Pages manifest. Inventory fixtures accept at least 26 Pages deployments and 101 journal rows across pages, plus exact page boundaries and empty inventories. They reject missing/malformed pages, repeated next links, duplicate IDs, cross-resource links, inconsistent totals, changing complete views and API failures before publication. Replay both a package and a page-only publication after their closure POST committed but its response was lost. Use the original predecessor for history, recovery-source provenance, complete recovery-archive comparison and page-only native identity, while reconciling the submission's own live candidate or recovery. Preserve its existing attempt/closure and create no extra deployment. Repeat with a pre-homepage retained submission's legacy input shape. Exercise a completed catalogue retirement with a reused non-empty retirement manifest: require `authorize_retirement=false`, verify the earlier matching pending-scope/closed-withdrawal evidence, preserve HTTP 404, and assert no new trust-finalisation row in submission or reconciliation. A `true` retirement flag or absent/conflicting completion evidence holds. Mode changes on replay hold before effects in both directions; test a page-only retirement-release replay with `page_only=false`, a package replay with `true`, and legacy package-mode records retaining their original approval hash. A new or conflicting retirement plan under page-only mode holds. Check missing/ambiguous baseline, extra page files, missing/malformed/mismatched/unreachable page-source SHA against fetched main, a main-reachable page SHA with absent/failed/skipped/mismatched source CI, unapproved protected-job entry, concurrent dispatch exclusion, interrupted/lost responses and duplicate-correlation holds. Release-asset fixtures find and verify an expected archive beyond the first 100 assets, reject duplicate/partial listings, accept capacity up to the 1,000-asset quota and hold before submission when required new names would exceed it. An interrupted upload retains verified files for an identical-byte retry. A pre-homepage baseline verifies the initial root HTTP 404 observation and recovery HTTP 404 with its retained error-page bytes when present. `hosted-feed-content.sh` supplies native signed client proof for the controller cases. |
+| AC-06 | Verify the staged public asset list and SHA-256 values against the explicit reviewed source files and run the existing pinned Gitleaks checks. The approved HTML, CSS, script, logo, font, `VHCO-LOGO-NOTICE.txt` and `INTER-LICENSE.txt` must pass. Missing either required notice fails assembly. Both new page sources and bootstrap recovery sources require their exact successful `php.yml` run/attempt and required PHP/Gitleaks job; absent or failed CI holds. The protected environment must require approval for the exact run inputs, and dispatch must reject an archive/digest mismatch against those inputs. A served `.env`, `config.xml`, private-key file or retained `site.json` entry must fail the explicit file-list check; altered staged bytes must fail source-provenance comparison. Record the final text-asset and request-URL review through that protected environment approval after inspecting the bundle for deployment-specific addresses, credentials, exports and private key material. Check repository/package terminology and public reference routes. For signing copy, "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" must pass. "Compare the public key's fingerprint with the release notes before trusting it" and "Trust this downloaded key without verification" must fail. Reading the page needs no credentials. |
 
 ## Tasks
 
@@ -373,32 +427,13 @@ None yet; written after owner acceptance.
 
 ## Open Questions
 
-### Q6 — Logo terms and remaining delivery choices
-
-R-5 F-01 asks about a predecessor that closed on an empty-catalogue recovery.
-Recommend recognising that retained shape explicitly: a served page may return HTTP 200 while native catalogue aliases return HTTP 404 and the recovery archive has no `release.json`.
-Both unchanged-feed verification and subsequent recovery construction should use that baseline shape.
-
-R-5 F-02 asks how publication mode survives replay.
-Recommend recording `page_only` in the retained approval and submission record, using that recorded mode during reconciliation and rejecting a differing replay input before effects.
-Legacy submissions use their existing package-mode shape.
-
-R-5 F-03 asks how page CI and manual review are bound to publication.
-Recommend the retained `site.json` identify the exact successful `php.yml` run/attempt for its page commit, which the protected job verifies with the required PHP/Gitleaks path before submission.
-The existing protected-environment approval for the exact run inputs serves as the manual payload-review record bound to the candidate/recovery digests.
-
-R-5 F-05 asks how retained release assets stay discoverable and what happens at the provider quota.
-GitHub documents a maximum of 1,000 assets per release and paginated release-asset listing.
-Recommend complete asset discovery, verified digest readback and a hold before publication when new retained assets exceed that quota.
-Preserve retained files and surface the capacity failure for a separately reviewed storage decision.
-
-R-5 F-06 asks for explicit VHCO-logo terms.
-Recommend a logo-specific notice reserving VH & Co's logo rights and permitting its display for this project.
-Alternatively the owner may choose BSD-2-Clause for the logo asset.
-The prototype currently includes the logo without a logo-specific notice.
-
-Owner answer pending for the logo terms and these delivery recommendations.
-The R-4 recommendations were applied to this draft following the owner's continuation; whole-spec acceptance remains pending.
+None.
+The owner selected publisher reuse, independent page-only updates and public byte/header verification on 15 November 2026.
+The owner then accepted the actually served recovery baseline, explicit HTML response routes and retained-only provenance metadata with a complete public-file list.
+On 16 November 2026 the owner accepted generated and verified recovery metadata, site failures under the existing recovery/retry/hold contract, GitHub CLI preparation with protected-job Cloudflare checks, and independent protected verification of the explicit page-source commit.
+Following continuation, the R-4 recommendations were applied to the draft.
+The owner then explicitly selected the logo-specific rights notice and accepted all four R-5 delivery recommendations: the deployed empty-catalogue baseline, recorded replay mode, successful page CI with protected-job manual review, and complete release-asset listing with a quota hold.
+Whole-spec acceptance remains pending.
 
 ## Review Log
 

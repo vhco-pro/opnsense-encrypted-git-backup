@@ -113,3 +113,13 @@ test('missing asset and catalogue routes return the explicit 404 document', asyn
     expect(await response.text()).toBe(expected);
   }
 });
+
+test('company logo has its own accessible rights notice', async ({ page, request }) => {
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'Logo notice' })).toHaveAttribute('href', '/VHCO-LOGO-NOTICE.txt');
+  const response = await request.get('/VHCO-LOGO-NOTICE.txt');
+  expect(response.status()).toBe(200);
+  expect(await response.text()).toContain('Copyright (c) 2026 VH & Co BV');
+  expect(await response.text()).toContain('All rights reserved.');
+  expect(await response.text()).toContain('display and redistribute');
+});

@@ -437,6 +437,7 @@ footer {
 }
 
 footer a {
+  white-space: nowrap;
   font-weight: 600;
   color: var(--text);
 }

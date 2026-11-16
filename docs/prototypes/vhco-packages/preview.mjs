@@ -8,6 +8,7 @@ const assets = new Map([
   ['/vhco.png', 'vhco.png'],
   ['/inter-latin.woff2', 'inter-latin.woff2'],
   ['/INTER-LICENSE.txt', 'INTER-LICENSE.txt'],
+  ['/VHCO-LOGO-NOTICE.txt', 'VHCO-LOGO-NOTICE.txt'],
 ]);
 
 const server = Bun.serve({

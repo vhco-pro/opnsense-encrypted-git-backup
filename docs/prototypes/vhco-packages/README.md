@@ -11,7 +11,7 @@ bun docs/prototypes/vhco-packages/preview.mjs
 
 The command prints a JSON readiness record containing its allocated loopback URL.
 Use the installed remote-gui share procedure to obtain an owner-restricted Tailscale preview.
-The process serves only the seven explicitly named page assets, including a top-level `404.html`, and serves that document with HTTP 404 for other paths.
+The process serves only the eight explicitly named page assets, including a top-level `404.html`, and serves that document with HTTP 404 for other paths.
 Stop it with Ctrl+C when the review ends.
 
 For a review that spans chat turns, run the same server as a temporary user service from the owned checkout.
@@ -50,6 +50,7 @@ The production page and its publication/recovery integration follow the accepted
 
 - `vhco.png` copies the existing VH & Co logo from VitePress `app/public/landing/vhco-github.png`.
   Its SHA-256 is `bd5d562d7828717a0dd81bfd03694c51249ec055a9351e1ccca8e3411efc9616`.
+  [VHCO-LOGO-NOTICE.txt](VHCO-LOGO-NOTICE.txt) reserves the owner's logo rights and permits its display and redistribution with this project when the notice is retained.
 - `inter-latin.woff2` copies the Inter variable roman Latin font bundled with the site's VitePress 1.6.4 installation.
   Its SHA-256 is `f7ab715caa2c78facb4334b211c81ee66f037cf9c99ca3f24acd543e84a93278`.
   The upstream source is [VitePress's font asset](https://github.com/vuejs/vitepress/blob/v1.6.4/src/client/theme-default/fonts/inter-roman-latin.woff2).
