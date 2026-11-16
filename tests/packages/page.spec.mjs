@@ -1,4 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chromium } from '@playwright/test';
+import path from 'node:path';
+import { writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 
 const viewports = [
   { width: 320, height: 568 },
@@ -139,4 +142,58 @@ test('company logo has its own accessible rights notice', async ({ page, request
   expect(await response.text()).toContain('Copyright (c) 2026 VH & Co BV');
   expect(await response.text()).toContain('All rights reserved.');
   expect(await response.text()).toContain('display and redistribute');
+});
+
+test('native public responses match the exact approved bytes and media types', async () => {
+  const result = execFileSync('bun', ['web/packages/smoke.ts', test.info().project.use.baseURL], { encoding: 'utf8' });
+  expect(JSON.parse(result)).toMatchObject({ checkedResponses: 8 });
+});
+
+test('another authored repository entry fits the static layout', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    const entry = document.querySelector('.repository').cloneNode(true);
+    entry.removeAttribute('aria-labelledby');
+    for (const node of entry.querySelectorAll('[id]')) node.removeAttribute('id');
+    entry.querySelector('h3').textContent = 'Synthetic second repository';
+    document.querySelector('.repositories').append(entry);
+  });
+  await expect(page.locator('.repository')).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+
+test('actual Chromium 200 percent zoom preserves page navigation', async ({ browserName }, testInfo) => {
+  test.skip(browserName !== 'chromium', 'Native tabs zoom is exercised through Chromium; Firefox runs the viewport/reflow matrix.');
+  const extension = path.resolve('tests/appliance/zoom-extension');
+  const context = await chromium.launchPersistentContext('', {
+    channel: 'chromium',
+    viewport: null,
+    args: ['--window-size=1000,900', '--disable-extensions-except=' + extension, '--load-extension=' + extension],
+  });
+  try {
+    const worker = context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker');
+    const page = context.pages()[0];
+    await page.goto(testInfo.project.use.baseURL);
+    const measure = () => page.evaluate(() => ({ width: innerWidth, ratio: devicePixelRatio, scroll: document.documentElement.scrollWidth }));
+    const before = await measure();
+    const zoom = await worker.evaluate(async () => {
+      const [tab] = await chrome.tabs.query({ active: true });
+      await chrome.tabs.setZoom(tab.id, 2);
+      return chrome.tabs.getZoom(tab.id);
+    });
+    await page.waitForFunction(width => innerWidth < width, before.width);
+    const after = await measure();
+    expect(zoom).toBe(2);
+    expect(after.ratio / before.ratio).toBe(2);
+    expect(Math.abs(after.width * 2 - before.width)).toBeLessThanOrEqual(2);
+    expect(after.scroll).toBeLessThanOrEqual(after.width);
+    const screenshot = await worker.evaluate(() => chrome.tabs.captureVisibleTab({ format: 'png' }));
+    await writeFile(testInfo.outputPath('real-200-zoom.png'), Buffer.from(screenshot.split(',')[1], 'base64'));
+    await page.getByRole('link', { name: 'Repository setup' }).click();
+    await expect(page.getByRole('heading', { name: 'Add the repository' })).toBeInViewport();
+    await testInfo.attach('native-zoom', { body: JSON.stringify({ zoom, before, after }), contentType: 'application/json' });
+  } finally {
+    await context.close();
+  }
 });

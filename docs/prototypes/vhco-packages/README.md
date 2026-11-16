@@ -1,9 +1,12 @@
 # VHCO Packages design preview
 
-This static prototype accompanies the [landing-page specification](../../specs/vhco-packages-landing-page.md).
+This frozen historical prototype accompanies the [landing-page specification](../../specs/vhco-packages-landing-page.md).
 It uses the published OPNsense repository as its initial entry.
 
-Start the owned loopback preview from the repository root.
+Maintained production preview and verification use [the component README](../../../web/packages/README.md) and native Wrangler.
+The commands below reproduce the original design snapshot.
+
+Start the original owned loopback preview from the repository root.
 
 ```sh
 bun docs/prototypes/vhco-packages/preview.mjs

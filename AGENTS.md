@@ -16,6 +16,8 @@ Feature documents: docs/specs/
 ## Project scope
 
 This repository owns a reusable native OPNsense encrypted Git backup provider.
+It also owns the v1 generic VHCO Packages homepage under `web/packages/`,
+using the owner-selected existing repository and an independent static pipeline.
 The owner selected a separate provider integrated into the native backup framework.
 Design uses PHP and native OPNsense interfaces, XML models and standard package tooling.
 Deployment-specific configuration belongs in vhco-pro/lab and maintained Homelab
@@ -63,3 +65,11 @@ actionlint
 
 See [native build observations](docs/compatibility.md) for the verified package
 commands and remaining appliance checks.
+
+## Packages homepage verification
+
+Follow [the component README](web/packages/README.md) for bootstrap, preview, verification and cleanup.
+New homepage tooling uses the existing pinned Bun runtime. Run `bun run packages:verify`
+and `actionlint .github/workflows/packages-site.yml` for homepage changes.
+Its explicit `tests/packages/playwright.config.mjs` keeps these browser cases separate
+from the appliance's existing `tests/browser/` collection.

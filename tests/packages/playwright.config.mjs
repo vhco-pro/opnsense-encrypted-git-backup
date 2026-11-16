@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: '.',
   testMatch: 'page.spec.mjs',
-  outputDir: '../../work/packages-browser',
+  outputDir: '../../work/packages-browser/' + (process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}` : Date.now()),
   timeout: 30_000,
   workers: 1,
   reporter: 'list',
