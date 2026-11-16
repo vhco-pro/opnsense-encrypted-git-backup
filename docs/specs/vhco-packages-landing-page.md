@@ -373,12 +373,32 @@ None yet; written after owner acceptance.
 
 ## Open Questions
 
-None.
-The owner selected publisher reuse, independent page-only updates and public byte/header verification on 15 November 2026.
-The owner then accepted the actually served recovery baseline, explicit HTML response routes and retained-only provenance metadata with a complete public-file list.
-On 16 November 2026 the owner accepted generated and verified recovery metadata, site failures under the existing recovery/retry/hold contract, GitHub CLI preparation with protected-job Cloudflare checks, and independent protected verification of the explicit page-source commit.
-Following the owner's subsequent "Continue", the author applied the four surfaced R-4 recommendations to this draft: empty-predecessor checks, completed retirement with `authorize_retirement=false`, existing secret checks plus asset provenance/payload review, and complete inventory pagination.
-Final acceptance of the revised specification remains pending.
+### Q6 — Logo terms and remaining delivery choices
+
+R-5 F-01 asks about a predecessor that closed on an empty-catalogue recovery.
+Recommend recognising that retained shape explicitly: a served page may return HTTP 200 while native catalogue aliases return HTTP 404 and the recovery archive has no `release.json`.
+Both unchanged-feed verification and subsequent recovery construction should use that baseline shape.
+
+R-5 F-02 asks how publication mode survives replay.
+Recommend recording `page_only` in the retained approval and submission record, using that recorded mode during reconciliation and rejecting a differing replay input before effects.
+Legacy submissions use their existing package-mode shape.
+
+R-5 F-03 asks how page CI and manual review are bound to publication.
+Recommend the retained `site.json` identify the exact successful `php.yml` run/attempt for its page commit, which the protected job verifies with the required PHP/Gitleaks path before submission.
+The existing protected-environment approval for the exact run inputs serves as the manual payload-review record bound to the candidate/recovery digests.
+
+R-5 F-05 asks how retained release assets stay discoverable and what happens at the provider quota.
+GitHub documents a maximum of 1,000 assets per release and paginated release-asset listing.
+Recommend complete asset discovery, verified digest readback and a hold before publication when new retained assets exceed that quota.
+Preserve retained files and surface the capacity failure for a separately reviewed storage decision.
+
+R-5 F-06 asks for explicit VHCO-logo terms.
+Recommend a logo-specific notice reserving VH & Co's logo rights and permitting its display for this project.
+Alternatively the owner may choose BSD-2-Clause for the logo asset.
+The prototype currently includes the logo without a logo-specific notice.
+
+Owner answer pending for the logo terms and these delivery recommendations.
+The R-4 recommendations were applied to this draft following the owner's continuation; whole-spec acceptance remains pending.
 
 ## Review Log
 
@@ -388,6 +408,7 @@ Final acceptance of the revised specification remains pending.
 | 2026-11-15 | R-2 | spec | `23d22b463fb22cc41c8362557def8624ff05dbd7` | claude-opus-5-5 | procedural | One blocking and four should-fix. Read-only source and Git preservation verified. Shell execution was denied to this static reviewer. |
 | 2026-11-15 | R-3 | spec | `340d9014f0b9671257bf6594270681967f82b6b7` | claude-opus-5-5 | procedural | Seven should-fix findings. Static source review, with read-only source and Git preservation verified. |
 | 2026-11-16 | R-4 | spec | `e7056a8df471b467d140b965cbc08540373a6fe2` | claude-opus-5-5 | procedural | Five should-fix findings. Static review with matched read-only source/Git snapshots. Reviewer shell execution was denied. |
+| 2026-11-16 | R-5 | spec | `30ef9f29d39e7771fffecf406db7b4c23228a7fc` | claude-opus-5-5 | procedural | Six should-fix findings and two nits. Independent pinned lint passed. Static source/Git snapshots matched; PHP/actionlint checks were unexecuted. |
 
 ### R-1
 
@@ -573,8 +594,70 @@ WHERE: Owner summary lines 42-54, Scope line 94, Design (Selecting predecessor h
 EVIDENCE: Scope line 94 presents page-only updates as the normal way to add repository entries and correct links. Every page-only publication adds at least one production Pages deployment (scripts/publish-feed.sh:407), and recoveries and retries add more (scripts/feed-recovery.sh:36-44). It also adds at least two journal rows, submission-started and verified-closure. Line 267 keeps the provider bound of 25 production deployments, and line 266 now applies it before every new submission, not only during reconciliation (scripts/publish-feed.sh:164-174). Line 238 relies on reading the complete journal, but the existing journal bound is under 100 rows with no next page (scripts/publish-feed.sh:61-66). The document never states that bound. Once either bound is reached, every later publication holds, including package releases, and the document defines no way back below the bound. The owner accepted holding on incomplete results in R-3. The Owner summary does not say that each page edit uses up a fixed lifetime publication budget shared with package releases. It also does not mention the journal bound.
 PROPOSAL: State both bounds and their effect on how many page-only and package publications remain in the Owner summary and the Design. Raise for the owner whether reaching a bound needs a defined remedy within this feature or stays a permanent hold.
 
+### R-5
+
+TARGET: 30ef9f29d39e7771fffecf406db7b4c23228a7fc
+
+FINDING: F-01
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Publication and recovery) lines 185-188 and 195-196, Design (Selecting predecessor history and recovery bytes) lines 286-287 and 298-306, Owner summary line 46, Test Plan AC-04, AC-05
+EVIDENCE: The design covers a bootstrap predecessor only through `canonical_deployment == null` (line 185). It does not cover a predecessor that closed on an empty-catalogue bootstrap recovery, although that state is reachable. A bootstrap candidate fails native verification and the authorised recovery deploys (scripts/publish-feed.sh:293-302). reconcile_recovery then passes verify_recovery without a release.json, which checks only root catalogue 404s and advertised bytes (scripts/feed-recovery.sh:5-18,91-97). After that, publish-feed.sh:305-324 closes with `deployment` set to the recovery ID. Line 196 lets that served recovery carry the homepage. For the next generation, `prior` is non-empty, so verify_unchanged_feed requires a recovery release.json and runs verify-feed-generation.sh against it (scripts/publish-feed.sh:215-216, scripts/feed-recovery.sh:5-7). Line 302 also requires the new recovery's release.json to describe "the prior authenticated catalogue's version, package and catalogue hashes". No such catalogue exists, so a correct rejection or failed-candidate closure after this predecessor cannot pass, and the recovery archive has no defined metadata. Line 287 selects the pinned recovery archive, but lines 304-305 assume it holds a native catalogue. No AC-04 or AC-05 case uses this predecessor. This gap remains after this revision's empty-predecessor repair of R-4 F-02. Tool record for this pass: `vh-adlc lint` with the relative path and plugin pin passed. `vh-adlc fresh` reported R-4 stale with `baseline-changed`. `vh-adlc gate planned` and one combined command were denied by the host permission mode. Repository PHP and actionlint checks were not run.
+PROPOSAL: Define the expected site, catalogue and release.json shape when the predecessor closed on an empty-catalogue bootstrap recovery: served page with HTTP 200 and catalogue aliases HTTP 404, with no release.json. State how verify_unchanged_feed and recovery construction choose that branch other than through `prior` being empty. Add rejection, failed-candidate and recovery cases for this predecessor to AC-04 and AC-05.
+
+FINDING: F-02
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Homepage-only updates) lines 208 and 227, Design (Completed catalogue withdrawals) lines 241-255, Design (Selecting predecessor history and recovery bytes) lines 263-265, Owner summary line 47, Test Plan AC-05
+EVIDENCE: `page_only` is a per-dispatch input (line 208). The submission-started payload (scripts/publish-feed.sh:398-404) and the approval asset (scripts/publish-feed.sh:81-86) do not record it. Line 265 validates a replay only against the "candidate/recovery pair and approved source identities". The design does not say whether a replay must repeat the original mode or how that mode is recovered. It also does not say whether the carried-forward recognition at lines 252-254 depends on the `page_only` flag or only on the journal completion evidence at lines 246-250. Suppose a page-only submission on a retirement release is reconciled by a dispatch with `page_only=false`. If recognition depends on the flag, reconciliation enters `outcome == success && retirement != '{}'` (scripts/publish-feed.sh:289-291). verify_retirement then appends a new trust-finalization-pending row for that attempt (scripts/feed-retirement.sh:30-38). The reducer accepts the row (scripts/feed-journal-generation.jq:47-51), and the attempt now needs fresh signed operator evidence. That is the row line 253 forbids, and a later `page_only=true` replay meets a state the design never defines. The reverse case, `page_only=true` on replay of a package submission, is also undefined. AC-05 tests the `authorize_retirement` value but not a mode mismatch on replay. This traces to this revision's repair of R-4 F-03.
+PROPOSAL: State whether page-only mode and carried-forward recognition come from the dispatch flag, from the journal evidence and native identity, or from a field recorded in the submission. Require replay and reconciliation to hold when the dispatch mode differs from the original submission's mode. Add an AC-05 replay case with a mismatched `page_only` value on a retirement release.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Public content checks) lines 150-154, Design (Homepage-only updates) lines 209-212 and 214, Owner summary lines 51-52, Test Plan AC-05, AC-06
+EVIDENCE: Line 151 relies on "the repository's existing pinned Gitleaks job" to scan source history. That scan runs inside the php.yml `php` job on pull requests and pushes to main (.github/workflows/php.yml:1-6,28-39). The package source is bound to a successful php.yml run: the tag job checks the version run's `head_sha`, `conclusion == "success"` and `path == ".github/workflows/php.yml"` (.github/workflows/feed.yml:85-90). The protected job only requires `page_source` to be a main ancestor that matches site.json (lines 210-212, 214). Neither the job nor the AC-05 and AC-06 rows checks that the page commit's php.yml run, and therefore its Gitleaks scan, succeeded. A page commit that reached main with a failed secret scan could be published. The manual payload review "records that review against the approved bundle digest" (line 154), but no step checks for that record. One implementer would add a CI-success check for the page commit and another would rely on main ancestry. This traces to this revision's repair of R-4 F-04, which replaced pattern fixtures with the Gitleaks path.
+PROPOSAL: State whether the protected job requires a successful php.yml run, including its Gitleaks step, for `page_source` and `recovery_page_source`, and how it identifies that run. Also state where the manual payload review record is kept and whether the dispatch checks it. Add an AC-05 or AC-06 hold case for a main-reachable page commit without a passing scan.
+
+FINDING: F-04
+KIND: factual
+SEVERITY: should-fix
+WHERE: Frontmatter covers, Design (Completed catalogue withdrawals) lines 246-254, Design (Selecting predecessor history and recovery bytes) lines 261-263 and 285-288, Design (Assembly and browser verification) line 140
+EVIDENCE: The design changes behaviour that lives in files `covers` does not list. verify_retirement and verify_withdrawal, the branch line 254 must distinguish and the HTTP 404 checks line 244 carries forward, are defined in scripts/feed-retirement.sh:15-55. The journal reducer that dispatch must share with publish-feed.sh, and whose reset of `.retirement` line 249 works around, is scripts/feed-journal-generation.jq:6-11,47-57. Line 140 relies on "the existing retention commands", which are scripts/retain-feed-bundles.sh and scripts/feed-bundles.sh. A change to any of these can affect the feature, but none appears in covers (lines 6-25). `vh-adlc fresh` and the `feature_tree_clean` condition therefore cannot see such a change.
+PROPOSAL: Add scripts/feed-retirement.sh and scripts/feed-journal-generation.jq to covers, plus the retention scripts if the design relies on their behaviour. Otherwise, state that these files stay unchanged and where the new logic lives instead.
+
+FINDING: F-05
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Homepage-only updates) lines 234-236, Design (Complete inventory reads) lines 314-336, Owner summary lines 49-50, Test Plan AC-05
+EVIDENCE: Every page-only publication adds at least `feed-<candidate>.tar`, `feed-<recovery>.tar` and `approval-<digest>.json` to the same release tag (scripts/retain-feed-bundles.sh:15-24, scripts/publish-feed.sh:88,390, design line 234). All reads use `gh release download --pattern` against that one release (scripts/feed-bundles.sh:21, scripts/publish-feed.sh:91,135). This revision defines complete pagination and consistency for the journal and Pages inventories only. It does not cover the growing asset list of a reused tag, and it gives no bound or hold on asset count. GitHub limits the number of assets per release. This review could not confirm the current documented figure, but such a limit would recreate the lifetime publication budget that R-4 F-05 raised, now for page edits on one tag. The Owner summary says pagination removes the read limits, without this residual.
+PROPOSAL: State how asset listing on a reused tag stays complete as it grows, and what happens at GitHub's per-release asset limit (hold, a new tag, or pruning). Cite the GitHub source and reflect the result in the Owner summary.
+
+FINDING: F-06
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Content and visual structure) lines 110-111, Design (Assembly and browser verification) line 138, Test Plan AC-06, supporting prototype README
+EVIDENCE: The repository is licensed BSD-2-Clause (AGENTS.md project scope, LICENSE). The design copies the company logo into public source and bundles (line 110, docs/prototypes/vhco-packages/README.md "Asset sources") and requires "required licences" in assembly (line 138). It names a licence only for Inter (Sources, INTER-LICENSE.txt). It does not say whether the logo is covered by the repository's BSD-2-Clause licence or kept under separate terms with a notice. A permissive licence over a company mark may not be what the owner intends. One implementer would add a logo notice to the required-licence list and another would add nothing. This is a licensing choice for the owner.
+PROPOSAL: Raise an Open Question on the logo's licence terms in this repository and its published bundles. Then name the required notice, if any, in the assembly's required-licence list and the AC-06 file-list check.
+
+FINDING: F-07
+KIND: judgement
+SEVERITY: nit
+WHERE: Acceptance Criteria AC-05, Test Plan AC-05
+EVIDENCE: The Owner summary (lines 49-50) and Design (lines 314-336) make complete journal and Pages pagination, and the carried-forward withdrawal (lines 239-256), outcomes of this feature. AC-05's text only mentions retaining and verifying page assets under the existing single-writer and interrupted-publication contract. The pagination and withdrawal end states appear only in the AC-05 proof row.
+PROPOSAL: Extend AC-05's text, or add a criterion, for publication proceeding past one inventory page and for carried-forward withdrawals that need no new retirement authorisation.
+
+FINDING: F-08
+KIND: factual
+SEVERITY: nit
+WHERE: Design (Complete inventory reads) lines 318 and 332, Design (Selecting predecessor history and recovery bytes) line 284
+EVIDENCE: Line 332 says the reader takes two complete views "Under the existing single-writer lock". The same reader also serves read-only preparation, which runs with the operator's GitHub CLI login outside the protected workflow (lines 284 and 318). The workflow concurrency group applies only to feed.yml jobs (.github/workflows/feed.yml:44-46).
+PROPOSAL: Say that the two-view check runs under the lock only in the protected job, and that preparation's result is advisory until the protected job repeats it.
+
 ## Sources
 
+- [GitHub release limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases#storage-and-bandwidth-quotas) documents the 1,000-asset limit for each release.
+- [GitHub release-asset API](https://docs.github.com/en/rest/releases/assets#list-release-assets) documents paginated asset listing and asset-ID downloads.
 - [GitHub deployment listing](https://docs.github.com/en/rest/deployments/deployments#list-deployments) documents the repository/environment filters and deployment-list page parameters.
 - [GitHub REST pagination](https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api) documents next-page links and terminal-page handling.
 - [Cloudflare Pages deployment listing](https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/list/) documents `page`, `per_page` and result pagination metadata.
