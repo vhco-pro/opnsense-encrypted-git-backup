@@ -44,7 +44,7 @@ The production workflow and actual browser-zoom checks remain in the feature's i
 
 The browser prototype includes a sun/moon theme switch, a repository URL copy control and the actual public documentation links.
 Page content and navigation work with JavaScript disabled.
-The production page and its publication/recovery integration follow the accepted feature specification.
+The draft specification describes independent static-site deployment alongside the versioned package feed.
 
 ## Asset sources
 
