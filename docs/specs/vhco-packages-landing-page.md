@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "R-9 recorded with four should-fix findings for suite isolation, live smoke checks, scanner updates and shared version history."
+status_description: "R-9 findings addressed with isolated site test discovery, byte-verified public smoke checks, native scanner update discovery and the existing shared version policy. Fresh review pending."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -9,8 +9,8 @@ covers:
   - package.json
   - bun.lock
   - docs/prototypes/vhco-packages/
-  - tests/browser/packages.spec.mjs
-  - tests/browser/packages.config.mjs
+  - tests/packages/
+  - renovate.json
   - .github/workflows/packages-site.yml
 ---
 
@@ -26,7 +26,9 @@ Use the existing company logo, Inter font, brand colours and the reviewed sun/mo
 
 The owner clarified on 16 November 2026 that the homepage has an independent deployment lifecycle.
 Page edits use an ordinary static-site workflow and can be redeployed from Git.
-The package artifact keeps its existing shared GitVersion version.
+The package artifact keeps its existing shared GitVersion policy.
+Page and tooling commits share that Git history and can contribute their normal version intent to the next package calculation.
+A page deployment creates neither a package tag nor a package release.
 The page links to the artifact's release and installation documentation.
 Git commits and Cloudflare's deployment history identify page edits.
 
@@ -207,7 +209,12 @@ Install Wrangler as an exact root development dependency through the existing Bu
 The action uses the installed tool.
 The consumer's workflow owns its static-file checks, browser suite and HTTP smoke check.
 Its verification job scans the actual `web/packages/public/` payload with the free upstream Gitleaks CLI, using the official container pinned by released version and digest in the workflow.
-Use `gitleaks dir --redact=100 --no-banner` against that payload and let the repository's updater discover the container pin.
+Reference the official image directly as `uses: docker://ghcr.io/gitleaks/gitleaks:<released-version>@sha256:<digest>`.
+Pass `dir --redact=100 --no-banner` and the public directory as its arguments.
+The managed Renovate GitHub Actions manager discovers this native container reference.
+Add the shared baseline `renovate.json`, retaining any existing consumer rules, and verify actual extraction of the image/version/digest from the workflow.
+Check the managed App's access and its Dependency Dashboard or update records when adopting that configuration.
+The repository currently has no Renovate configuration, and this inspection could not verify App access through the existing CLI token.
 Both a finding and a scanner error fail verification.
 The deployment job depends on this same verification job, including the secret scan.
 Pull requests run that job with read-only GitHub permissions and without Cloudflare credentials.
@@ -223,7 +230,12 @@ Run `versions upload` with the static config, configured Worker name and an anno
 Then run `versions deploy` for that annotation tag at 100 percent, using `--version-tag` and `--yes`.
 These are Cloudflare's deployment identifiers for the Actions run.
 Any package version displayed by the page is the package artifact's release version.
-The pipeline's root and asset HTTP smoke check reports its deployment result through the normal Actions run.
+The pipeline checks `https://pkg.vhco.pro/` and each listed `/_site/` asset against the checked-out `web/packages/public/` bytes and expected media type.
+Compare the media type before an optional charset parameter.
+Also require an owned missing `/_site/` URL to return HTTP 404 with the checked-out `404.html` bytes and HTML media type.
+Retry failed public checks at five-second intervals for at most 60 seconds to allow propagation, then fail the deployment job if any check still differs.
+A stale HTTP 200 page fails the byte comparison.
+The ordinary Actions run reports the result.
 
 Use the site-only production group `vhco-packages-site-production` with `cancel-in-progress: false` and GitHub's default `queue: single` behaviour.
 This group is separate from the package publisher's `native-package-pages-publisher` group.
@@ -266,12 +278,16 @@ The page points readers to that guide and the artifact's release.
 ### Browser and workflow checks
 
 Use the existing locked Bun/Playwright dependencies and a loopback fixture serving the production static files.
+Keep site specs and their explicit Playwright configuration under `tests/packages/`, outside the appliance config's `tests/browser/` directory.
+The site workflow selects that configuration explicitly.
+Compare native Playwright test collection before and after the feature and require the appliance job to collect its existing specs only.
+Wrangler's exact root development dependency participates in the normal frozen-lockfile installation and package verification.
 Exercise Chromium and Firefox in both themes at 320 by 568, 390 by 844, 844 by 390, 768 by 1024, 1280 by 720 and 1440 by 900.
 Check keyboard navigation, the switch, saved preference, clipboard denial, unavailable storage and JavaScript-disabled reading.
 Inspect representative mobile and desktop captures and run actual 200 percent browser zoom before implementation completion.
 
 Ordinary page CI checks the explicit public files, required notices, its own blocking Gitleaks payload scan and browser suite.
-The deployment publishes the checked-out site through the official action and performs a root/assets HTTP smoke check.
+The deployment publishes the checked-out site through the official action and performs the bounded public byte/media-type checks above.
 Page CI is scoped to the site source and its workflow/tests.
 One native package-client check during the separately authorised hosting cutover confirms that route isolation preserves catalogue authentication and package fetch.
 The routing fixture provides repeatable coverage for later page edits.
@@ -302,8 +318,8 @@ The routing fixture provides repeatable coverage for later page edits.
 | AC-02 | Run the specified viewport/theme matrix in Chromium and Firefox. Check overflow, readable type, 44-pixel touch targets, focus and headings. Inspect representative screenshots. Exercise actual 200 percent browser zoom and record its method and resulting viewport. |
 | AC-03 | Run the current prototype's keyboard switch, saved theme, storage denial, URL copy, clipboard failure after success and JavaScript-disabled cases against the production static files. Check the switch state and reduced-motion behaviour. |
 | AC-04 | Serve the production directory through native Wrangler. Check the root and every prefixed asset's HTTP response and media type, plus native missing-asset HTTP 404. The routing fixture checks the exact root, the `/_site/*` prefix and the canonical-query redirect, with package and catalogue requests reaching a synthetic feed target. Replace and roll back the site while that target serves recorded fixture bytes, then compare responses with those bytes. At authorised bootstrap read back disabled workers.dev and preview access before route activation. At cutover verify the actual hostname's root with and without a query, an asset with a query, missing paths, root/assets smoke responses and native catalogue authentication plus exact package fetch. Inject failure in the owned cutover fixture and revert the site-specific routes and redirect, requiring the prior HTTP 404 root and authenticated package responses. Verify a later Lab infrastructure run preserves the pipeline-selected Worker content. Local Wrangler proof is recorded separately from live edge proof. |
-| AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks payload scan. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
-| AC-07 | Run actionlint and verify the selected official action's supplied inputs against its exact metadata. The site workflow installs the locked tool and uses the upstream action for native upload and deployment. Check that PR verification has read-only GitHub permissions and can finish without a Cloudflare credential, failed verification prevents deployment, a disabled publication flag skips the deployment job and enabled successful main verification permits it. Read the site's environment branch policy through GitHub and require only branch `main`, with tag refs excluded. Exercise an owned non-main rejection case without exposing the real credential. Check that the site group is `vhco-packages-site-production`, distinct from the package publication group, with one running and one pending job, pending replacement and no running-job cancellation. Confirm that the package workflow files retain their existing definitions and that a failing native-feed fixture cannot be hidden by page-only job skipping. Inject a synthetic secret into the public payload and require the site verification job to fail with deployment skipped. Exercise scanner error and clean-payload cases separately. Run the normal site workflow against an owned isolated deployment. Publish a changed page, then restore older page files in a new main commit while a synthetic package publisher is unavailable. Require the restored content to deploy through verification, its native deployment to be recorded and the package target's recorded hashes to be retained. Check the documented native rerun window and original-source behaviour separately. Review the workflow's mutations and require them to be confined to site deployment. |
+| AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks payload scan. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require the official scanner image, released version and digest to appear. Validate the consumer Renovate config and record managed App/Dashboard visibility separately. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
+| AC-07 | Run actionlint and verify the selected official action's supplied inputs against its exact metadata. The site workflow installs the locked tool and uses the upstream action for native upload and deployment. Check that PR verification has read-only GitHub permissions and can finish without a Cloudflare credential, failed verification prevents deployment, a disabled publication flag skips the deployment job and enabled successful main verification permits it. Read the site's environment branch policy through GitHub and require only branch `main`, with tag refs excluded. Exercise an owned non-main rejection case without exposing the real credential. Check that the site group is `vhco-packages-site-production`, distinct from the package publication group, with one running and one pending job, pending replacement and no running-job cancellation. Compare the appliance Playwright list before and after adding the separate `tests/packages/` suite and require its existing spec set only. Check that page publication does not invoke package tagging or publication while ordinary commit subjects retain their shared GitVersion meaning. Confirm that the package workflow files retain their existing definitions and that a failing native-feed fixture cannot be hidden by page-only job skipping. Inject a synthetic secret into the public payload and require the site verification job to fail with deployment skipped. Exercise scanner error and clean-payload cases separately. Run the normal site workflow against an owned isolated deployment. Publish a changed page, then restore older page files in a new main commit while a synthetic package publisher is unavailable. Require the restored content to deploy through verification, its native deployment to be recorded and the package target's recorded hashes to be retained. Serve stale bytes after a synthetic deployment and require the public smoke check to fail after its retry bound. Verify that successful source restoration serves the checked-out bytes and media types at the root and every asset URL. Check the documented native rerun window and original-source behaviour separately. Review the workflow's mutations and require them to be confined to site deployment. |
 
 ## Tasks
 
@@ -735,6 +751,7 @@ PROPOSAL: State whether page-only commits may change the package's next GitVersi
 - [GitHub concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) documents separate group names, the default single-pending replacement and running-job cancellation.
 - [GitHub reruns](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs) documents the 30-day window, 50-attempt limit and original actor/source identity.
 - [Gitleaks upstream CLI and images](https://github.com/gitleaks/gitleaks) documents free native directory scans and the official container. Its [MIT licence](https://github.com/gitleaks/gitleaks/blob/v8.30.1/LICENSE) permits this use.
+- [Renovate GitHub Actions manager](https://docs.renovatebot.com/modules/manager/github-actions/) documents native `uses: docker://` extraction. The [shared updater baseline](https://github.com/vhco-pro/docs/blob/2028365d39ff0bebf7698fff975ae04d0dac133e/knowledge/managed-renovate.md) defines consumer configuration and live App-access verification.
 - [Worker subdomain settings API](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/subdomain/) documents native workers.dev and preview-access readback and updates.
 - [Cloudflare static assets](https://developers.cloudflare.com/workers/static-assets/) documents native static hosting and its deployed asset versions.
 - [Cloudflare routes](https://developers.cloudflare.com/workers/configuration/routing/routes/) documents path matching, query-string behaviour and the proxied-host requirement.
