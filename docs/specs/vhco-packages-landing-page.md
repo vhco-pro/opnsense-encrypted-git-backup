@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "R-13 recorded with three should-fix findings and one nit for manual cutover proof and accurate native updater coverage."
+status_description: "R-13 revised with named manual cutover proof, accurate updater limits and explicit Bun/action dependency checks. Fresh review pending."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -54,11 +54,11 @@ Existing package workflows retain their current checks and triggers.
 On 16 November 2026 the owner selected ordinary managed Renovate dependency updates and continuation of the homepage.
 Use the shared repository baseline and normal manager detection, with the page's run/verify commands documented in README and AGENTS.
 The shared Playwright dependency also serves the appliance tests.
-Renovate proposes dependency PRs through the repository's existing review and merge policy.
+Renovate proposes dependency PRs for supported, discoverable inputs through the repository's existing review and merge policy.
 
 During cutover, the normal pipeline runs once after bootstrap checks.
 Any non-success result disables publication and restores the prior Pages routing baseline.
-A permanent main-only manual trigger provides ordinary owner-authorised redeployment.
+A permanent main-only manual trigger provides redeployment for repository writers under the publication flag and environment policy.
 
 The prototype passed 40 local Chromium/Firefox cases.
 Production hosting and native attestation integration are still unimplemented.
@@ -90,8 +90,11 @@ The official action supports Bun and multiple native Wrangler commands through i
 
 The inspected repository has neither Renovate nor Dependabot configuration.
 Composer dependencies and existing package-workflow refs therefore have no configured version-update coverage established by this inspection.
-The owner-selected standard Renovate configuration covers repository dependencies through normal manager detection, including Bun, Composer and workflow refs.
-The homepage's verification exercises its introduced pins and the shared Bun toolchain, while Renovate proposes ordinary maintenance PRs for the repository.
+The owner-selected standard Renovate configuration enables normal manager detection for Bun, Composer and supported workflow refs.
+The homepage's verification exercises every introduced pin and the shared Bun toolchain.
+The existing shell-fetched core-symbol SHA, custom PHP-version input and untagged PHP/version reusable-action refs need separate maintenance assessment.
+Normal detection does not establish update coverage for those pre-existing inputs.
+Their current package-workflow definitions remain outside this feature.
 Dependabot security-update settings were not inspected or changed.
 
 ### Prototype verification
@@ -203,7 +206,14 @@ Native package verification immediately follows cutover.
 
 ### First cutover and infrastructure ownership
 
-The initial Lab-controlled bootstrap runs the official action's native `deploy` command against the selected reviewed page source with a creation-capable bootstrap credential.
+The operator carries out cutover through a written private procedure maintained in `michielvha/vitepress` at `docs/internal/deployment/packages-homepage.md`.
+Write that procedure during implementation with the selected environment/Worker values, native GitHub run/variable commands and the Lab-owned route/redirect configuration under `vhco-pro/lab:cloudflare/packages-site/`.
+It records the current routing baseline and the expected restoration observations.
+The operator observes the actual verification and deployment jobs, native Cloudflare deployment and public/native package checks.
+Run classification and route restoration are manual procedure steps.
+The public `web/packages/README.md` documents the generic hosting and verification contract.
+
+The operator's initial Lab-controlled bootstrap runs the official action's native `deploy` command against the selected reviewed page source with a creation-capable bootstrap credential.
 It creates the asset Worker with that actual page content and its public route settings disabled.
 This step precedes the resource-scoped Editor credential used by ordinary site CI, since that role requires an existing Worker.
 The bootstrap credential and its broader creation permission belong to the separately authorised initial setup.
@@ -224,7 +234,7 @@ A failed or unverified restoration is reported as an incomplete cutover.
 
 After bootstrap routing and public/native checks pass, enable the repository-level `PACKAGES_SITE_PUBLISH_ENABLED` variable and dispatch the normal site workflow once on the reviewed `main` through `workflow_dispatch`.
 The dispatch uses the existing-Worker Editor credential and the same verification, version upload, activation and smoke steps as routine main pushes.
-Record the successful Actions run, its source, its run/attempt annotation and the native Cloudflare deployment, then repeat the native package check.
+Record the actual Actions run and require both its verification and deployment jobs to succeed. Record its source, run/attempt annotation and native Cloudflare deployment, then repeat the native package check.
 The first cutover completes after those checks pass.
 Any non-success result from that initial dispatch leaves the cutover incomplete.
 This includes verification failure, skipped deployment, cancellation, pending replacement by another site run, upload/activation/smoke failure or an unverified result.
@@ -237,6 +247,9 @@ The first setup records the Worker identity, environment branch policy, disabled
 ### Pipeline and reuse
 
 Use `cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0` (v4.1.3) directly in `.github/workflows/packages-site.yml`.
+Check out through `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` (v7.0.1) and install Bun through `oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6` (v2.2.0).
+Set its explicit `bun-version` input to the repository's existing 1.4.3 toolchain baseline from `native-browser.yml:25-27`.
+Retain the verified release comments beside each action SHA so the native updater can track them.
 Install Wrangler as an exact root development dependency through the existing Bun lockfile, then select `packageManager: bun` in the action.
 The action uses the installed tool.
 The consumer's workflow owns its static-file checks, browser suite and HTTP smoke check.
@@ -248,7 +261,7 @@ Add the actual shared baseline `renovate.json` from `knowledge/managed-renovate.
 Its verified presets are `config:recommended` and `helpers:pinGitHubActionDigests`, with the shared manual-review rules for action majors and unversioned action digests.
 Use normal manager detection so the Bun manager maintains `package.json` with `bun.lock`, the GitHub Actions manager tracks native action/container refs and Composer receives its ordinary dependency PRs.
 Preserve any established consumer rules and update coverage encountered during implementation.
-Verify actual extraction of the scanner image, version and digest, plus Wrangler and Playwright associated with `bun.lock`.
+Verify actual extraction of every introduced workflow action/container ref and runtime input, including checkout, setup-bun, wrangler-action, the Bun runtime version and scanner image/version/digest, plus Wrangler and Playwright associated with `bun.lock`.
 Use a managed update proposal to verify that a tool-version change also maintains the Bun lock and passes a frozen install.
 Require confirmed managed App access plus a Dependency Dashboard entry or proposed update identifying the introduced scanner dependency for AC-06.
 An unavailable updater remains an unmet criterion or separately approved tracked residual.
@@ -256,7 +269,7 @@ The repository currently has no updater configuration, and this inspection could
 Both a finding and a scanner error fail verification.
 The deployment job depends on this same verification job, including the secret scan.
 Pull requests run that job with read-only GitHub permissions and without Cloudflare credentials.
-An enabled main-branch push or an owner-authorised `workflow_dispatch` on `main` deploys only after it succeeds.
+An enabled main-branch push or a repository writer's `workflow_dispatch` on `main` deploys only after it succeeds.
 Keep `workflow_dispatch` as a permanent main-only manual redeployment trigger after cutover.
 It selects that `main` source and uses the same publication flag, verification and production environment policy.
 The live cutover authorisation covers its first dispatch.
@@ -381,9 +394,9 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 | AC-01 | Serve the production static directory in the packages Playwright fixture. Check the actual package identifier and repository URL, follow the setup anchor and verify each public reference's final route. A two-entry synthetic page checks that another authored repository can be listed. |
 | AC-02 | Run the specified viewport/theme matrix in Chromium and Firefox. Check overflow, readable type, 44-pixel touch targets, focus and headings. Inspect representative screenshots. Exercise actual 200 percent browser zoom and record its method and resulting viewport. |
 | AC-03 | Run the current prototype's keyboard switch, saved theme, storage denial, URL copy, clipboard failure after success and JavaScript-disabled cases against the production static files. Check the switch state and reduced-motion behaviour. |
-| AC-04 | Serve the production directory through native Wrangler. Check the root and every prefixed asset's HTTP response and media type, plus native missing-asset HTTP 404. The routing fixture checks the exact root, the `/_site/*` prefix and the canonical-query redirect, with package and catalogue requests reaching a synthetic feed target. Replace and roll back the site while that target serves recorded fixture bytes, then compare responses with those bytes. At authorised bootstrap read back disabled workers.dev and preview access before route activation. At cutover verify the actual hostname's root with and without a query, an asset with a query, missing paths, root/assets smoke responses and native catalogue authentication plus exact package fetch. Inject failure in the owned cutover fixture and revert the site-specific routes and redirect, requiring the prior HTTP 404 root and authenticated package responses. Verify a later Lab infrastructure run preserves the pipeline-selected Worker content. Local Wrangler proof is recorded separately from live edge proof. |
-| AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks payload scan. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require the official scanner image, released version and digest to appear. Require Bun extraction of Wrangler and Playwright with `bun.lock` and a tool update whose regenerated lock passes the frozen install. Validate the consumer against the actual shared Renovate baseline and require managed App access plus a Dashboard entry or update proposal for the scanner image. Record an unavailable updater as unmet or through a separately approved tracked residual. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
-| AC-07 | Run actionlint and verify the selected official action's supplied inputs against its exact metadata. The site workflow installs the locked tool and uses the upstream action for native upload and deployment. Check that PR verification has read-only GitHub permissions and can finish without a Cloudflare credential, failed verification prevents deployment, a disabled publication flag skips the deployment job and enabled successful main verification permits it. Read the site's environment branch policy through GitHub and require only branch `main`, with tag refs excluded. At the authorised cutover, enable the publication flag after bootstrap checks and dispatch the normal workflow once on reviewed `main`. Verify its Editor-credential upload/activation, Actions and Cloudflare records, public smoke and final native package check. Exercise first-dispatch verification failure, skipped/cancelled/replaced deployment, upload/activation/smoke failure and unknown result in the owned fixture. Require flag disabling, restoration of the Pages routing baseline and an incomplete-cutover report. Check that the manual trigger remains main-only after cutover. Exercise an owned non-main rejection case without exposing the real credential. Check that the site group is `vhco-packages-site-production`, distinct from the package publication group, with one running and one pending job, pending replacement and no running-job cancellation. Compare the appliance Playwright list before and after adding the separate `tests/packages/` suite and require its existing spec set only. Check that page publication does not invoke package tagging or publication while ordinary commit subjects retain their shared GitVersion meaning. Confirm that the package workflow files retain their existing definitions and that a failing native-feed fixture cannot be hidden by page-only job skipping. Inject a synthetic secret into the public payload and require the site verification job to fail with deployment skipped. Exercise scanner error and clean-payload cases separately. Run the documented local aggregate command and use its owned loopback/native Wrangler fixture for a changed page and restored older page files while a synthetic package origin is unavailable. Require the restored checked-out content and retained package hashes. Verify the actual normal Actions deployment, its native Cloudflare record and public smoke check at the authorised cutover. Pass the loopback base URL to the same smoke checker, serve stale bytes and require failure after its retry bound without requesting production. Verify that successful source restoration serves the checked-out bytes and media types at the root and every asset URL. Check the documented native rerun window and original-source behaviour separately. Exercise a root-lockfile-only change and require site verification to run. Run the README/AGENTS bootstrap, preview and aggregate commands, including the same workflow-pinned scanner through Docker. Verify aggregate teardown and Ctrl+C cleanup as documented. Review the workflow's mutations and require them to be confined to site deployment. |
+| AC-04 | Serve the production directory through native Wrangler. Check the root and every prefixed asset's HTTP response and media type, plus native missing-asset HTTP 404. The routing fixture checks the exact root, the `/_site/*` prefix and the canonical-query redirect, with package and catalogue requests reaching a synthetic feed target. Replace and roll back the site while that target serves recorded fixture bytes, then compare responses with those bytes. At authorised bootstrap read back disabled workers.dev and preview access before route activation. At cutover verify the actual hostname's root with and without a query, an asset with a query, missing paths, root/assets smoke responses and native catalogue authentication plus exact package fetch. Review the named private manual cutover procedure against the Lab route/redirect plan and native GitHub/Cloudflare interfaces. Require its restoration steps and pass conditions to name flag disabling, the prior HTTP 404 root and authenticated package responses. Record actual observed cutover outcomes separately from local HTTP simulations. Verify a later Lab infrastructure run preserves the pipeline-selected Worker content. Local Wrangler proof is recorded separately from live edge proof. |
+| AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks payload scan. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require every introduced action/container ref, verified release/digest and runtime input to appear, including checkout, setup-bun, wrangler-action, Bun and the scanner image. Require Bun extraction of Wrangler and Playwright with `bun.lock` and a tool update whose regenerated lock passes the frozen install. Validate the consumer against the actual shared Renovate baseline and require managed App access plus a Dashboard entry or update proposal for the scanner image. Record an unavailable updater as unmet or through a separately approved tracked residual. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
+| AC-07 | Run actionlint and verify the selected official action's supplied inputs against its exact metadata. The site workflow installs the locked tool and uses the upstream action for native upload and deployment. Check that PR verification has read-only GitHub permissions and can finish without a Cloudflare credential, failed verification prevents deployment, a disabled publication flag skips the deployment job and enabled successful main verification permits it. Read the site's environment branch policy through GitHub and require only branch `main`, with tag refs excluded. At the authorised cutover, enable the publication flag after bootstrap checks and dispatch the normal workflow once on reviewed `main`. Verify its Editor-credential upload/activation, Actions and Cloudflare records, public smoke and final native package check. Walk the written operator procedure for a non-success initial dispatch and verify its flag, route-restoration and incomplete-cutover pass conditions against native interfaces. Observe actual GitHub job states and route/package responses during the authorised live cutover; record the states encountered. Keep loopback tests confined to asset/routing/HTTP behaviour. Check that the manual trigger remains main-only after cutover. Exercise an owned non-main rejection case without exposing the real credential. Check that the site group is `vhco-packages-site-production`, distinct from the package publication group, with one running and one pending job, pending replacement and no running-job cancellation. Compare the appliance Playwright list before and after adding the separate `tests/packages/` suite and require its existing spec set only. Check that page publication does not invoke package tagging or publication while ordinary commit subjects retain their shared GitVersion meaning. Confirm that the package workflow files retain their existing definitions and that a failing native-feed fixture cannot be hidden by page-only job skipping. Inject a synthetic secret into the public payload and require the site verification job to fail with deployment skipped. Exercise scanner error and clean-payload cases separately. Run the documented local aggregate command and use its owned loopback/native Wrangler fixture for a changed page and restored older page files while a synthetic package origin is unavailable. Require the restored checked-out content and retained package hashes. Verify the actual normal Actions deployment, its native Cloudflare record and public smoke check at the authorised cutover. Pass the loopback base URL to the same smoke checker, serve stale bytes and require failure after its retry bound without requesting production. Verify that successful source restoration serves the checked-out bytes and media types at the root and every asset URL. Check the documented native rerun window and original-source behaviour separately. Exercise a root-lockfile-only change and require site verification to run. Run the README/AGENTS bootstrap, preview and aggregate commands, including the same workflow-pinned scanner through Docker. Verify aggregate teardown and Ctrl+C cleanup as documented. Review the workflow's mutations and require them to be confined to site deployment. |
 
 ## Tasks
 
@@ -944,6 +957,8 @@ PROPOSAL: Describe the trigger as a main-only manual redeployment available to r
 - [GitHub artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations) documents digest-bound provenance and workflow/source identity.
 - [Native attestation generation](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations) documents the producing job, native action and required OIDC/attestation permissions.
 - [GitHub CLI verification](https://cli.github.com/manual/gh_attestation_verify) documents verification of the downloaded artifact and signer restrictions.
+- [Verified Bun setup action](https://github.com/oven-sh/setup-bun/tree/0c5077e51419868618aeaa5fe8019c62421857d6) provides the native `bun-version` installation input at verified v2.2.0.
+- [Verified checkout action](https://github.com/actions/checkout/tree/3d3c42e5aac5ba805825da76410c181273ba90b1) is the selected v7.0.1 source checkout.
 - [Official Wrangler action metadata](https://github.com/cloudflare/wrangler-action/blob/953926a2e2182532811c01a25e53647d93bf07c0/action.yml) declares the Bun package manager and multiline native command inputs.
 - [Worker CI source](https://github.com/vhco-pro/worker-ci-action/blob/5ef3cf6b375c6247a28fffb7c19b8d6c5aae97c3/scripts/verify.ts) rejects static assets in its single-module profile.
 - [Worker deploy source](https://github.com/vhco-pro/worker-deploy-action/blob/bcf11171c29a610971f45a867daba8c684c7d198/scripts/activate.ts) verifies exact tag and module release inputs.
