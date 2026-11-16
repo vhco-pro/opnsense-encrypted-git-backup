@@ -281,7 +281,9 @@ Verify actual extraction of every introduced workflow action/container ref and r
 Use a managed update proposal to verify that a tool-version change also maintains the Bun lock and passes a frozen install.
 Require confirmed managed App access plus a Dependency Dashboard entry or proposed update identifying the introduced scanner dependency for AC-06.
 An unavailable updater remains an unmet criterion or separately approved tracked residual.
-The repository currently has no updater configuration, and this inspection could not verify App access through the existing CLI token.
+The repository currently has no updater configuration.
+On 16 November, a read-only organization installation query returned no Renovate App, and the repository had no Dependency Dashboard issue.
+Configuration and managed-bot activation remain implementation work.
 Both a finding and a scanner error fail verification.
 The deployment job depends on this same verification job, including the secret scan.
 Pull requests run that job with read-only GitHub permissions and without Cloudflare credentials.
