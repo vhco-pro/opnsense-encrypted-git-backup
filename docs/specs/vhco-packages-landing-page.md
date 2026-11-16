@@ -1,7 +1,8 @@
 ---
-status: planned
-status_description: "The owner accepted R-21 at a5917f9. Planned gate passed, and issue 9 tracks implementation. R-21 F-01 remains a citation nit under the pinned nit rule."
+status: in-progress
+status_description: "Implementing the owner-accepted independent package homepage and official Cloudflare pipeline."
 issue: 9
+branch: feat/vhco-packages-homepage
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
   - AGENTS.md
