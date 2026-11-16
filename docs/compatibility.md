@@ -2,6 +2,8 @@
 
 The first target is OPNsense Community Edition 26.7.9_1 on amd64. The 26.7 series uses FreeBSD 15.1 and PHP 8.5. The upstream catalogue identified the package ABI as `FreeBSD:15:amd64` and the PHP package as `php85-8.5.12_2`. The same catalogue lists Git 2.56.1, OpenSSH 10.6.p2,1, OpenSSL 3.5.9 and pkg 2.8.4_1,1. [Release notes](https://docs.opnsense.org/releases/CE_26.7.html) · [Package catalogue](https://pkg.opnsense.org/FreeBSD:15:amd64/26.7/latest/packagesite.pkg)
 
+On 16 November 2026 the disconnected browser fixture moved to OPNsense 26.7.9_3 after the vendor retired the 26.7.9_1 package download. The replacement is checksum-locked in `tests/appliance/inputs.sha256`, and the guest asserts its installed version. The fresh native installation and browser run passed. Earlier observations below describe their original 26.7.9_1 runtime. [Native fixture proof](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/43940117068)
+
 | Input | Source revision |
 | --- | --- |
 | Core 26.7.9 | [228ab68d54513046f79bc36d7f583936922d1951](https://github.com/opnsense/core/commit/228ab68d54513046f79bc36d7f583936922d1951) |

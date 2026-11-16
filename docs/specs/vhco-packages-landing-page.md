@@ -1,6 +1,6 @@
 ---
 status: in-progress
-status_description: "Implementing the owner-accepted independent package homepage and official Cloudflare pipeline."
+status_description: "Reviewed homepage source and pipeline are merged at 6a74690. Main site verification passed. Live routing, protected dispatch and managed-bot activation are pending."
 issue: 9
 branch: feat/vhco-packages-homepage
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
@@ -70,7 +70,8 @@ The prototype passed 40 local Chromium/Firefox cases.
 Production hosting and native attestation integration are still unimplemented.
 Independent R-21 found one factual citation nit and no blocking or should-fix findings.
 The owner accepted R-21 on 16 November 2026.
-Production implementation remains pending.
+The reviewed source and native pipeline merged at `6a74690`.
+Main site verification passed. Public route activation, the protected deployment and managed-bot activation remain pending.
 
 ### Background and revision
 
@@ -443,6 +444,7 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 - [x] T7 `tests/packages/page.spec.mjs` - wait for the actual zoomed viewport paint before native tab capture so the observed compositor readback race is repaired (AC-02)
   Evidence: The prior aggregate observed a native capture `image readback failed` after zoom geometry passed. Waiting for two actual animation frames repaired that paint race. The focused Chromium zoom check passed three consecutive runs, with its three Firefox Chromium-only cases explicitly skipped. First failure logs and context remain in ignored local evidence.
 - [ ] T8 `docs/specs/vhco-packages-landing-page.md` - record actual managed-bot activation, independent implementation review, successful public CI and the authorised site cutover with live HTTP and native package re-observation (AC-04, AC-06, AC-07)
+  Progress: PR source `a2d5806` passed site run 43940117146, PHP/native-feed/version/package-plan run 43940118023 and the fresh 26.7.9_3 native appliance browser run 43940117068. PR #11 merged as `6a74690`, whose tree equals the reviewed PR head. Main site run 43944130114 passed verification and skipped deployment while the enable flag was absent. Main PHP run 43944131477 passed. Live cutover and updater evidence remain pending.
 
 ## Open Questions
 
