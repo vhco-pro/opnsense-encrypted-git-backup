@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "R-10 revised with loopback-versus-live verification, bounded site-only updater adoption, native trigger paths and documented site commands. Fresh review pending."
+status_description: "R-11 recorded with one blocking, three should-fix findings and one nit. Bun update handling and concrete first-workflow verification remain to revise."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -367,6 +367,7 @@ None. The owner selected native static hosting and the official action on 16 Nov
 | 2026-11-16 | R-8 | spec | `a19054e76b712b303c936efdf2d6558d3b40fe83` | claude-opus-5-5 | procedural | Five should-fix findings. First-party primary reviewer attested, with Haiku also listed separately in usage metadata. Independent lint passed, fresh reported the expected baseline change, and the planned gate and two shell requests were denied. Repository tests were unexecuted. Read-only snapshots matched. |
 | 2026-11-16 | R-9 | spec | `7b9348cea8ccbaccc0333e4e73010d9491e4ccad` | claude-opus-5-5 | procedural | Four should-fix findings. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint passed, fresh reported expected baseline change, and gate/repository checks were denied or unexecuted. Read-only snapshots matched. |
 | 2026-11-16 | R-10 | spec | `e694ca001f65057698809d91c45d2355b47ded15` | claude-opus-5-5 | procedural | Five should-fix findings and one nit. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint passed. Fresh exposed the broken R-9 table row. Planned/next and repository checks were denied or unexecuted. Read-only snapshots matched. |
+| 2026-11-16 | R-11 | spec | `d085a9324db0b69784ee8f640a70971cf8c928b1` | claude-opus-5-5 | procedural | One blocking, three should-fix findings and one nit. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint passed, fresh identified R-10 correctly, and gate/repository checks were denied or unexecuted. Read-only snapshots matched. |
 
 ### R-1
 
@@ -806,6 +807,45 @@ SEVERITY: nit
 WHERE: Context (Background and revision) line 71, Design (Pipeline and reuse) line 259, Sources lines 748 and 754
 EVIDENCE: The repository pins vhco-pro/docs at 1edeb5f (AGENTS.md). The cited `conventions/cloudflare-static-sites.md` returns HTTP 404 at 1edeb5f but loads at 2028365, which is the revision the document cites. So an implementation review under the pinned revision does not route to that standard. The document restates its requirements, so nothing built changes.
 PROPOSAL: Say that the document adopts the static-site standard at 2028365 by explicit reference, or note that the repository pin does not yet include it.
+
+### R-11
+
+TARGET: d085a9324db0b69784ee8f640a70971cf8c928b1
+
+FINDING: F-01
+KIND: factual
+SEVERITY: blocking
+WHERE: Design (Pipeline and reuse) lines 217-222, Acceptance Criteria AC-06, Test Plan AC-06
+EVIDENCE: Line 218 says "Enable only the `github-actions` and `npm` managers and include only `.github/workflows/packages-site.yml`, `package.json` and `bun.lock`". Line 219 says "That scope covers the site action/container refs and the root Wrangler/Playwright tooling." The repository locks its root tooling with Bun (bun.lock; .github/workflows/native-browser.yml:33 runs `bun install --frozen-lockfile --ignore-scripts`). Renovate's npm manager page lists only `package-lock.json`, `pnpm-lock.yaml` and `yarn.lock` as lock files and does not mention Bun. Renovate has a separate `bun` manager whose patterns are `/(^|/)bun\.lockb?$/` and `/(^|/)package\.json$/`, and that page says a `package.json` in bun results is "excluded from the `npm` manager results". With `bun` left out of the enabled managers, the npm manager takes `package.json` and has no lock file it can maintain. Wrangler and Playwright update PRs would then change `package.json` without `bun.lock`, and every frozen-lockfile install in the site and appliance jobs would reject them. So the claim at line 219 is false, and an implementer who follows lines 217-218 builds an updater config that cannot maintain the tooling. The AC-06 row checks extraction and the Dashboard only for the scanner image, so it passes anyway. This traces to this revision's repair of R-10 F-03. Tool record for this pass: `/home/m/.local/bin/vh-adlc lint docs/specs/vhco-packages-landing-page.md --repo /tmp/eg-packages-opus-r11.e4NG9L/source --plugin-pin 1ccf8f314575ece1f3fcc8e48c4fd804a1ca88ff` returned `"result":"pass"` with no findings at docs revision 1edeb5f. `vh-adlc fresh` with the same arguments reported the latest spec review as R-10 at e694ca0, stale with `baseline-changed`, `no-review` for implementation, and a clean feature tree. That confirms the R-10 F-01 Review Log continuity repair. The host permission mode denied a combined lint/fresh/gate/next command, the separate `vh-adlc gate planned` and `vh-adlc next` calls, `git diff --check` from the R-10 commit to the target, `actionlint`, and a final `git status --porcelain`. I did not attempt PHP lint, phpcs, phpstan, phpunit or Playwright after those refusals. The vendor dependencies and pinned core symbols were also absent. Public fetches that succeeded: vhco-pro/docs `conventions/cloudflare-static-sites.md` and `knowledge/managed-renovate.md` at 2028365, Renovate's bun and npm manager pages, wrangler-action `action.yml` at 953926a, Cloudflare's Wrangler worker commands page, worker-ci-action `scripts/verify.ts` at 5ef3cf6 and worker-deploy-action `scripts/activate.ts` at bcf1117. No fetch failed and I saw no router interruption. I used no provider control plane access.
+PROPOSAL: Enable Renovate's `bun` manager for `package.json` and `bun.lock` in place of `npm`, or state the manager that actually maintains `bun.lock`. Extend the AC-06 proof so that actual extraction lists Wrangler and Playwright with the Bun lock file, not only the scanner image.
+
+FINDING: F-02
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 217-222, Design (Browser and workflow checks) line 310, Owner summary lines 24-54, Open Questions line 354
+EVIDENCE: R-10 F-03 proposed an Open Question on whether the new `renovate.json` covers the whole repository or only the site tooling. R-10 F-05 proposed an Open Question on the AGENTS.md verification change. This revision decides both in the Design (lines 217-218 and 310), and Open Questions says "None. The owner selected native static hosting and the official action". No owner decision on either choice is recorded. conventions/feature-documents.md:161-162 says "Every trade-off the document settles is an open question", and the reviewer instructions say a needed change to repository instructions is raised for an Open Question and never assumed. The narrow scope has consequences beyond the site. conventions/delivery.md:153 says "Every dependency must be discoverable by the repository's update tool". conventions/repository-security.md:63-68 treats a Renovate config file as a sign of Renovate, which keeps Dependabot security updates off for the whole repository. Composer (composer.lock) and the existing package workflow pins would then have no version updater from either tool. The `package.json` scope also enrols the appliance job's Playwright (native-browser.yml:33-34), so it reaches past "this feature's tooling" (line 217). Under delivery.md:37-40 each resulting `chore(deps)` PR also bumps the package's patch version. The Owner summary mentions neither the first updater config in the repository nor the AGENTS.md change.
+PROPOSAL: Raise Open Questions for the Renovate scope, naming the coverage left for Composer and the existing workflow pins, and for the AGENTS.md verification-route change, or record the owner's decisions with their dates. Add the updater adoption and its consequences to the Owner summary.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (First cutover and infrastructure ownership) lines 185-189, 197-205, Design (Pipeline and reuse) lines 228 and 237-253, Context (Native hosting compatibility check) line 99, Test Plan AC-04, AC-07
+EVIDENCE: Line 253 says "The real official-action deployment and public checks are verified during the authorised production cutover", and the AC-07 row says "Verify the actual normal Actions deployment, its native Cloudflare record and public smoke check at the authorised cutover." The cutover sequence never runs the site workflow. It goes from bootstrap `deploy` with a creation-capable credential (line 185), through the baseline check, routes, redirect and public responses, to the native package check (lines 197-201). Line 204 enables `PACKAGES_SITE_PUBLISH_ENABLED` "only after the initial cutover succeeds". The workflow's only triggers are pull requests and main pushes filtered by path (line 228), with no dispatch. So the first normal deployment happens at some later main push that touches site paths, outside the authorised cutover. That run's path is untested: the Editor credential, `versions upload` with assets, `versions deploy --version-tag` and the production smoke check against `CLOUDFLARE_SITE_URL`. The only observed Wrangler command was `wrangler deploy --dry-run` (line 99). The document defines no failure handling for that first routine run, for example `versions upload` succeeding while `versions deploy` or the smoke check fails. One implementer would add a dispatch or a deliberate site-path commit inside the cutover window, and another would wait for the next page edit. This traces to this revision's repair of R-10 F-02.
+PROPOSAL: Name the cutover step that runs the normal site workflow deployment with the environment credential after the flag is enabled, and state its expected record and smoke result. State what is reported and restored when that first routine deployment or its smoke check fails, and align the AC-07 row with that step.
+
+FINDING: F-04
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 213-218, Design (Browser and workflow checks) lines 310-317, Test Plan AC-07
+EVIDENCE: The scanner pin lives only in the workflow as `uses: docker://ghcr.io/gitleaks/gitleaks:<released-version>@sha256:<digest>` (line 214). Line 313 says the local `bun run packages:verify` runs "the pinned redacted scanner", but the document names no local source for that pin and no container runtime among its dependencies. conventions/frontend-testing.md:32-33 requires the documentation to "State which dependencies and services are needed". conventions/delivery.md:149-151 forbids silently accepting a different preinstalled tool version and says "Store tool configuration once". One implementer would call a `gitleaks` binary from PATH, which breaks the pin rule. Another would copy the image reference into a script, and the Renovate include list at line 218 would never update that copy, so the two pins drift. frontend-testing.md:28-29 also requires a documented clean command. The design names only automatic cleanup and Ctrl+C (lines 315-316), while the AC-07 row asks to run "the README/AGENTS bootstrap, preview, aggregate and cleanup commands as documented".
+PROPOSAL: State how the local aggregate obtains the same pinned scanner from a single authoritative location the updater tracks, and name the container runtime or other prerequisite. Name the cleanup command, or state that none exists beyond the aggregate's own cleanup, and match the AC-07 row to it.
+
+FINDING: F-05
+KIND: judgement
+SEVERITY: nit
+WHERE: Frontmatter covers line 12, Design (Content and visual structure) line 138, Test Plan AC-03
+EVIDENCE: `docs/prototypes/vhco-packages/` is in `covers`, and production files move to `web/packages/public/` (line 154). The document never says whether the prototype is kept, frozen or removed. README.md links the logo notice at `docs/prototypes/vhco-packages/VHCO-LOGO-NOTICE.txt`, and line 138 places asset provenance in the prototype README. If the prototype is removed, those links break. If it is kept, two copies of the page can drift apart.
+PROPOSAL: State the prototype's fate and, if it is removed, move the provenance and README notice link to `web/packages/`.
 
 ## Sources
 
