@@ -188,6 +188,8 @@ test('actual Chromium 200 percent zoom preserves page navigation', async ({ brow
     expect(after.ratio / before.ratio).toBe(2);
     expect(Math.abs(after.width * 2 - before.width)).toBeLessThanOrEqual(2);
     expect(after.scroll).toBeLessThanOrEqual(after.width);
+    // Native tab capture needs the zoomed viewport to have reached the compositor.
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const screenshot = await worker.evaluate(() => chrome.tabs.captureVisibleTab({ format: 'png' }));
     await writeFile(testInfo.outputPath('real-200-zoom.png'), Buffer.from(screenshot.split(',')[1], 'base64'));
     await page.getByRole('link', { name: 'Repository setup' }).click();
