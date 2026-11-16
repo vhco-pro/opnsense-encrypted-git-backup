@@ -14,6 +14,21 @@ Use the installed remote-gui share procedure to obtain an owner-restricted Tails
 The process serves only the seven explicitly named page assets, including a top-level `404.html`, and serves that document with HTTP 404 for other paths.
 Stop it with Ctrl+C when the review ends.
 
+For a review that spans chat turns, run the same server as a temporary user service from the owned checkout.
+Choose an unused unit name and record it with the preview.
+
+```sh
+systemd-run --user --unit=vhco-packages-preview --collect \
+  --property=RuntimeMaxSec=8h --working-directory="$PWD" \
+  "$(command -v bun)" docs/prototypes/vhco-packages/preview.mjs
+journalctl --user-unit=vhco-packages-preview.service --lines=5 --output=cat --no-pager
+```
+
+The journal contains the same readiness URL.
+Share that listener through remote-gui and set the viewer expiry before the service's eight-hour runtime ends.
+The user service keeps the app available after the foreground tool command ends and stops automatically at its runtime limit.
+At the end of review, stop the owned share through remote-gui and the owned app unit with `systemctl --user stop vhco-packages-preview.service`.
+
 Install the repository's existing pinned browser-test dependencies with `bun install --frozen-lockfile --ignore-scripts`.
 Run the focused prototype checks against the URL printed by the preview process.
 
