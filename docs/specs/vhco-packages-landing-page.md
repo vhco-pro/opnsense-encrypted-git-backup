@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "Native static hosting and the official deployment action are selected for fresh spec review."
+status_description: "R-7 recorded with five should-fix findings for the independent static-site design."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -275,6 +275,8 @@ None. The owner selected native static hosting and the official action on 16 Nov
 | 2026-11-16 | R-4 | spec | `e7056a8df471b467d140b965cbc08540373a6fe2` | claude-opus-5-5 | procedural | Five should-fix findings. Static review with matched read-only source/Git snapshots. Reviewer shell execution was denied. |
 | 2026-11-16 | R-5 | spec | `30ef9f29d39e7771fffecf406db7b4c23228a7fc` | claude-opus-5-5 | procedural | Six should-fix findings and two nits. Independent pinned lint passed. Static source/Git snapshots matched; PHP/actionlint checks were unexecuted. |
 | 2026-11-16 | R-6 | spec | `2589d822e1be608a5867232dba7a995cccf98bba` | claude-opus-5-5 | procedural | Four should-fix findings and one nit. Static read-only source/Git snapshots matched. Pinned lint/fresh and repository checks were not executed after host refusal. |
+
+| 2026-11-16 | R-7 | spec | `daaadce631326105842f7165640d697dc9e8fe67` | claude-opus-5-5 | procedural | Five should-fix findings. First-party primary reviewer attested, with Haiku also listed separately in usage metadata. Independent lint passed, fresh reported baseline/covered drift, and the boundary denied the planned gate and repository tests. Read-only snapshots matched. |
 
 ### R-1
 
@@ -558,6 +560,45 @@ SEVERITY: nit
 WHERE: Design (Publication and recovery) lines 230-232, Test Plan AC-05
 EVIDENCE: Line 231 says initial-adoption preparation "records the HTTP 404 observation in the approved dispatch evidence", but neither the Design nor the site.json, approval or submission fields at lines 248 and 258 name that record. Line 230 already derives the expected root HTTP 404 from the selected baseline having no index, so the record does not affect any later check. AC-05's "verifies the initial root HTTP 404 observation" leaves open where that observation is read.
 PROPOSAL: Name where the observation is stored, or drop the recording step and keep the derived expectation with the recovery-time HTTP 404 check.
+
+### R-7
+
+TARGET: daaadce631326105842f7165640d697dc9e8fe67
+
+FINDING: F-01
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 194-196, Design (Browser and workflow checks) lines 225 and 227, frontmatter covers (.github/workflows/php.yml, .github/workflows/native-browser.yml), Owner summary lines 29-31, Acceptance Criteria AC-07, Test Plan AC-07
+EVIDENCE: Line 194 says page-only changes use only the site checks, so php.yml and native-browser.yml would get path filters. Both run today on every pull request and every push to main (.github/workflows/php.yml:3-6, .github/workflows/native-browser.yml:3-7). Two existing contracts depend on php.yml running for every main commit. First, the feed `tag` job requires a successful `push` run of `.github/workflows/php.yml` whose `head_sha` equals the reviewed source on main (.github/workflows/feed.yml:82-90). A page-only commit at the tip of main would have no such run, so the package cannot be tagged at that commit. That makes package release depend on page edits, which goes against AC-07 and Owner summary line 31. Second, GitHub documents that "If a workflow is skipped due to branch filtering, path filtering, or a commit message, then checks associated with that workflow will remain in a 'Pending' state. A pull request that requires those checks to be successful will be blocked from merging." (Workflow syntax for GitHub Actions, path filters). Line 225 also depends on "the existing secret scan", and that scan runs inside the php.yml `php` job through php-ci-action (.github/workflows/php.yml:28-41; docs/compatibility.md:36-42). The document does not say whether the site workflow runs its own Gitleaks scan once php.yml is skipped. The AC-07 trigger-selection check counts which workflows run. It does not check release tagging after a page-only main commit, required-check behaviour or secret-scan coverage, so a filter that breaks any of these passes. covers does not list .github/workflows/feed.yml, whose tag guard is affected. Tool record for this pass: `vh-adlc lint docs/specs/vhco-packages-landing-page.md --repo <repo> --plugin-pin 1ccf8f3...` passed. `vh-adlc fresh` reported R-6 stale with `baseline-changed` and `covered-drift` on five prototype files. The host permission mode refused `vh-adlc gate planned`, one combined status command and every repository check (PHP lint, phpcs, phpstan, phpunit, actionlint, Playwright). Everything else came from Read, Grep and public documentation fetches.
+PROPOSAL: Say how page-only main commits keep a php.yml success record for release tagging, or how the tag guard changes. Say how required checks behave under path filters and where Gitleaks runs for page-only changes. Add AC-07 cases that tag a package after a page-only main commit and confirm the secret scan runs on a page-only change.
+
+FINDING: F-02
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 180-183, Owner summary line 44, Scope line 111, Test Plan AC-07
+EVIDENCE: The design keeps the Cloudflare credential in "the site's GitHub environment" (line 182), and a main-branch push deploys (line 180). It does not say which branches or refs may use that environment. GitHub documents three deployment-branch settings: "No restriction", "Protected branches only" and "Selected branches and tags". Environment secrets "are only available to workflow jobs that reference the environment". With no restriction, a job from any pushed branch with an edited workflow can reference the environment and get the Worker Editor credential. Docs PR #46 at 3429803 requires making the deployment job "eligible only on the selected trusted branch or an explicitly authorised dispatch". The AC-07 row checks only that PR verification has read-only permissions and can finish without a credential. It does not check the environment's branch policy, so an unrestricted environment passes. Lab provisions the environment inputs (line 111), and the document does not give Lab a branch policy to configure.
+PROPOSAL: Require the site environment to allow only `main` (and any explicitly authorised dispatch), and name who configures it. Add an AC-07 check that reads the environment's deployment-branch policy, plus a case where a non-main branch cannot reach the credential.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 192-193, Design (Pipeline and reuse) line 201, Owner summary line 43, Test Plan AC-07
+EVIDENCE: Line 192 uses one site concurrency group that cancels superseded work, and line 193 recovers a failed run with "a normal rerun". A rerun of an older workflow run builds that run's commit and joins the same group. With cancel-in-progress it can cancel a newer in-progress deployment, then run `versions deploy` at 100 percent for the older commit's tag (lines 186-187). The live page then goes back to stale content, and nothing in the workflow notices. The design has no guard that the deploying commit is still the head of main, and AC-07 has no ordering or stale-rerun case. The repository instructions also say "Protected publication keeps its separate non-cancelling concurrency group" (AGENTS.md, Verification), and the existing publisher follows that rule (.github/workflows/feed.yml:44-46). The document does not say whether an environment-gated production site deployment counts as protected publication under that rule. That is an owner decision, and the document gives no open question for it.
+PROPOSAL: Raise an Open Question on whether the site deploy job cancels or queues. Define a guard that stops a rerun of a superseded commit from replacing a newer deployment, for example a check that the commit is still main's head before `versions deploy`. Add an AC-07 case for a rerun of an older run after a newer one has deployed.
+
+FINDING: F-04
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Independent hosting) line 149, Design (Pipeline and reuse) lines 183-187, Owner summary lines 44-45, Test Plan AC-04, AC-06
+EVIDENCE: Line 149 says the generic wrangler.toml "disables workers.dev and preview URLs". The pipeline only runs `versions upload` and `versions deploy` (lines 185-187). Cloudflare's Wrangler command reference says `wrangler triggers deploy` applies "changes to triggers (Routes or domains and Cron Triggers) when using `wrangler versions upload`". It does not say that `versions upload` applies `workers_dev`. The configuration reference says of `preview_urls`: "If omitted, Wrangler does not change an existing setting". It also says `workers_dev` "Defaults to `true` when the configuration has no `route` or `routes`". Lab creates the Worker (line 184) by a method the document does not name. So whether workers.dev and version preview URLs end up disabled depends on Lab's creation step, not on the configuration file the design points to. The Workers permissions page lists no permission for these settings, so the Editor credential (line 183) may not be able to change them either. No AC-04 or AC-06 proof checks that the live Worker has no workers.dev route or preview URL, so an implementation that leaves both enabled passes.
+PROPOSAL: Say which step disables workers.dev and preview URLs on the live Worker (Lab provisioning or a named command with its permission). Add a cutover check that the Worker's workers.dev and preview URLs are disabled.
+
+FINDING: F-05
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Owner summary lines 40-45, Scope line 111, Design (Independent hosting) lines 151-153 and 170-172, Design (Pipeline and reuse) line 184, Test Plan AC-04
+EVIDENCE: Scope line 111 says Lab supplies the infrastructure "ahead of the first live deployment", and line 151 lists the two routes among Lab's provisioning. Line 172 instead says "Initial route activation follows a successful site upload". The two orderings disagree on whether routes exist before the first pipeline upload. The Workers permissions page says per-Worker roles "cannot cover Workers that do not exist yet" and that Editor "Cannot create or delete Workers". So Lab must create the Worker with some first version before the site credential can exist. The document does not say what that first version contains, or whether later Lab infrastructure runs manage the Worker's content. If they do, they can replace the pipeline's deployed version. Line 172 also requires native package verification right after cutover, but it does not say what happens when that verification, or the edge route and redirect checks at line 170, fail. It does not say who removes the routes and redirect, or what state counts as restored (today the feed returns 404 at `/`, line 101). This crosses the Cloudflare and GitHub boundary with two owners of one Worker, and the partial-failure and rollback path is undefined. AC-04 gives the cutover checks but no failure outcome.
+PROPOSAL: Fix one cutover order (Worker creation, first upload, routes and redirect) and say whether Lab manages Worker versions after creation. Define the cutover failure path: who removes the routes and redirect, and the expected restored responses. Add that rollback to the AC-04 cutover procedure.
 
 ## Sources
 
