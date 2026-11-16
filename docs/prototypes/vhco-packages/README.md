@@ -37,12 +37,12 @@ VHCO_PACKAGES_PREVIEW_URL=http://127.0.0.1:<allocated-port> bun node_modules/@pl
 ```
 
 The suite uses Chromium and Firefox at six viewports in both themes.
-It also checks the explicit 404 response, independent-channel signing guidance, URL copying and clipboard denial after success, theme persistence, keyboard navigation, unavailable storage and reading with JavaScript disabled.
+It also checks the explicit 404 response, independent-channel signing guidance, URL copying and clipboard denial after success, theme persistence, keyboard switch activation, reduced motion, unavailable storage and reading with JavaScript disabled.
 Screenshots and failures are retained under the ignored `work/packages-preview/` directory.
 Chromium's copy case reads the resulting clipboard, and Firefox's observes the native write completing and its UI feedback.
 The production workflow and actual browser-zoom checks remain in the feature's implementation test plan.
 
-The browser prototype includes light and dark themes, a repository URL copy control and the actual public documentation links.
+The browser prototype includes a sun/moon theme switch, a repository URL copy control and the actual public documentation links.
 Page content and navigation work with JavaScript disabled.
 The production page and its publication/recovery integration follow the accepted feature specification.
 

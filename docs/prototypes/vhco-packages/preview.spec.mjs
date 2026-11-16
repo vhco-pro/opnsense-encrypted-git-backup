@@ -22,6 +22,7 @@ for (const theme of ['light', 'dark']) {
       await page.goto('/');
       await expect(page.locator('h1')).toHaveText('Packages fromVH & Co.');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(page.getByRole('switch', { name: 'Dark theme' })).toHaveAttribute('aria-checked', String(theme === 'dark'));
       await expect(page.locator('.package-name')).toHaveText('os-encrypted-git-backup');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       for (const button of await page.locator('button:visible, .button').all()) {
@@ -43,10 +44,26 @@ test('theme selection survives reload and keyboard navigation reaches setup', as
   await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/#main$/);
-  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await page.getByRole('switch', { name: 'Dark theme' }).click();
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.getByRole('button', { name: 'Switch to light theme' }).click();
+  await page.getByRole('switch', { name: 'Dark theme' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
+test('theme switch supports keyboard activation with a stable accessible label', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const themeSwitch = page.getByRole('switch', { name: 'Dark theme' });
+  await expect(themeSwitch).toHaveAttribute('aria-checked', 'false');
+  await expect(themeSwitch.locator('.theme-thumb')).toHaveCSS('transition-duration', '0s');
+  await themeSwitch.focus();
+  await page.keyboard.press('Space');
+  await expect(themeSwitch).toBeFocused();
+  await expect(themeSwitch).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.keyboard.press('Enter');
+  await expect(themeSwitch).toHaveAttribute('aria-checked', 'false');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
@@ -75,7 +92,7 @@ test('storage denial preserves theme controls', async ({ page }) => {
     Storage.prototype.setItem = () => { throw new DOMException('Denied', 'SecurityError'); };
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await page.getByRole('switch', { name: 'Dark theme' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 

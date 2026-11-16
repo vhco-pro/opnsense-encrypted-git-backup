@@ -5,8 +5,7 @@ const preference = window.matchMedia('(prefers-color-scheme: dark)');
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  themeButton.textContent = theme === 'dark' ? 'Light' : 'Dark';
-  themeButton.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`);
+  themeButton.setAttribute('aria-checked', String(theme === 'dark'));
 }
 
 let savedTheme;

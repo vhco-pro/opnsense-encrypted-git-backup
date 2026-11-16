@@ -63,7 +63,7 @@ The protected job verifies page commits against main and their successful source
 Its required environment approval records manual review of the exact run's bundle inputs.
 Retained page-source metadata stays inside the archives, and publication mode is bound into the approval and submission record.
 
-The committed prototype passed 38 local Chromium/Firefox scenarios.
+The committed prototype passed 40 local Chromium/Firefox scenarios.
 Production assembly, paginated inventory, native recovery and live Cloudflare checks remain planned implementation proof.
 The specification stays draft for independent review and final owner acceptance.
 
@@ -86,12 +86,16 @@ The pagination design below replaces these single-page restrictions.
 
 ### Prototype verification
 
-The 38 focused prototype scenarios passed locally with the repository's locked Playwright 1.59.1 in Chromium and Firefox.
-The checks exercised six viewport sizes in both themes, keyboard access, theme persistence, URL copying, denied clipboard/storage access, explicit missing-route HTTP 404 responses, independent-channel signing guidance and reading with JavaScript disabled.
+The 40 focused prototype scenarios passed locally with the repository's locked Playwright 1.59.1 in Chromium and Firefox.
+The checks exercised six viewport sizes in both themes, keyboard switch activation, reduced motion, theme persistence, URL copying, denied clipboard/storage access, explicit missing-route HTTP 404 responses, independent-channel signing guidance and reading with JavaScript disabled.
 The R-1 copy-state, signing-text and missing-route regressions first failed against the original prototype, then passed after correction.
 Their failing output remains under ignored `work/packages-preview-r1-red-host/`.
 The logo-notice regression also failed in both engines before the notice and link were added, then passed in the complete 38-case run.
 Its initial output remains under ignored `work/packages-preview-logo-red/`.
+The theme-switch regression failed in both engines before the switch was added, with output under `work/packages-preview-theme-red/`.
+An initial reduced-motion assertion ran without browser media emulation and failed in both engines.
+Explicit emulation corrected that test setup, and the final 40-case run passed in 38.3 seconds.
+The failed run remains under ignored `work/packages-preview-theme-motion-failure/`.
 Representative desktop and mobile captures were inspected.
 The actual owner-restricted HTTPS share also loaded its assets, changed theme and navigated to setup.
 Its browser clipboard policy used the tested URL-selection fallback.
@@ -135,6 +139,10 @@ Release-history links let the reader select the version relevant to their applia
 Signing-related text directs the reader to the installation guide and its independent trusted-channel check of the public key fingerprint.
 
 ### Browser behaviour
+
+The light/dark control is a sun/moon switch with a sliding thumb and a stable "Dark theme" accessible label.
+Its checked state follows the active theme, and the native button supports Space and Enter.
+The switch honours reduced-motion settings and offers a 44 CSS-pixel touch target.
 
 The repository URL copy button writes only the URL after an explicit click.
 A successful copy produces visible status and a live-region announcement.
