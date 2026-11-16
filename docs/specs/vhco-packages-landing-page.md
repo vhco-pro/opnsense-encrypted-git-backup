@@ -322,10 +322,26 @@ None yet; written after owner acceptance.
 
 ## Open Questions
 
-None.
-The owner selected publisher reuse, independent page-only updates and public byte/header verification on 15 November 2026.
-The owner then accepted the actually served recovery baseline, explicit HTML response routes and retained-only provenance metadata with a complete public-file list.
-On 16 November 2026 the owner accepted generated and verified recovery metadata, site failures under the existing recovery/retry/hold contract, GitHub CLI preparation with protected-job Cloudflare checks, and independent protected verification of the explicit page-source commit.
+### Q5 — Bootstrap closure, completed retirement and publication limits
+
+R-4 F-02 asks which site state unchanged-feed closure expects before any deployment exists.
+Recommend verifying the actual empty prior state with root, unknown-path and catalogue HTTP 404 responses.
+The page-bearing recovery archive is used for a recovery deployment; it is not evidence of a page already being served by an empty predecessor.
+
+R-4 F-03 asks how carried-forward retirement is authorised and proven.
+Recommend requiring `authorize_retirement=false` in page-only mode and verifying the earlier matching `trust-finalization-pending.scope` plus that attempt's `verified-closure.withdrawn`.
+Both submission and reconciliation use that completed evidence, while a new retirement needs the regular retirement path.
+
+R-4 F-04 exposes the maintenance burden of the proposed custom private-data classifier.
+Recommend removing that classifier and using the existing pinned secret checks, exact approved public-asset provenance and file-list validation, plus final payload/network review.
+The explicit public-file list continues to exclude private source and retained-only metadata.
+
+R-4 F-05 asks whether the provider and journal read bounds need a remedy in this feature.
+Recommend complete pagination for both Cloudflare deployments and GitHub journal reads, with verified completeness and holds for inconsistent or incomplete results.
+The current reader accepts at most 25 production deployments and one journal page of 100 records with no next page; those shared bounds otherwise stop later page and package publications.
+
+Owner answer pending for these four choices.
+The owner accepted the R-3 delivery details on 16 November 2026.
 
 ## Review Log
 
@@ -334,6 +350,7 @@ On 16 November 2026 the owner accepted generated and verified recovery metadata,
 | 2026-11-15 | R-1 | spec | `1012715422c73c326c0d3061e62dbc2c9e83c334` | claude-opus-5-5 | procedural | One blocking, four should-fix and two nits. Read-only checkout preservation verified. |
 | 2026-11-15 | R-2 | spec | `23d22b463fb22cc41c8362557def8624ff05dbd7` | claude-opus-5-5 | procedural | One blocking and four should-fix. Read-only source and Git preservation verified. Shell execution was denied to this static reviewer. |
 | 2026-11-15 | R-3 | spec | `340d9014f0b9671257bf6594270681967f82b6b7` | claude-opus-5-5 | procedural | Seven should-fix findings. Static source review, with read-only source and Git preservation verified. |
+| 2026-11-16 | R-4 | spec | `e7056a8df471b467d140b965cbc08540373a6fe2` | claude-opus-5-5 | procedural | Five should-fix findings. Static review with matched read-only source/Git snapshots. Reviewer shell execution was denied. |
 
 ### R-1
 
@@ -479,6 +496,45 @@ SEVERITY: should-fix
 WHERE: Design (Homepage-only updates) lines 182-186 and 194, Test Plan AC-05
 EVIDENCE: Line 182 says the reviewed page source SHA is "supplied separately" and "must be reachable from main". Line 186 says "Candidate preflight validates the source SHA". The `publish` dispatch has no page-source input (.github/workflows/feed.yml:4-39). It checks only `APPROVED_SOURCE` with `git merge-base --is-ancestor` (.github/workflows/feed.yml:226-227). scripts/feed-preflight.sh receives no page SHA (scripts/feed-preflight.sh:5-14). The document does not say whether the protected job independently checks that the page SHA in the retained `site.json` is reachable from main, or only that it is consistent with the listed bytes. One implementer would add a dispatch input and an ancestry check. Another would trust the SHA recorded at preparation. AC-05 lists "source mismatch" but no unreachable page SHA case.
 PROPOSAL: State where the page SHA enters the protected run and which step verifies its ancestry from main against the `site.json` value. Add an AC-05 case where an unreachable page SHA holds before submission.
+
+### R-4
+
+TARGET: e7056a8df471b467d140b965cbc08540373a6fe2
+
+FINDING: F-01
+KIND: factual
+SEVERITY: should-fix
+WHERE: Design (Selecting predecessor history and recovery bytes) lines 237-248 and 257-270, Design (Homepage-only updates) lines 200-201 and 209, Design (Completed catalogue withdrawals) line 227, Owner summary lines 45-47, Test Plan AC-05
+EVIDENCE: The replay rule at line 240 covers only history input. When the latest submission matches the candidate digest, dispatch selects the closure named by that submission's `predecessor`, matching scripts/publish-feed.sh:104-118. The recovery baseline uses a different rule. Line 257 says the preparation entry point "resolves the currently closed baseline". Line 266 says the protected job "repeats the selection". Line 201 checks established recovery "against the selected prior archive's approved provenance", and line 227 requires a page-only dispatch to match "the selected live baseline". Take a closure POST that commits but loses its response (scripts/feed-close.sh:26-32). The journal then holds the replayed submission's own verified-closure (scripts/feed-journal-generation.jq:52-57), so the currently closed baseline is the replayed candidate and not its predecessor. That candidate is also what is live. If the protected job compares the recovery archive's page, site.json and catalogue with that baseline, a correct replay holds. Line 270 says a replay reconciles its own deployment, but it does not say whether the recovery-provenance and page-only baseline checks are skipped on replay or run against the submission's predecessor. Two implementers would choose differently. The AC-05 lost-closure case covers only a package publication's history input. It does not cover a page-only replay or the recovery-archive provenance check. This traces to this revision's repair of R-3 F-01. Shell execution was denied in this review session, so the pinned vh-adlc lint and the repository checks were not run. This is a static review.
+PROPOSAL: Apply the replay predecessor rule to baseline archive selection, recovery page provenance and the page-only live-baseline proof as well, or state which of those checks a replay skips. Add an AC-05 case that replays a page-only update after its closure response was lost.
+
+FINDING: F-02
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Publication and recovery) lines 167, 172, 175 and 183, Design (Homepage-only updates) lines 200 and 210, Acceptance Criteria AC-05, Test Plan AC-04, AC-05
+EVIDENCE: Line 167 puts site verification inside `verify_unchanged_feed`, and line 175 requires "the appropriate retained site's successful verification" on every closure path. Line 183 lets an empty-catalogue bootstrap recovery carry the generic page. For a bootstrap generation the prior deployment is empty, so `verify_unchanged_feed` requires `canonical_deployment` to be null and the recovery bundle to have no release.json (scripts/publish-feed.sh:213-219). It then expects HTTP 404 for every catalogue file, because nothing is served (scripts/feed-recovery.sh:9-12). Rejection closure (scripts/publish-feed.sh:232-238) and failed-candidate closure (scripts/publish-feed.sh:272-282) both call that function while no deployment is live. A site check against a page-bearing bootstrap recovery's site.json then requires `/` to return the page with HTTP 200, which cannot happen. So under a literal reading a correctly rejected or terminally failed bootstrap candidate can never close. Another implementer would skip the site check or expect only HTTP 404s when the prior deployment is empty. The AC-04 row tests only "a wrong previously served site" on these closures. No AC-04 or AC-05 case closes a bootstrap candidate with a page-bearing recovery.
+PROPOSAL: State which site expectation `verify_unchanged_feed` applies when no prior deployment exists, for example root and unknown paths HTTP 404 with no page-byte check. Add rejection and failed-candidate closure cases for a page-bearing bootstrap recovery.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Completed catalogue withdrawals) lines 227-233, Design (Publication and recovery) lines 173-174, Owner summary line 48, Test Plan AC-05
+EVIDENCE: Line 231 says only "the current `retirement == {}` guard" (scripts/publish-feed.sh:353) is adjusted for a carried-forward page-only withdrawal. The next block still runs for any non-empty retirement. It calls validate_retirement and requires `FEED_RETIREMENT_AUTHORIZED == true` (scripts/publish-feed.sh:361-365), which feed.yml:200 maps from `authorize_retirement`. Reconciliation enters `verify_retirement` whenever `outcome == success && retirement != '{}'` (scripts/publish-feed.sh:289-292). On first entry that function appends a new trust-finalization-pending row and exits (scripts/feed-retirement.sh:30-38). Line 230 says the page-only path "skips new trust-finalisation work". It does not say whether a carried-forward dispatch must set `authorize_retirement` true, must leave it false, or ignores it. That choice decides whether the owner's retirement approval is reused for page edits. Line 229's "completed retirement's journal evidence" is also unnamed. The retirement rows sit in an earlier generation, because each submission resets `.retirement` (scripts/feed-journal-generation.jq:11). Candidate evidence would be the trust-finalization-pending `scope` (feed-journal-generation.jq:47-51) and the verified-closure `withdrawn` for that attempt (scripts/feed-close.sh:25). The existing fixture's retirement release carries `retirement` (tests/package/feed-publisher-http.mjs:511-515). So a page-only update on that tag reaches all three branches. This traces to this revision's repair of R-3 F-03.
+PROPOSAL: State the required `authorize_retirement` value for a carried-forward page-only dispatch, and name the journal rows and fields that prove the plan already completed. Cover both the submission branch and the reconciliation branch. Add AC-05 assertions for the authorisation value and for the absence of a new trust-finalization-pending row.
+
+FINDING: F-04
+KIND: factual
+SEVERITY: should-fix
+WHERE: Test Plan AC-06, Acceptance Criteria AC-06
+EVIDENCE: The row gives one must-fail value per class: `192.168.231.17`, `100.101.102.103`, `"ghp_" + "A".repeat(36)`, one `<opnsense>` fragment and a PKCS#8 `-----BEGIN PRIVATE KEY-----` block. A detector that matches only those literals or narrow forms passes the row. Examples are a `192.168.` prefix, a `ghp_` prefix or the exact PKCS#8 header. Such a detector misses `10.0.0.0/8` and `172.16.0.0/12` addresses and the repository's own credential shapes. The plugin stores SSH private keys and encryption passwords (docs/specs/native-encrypted-git-backup.md:172, docs/security/cve-2025-15367.md:71), whose usual form is `-----BEGIN OPENSSH PRIVATE KEY-----`. The publisher's live secret is a Cloudflare Pages API token (.github/workflows/feed.yml:206), not a GitHub `ghp_` token. The row has no near-miss must-pass values, such as `172.32.0.1` or `100.128.0.1`, that would separate a range check from a broad numeric match. The row changed in this revision in response to R-3 F-05, so it has not passed review and this is not a widening nit.
+PROPOSAL: Give at least two must-fail values per class, including `10.x` and `172.16-31.x` addresses, an OpenSSH private-key block and a Cloudflare-token-shaped value. Add near-miss must-pass values at the range boundaries.
+
+FINDING: F-05
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Owner summary lines 42-54, Scope line 94, Design (Selecting predecessor history and recovery bytes) lines 238 and 266-269, Test Plan AC-05
+EVIDENCE: Scope line 94 presents page-only updates as the normal way to add repository entries and correct links. Every page-only publication adds at least one production Pages deployment (scripts/publish-feed.sh:407), and recoveries and retries add more (scripts/feed-recovery.sh:36-44). It also adds at least two journal rows, submission-started and verified-closure. Line 267 keeps the provider bound of 25 production deployments, and line 266 now applies it before every new submission, not only during reconciliation (scripts/publish-feed.sh:164-174). Line 238 relies on reading the complete journal, but the existing journal bound is under 100 rows with no next page (scripts/publish-feed.sh:61-66). The document never states that bound. Once either bound is reached, every later publication holds, including package releases, and the document defines no way back below the bound. The owner accepted holding on incomplete results in R-3. The Owner summary does not say that each page edit uses up a fixed lifetime publication budget shared with package releases. It also does not mention the journal bound.
+PROPOSAL: State both bounds and their effect on how many page-only and package publications remain in the Owner summary and the Design. Raise for the owner whether reaching a bound needs a defined remedy within this feature or stays a permanent hold.
 
 ## Sources
 
