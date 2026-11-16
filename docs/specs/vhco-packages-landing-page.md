@@ -1,11 +1,12 @@
 ---
 status: draft
-status_description: "R-19 recorded one should-fix finding about local Wrangler state placement. Native serving and the independent static deployment scope remain selected."
+status_description: "Native Wrangler uses its conventional ignored local cache. Source scanning and the explicit public asset list exclude generated state and dependencies. The simplified draft awaits fresh review."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
   - AGENTS.md
   - README.md
+  - .gitignore
   - web/packages/
   - package.json
   - bun.lock
@@ -188,6 +189,7 @@ Use semantic headings, a skip link, visible keyboard focus and responsive text.
 Use Cloudflare Workers Static Assets for the homepage and a dedicated `/_site/` asset prefix.
 Production files live in `web/packages/public/`, with `index.html` and `404.html` at that directory's root and the stylesheet, browser script, logo, font and both notices under `_site/`.
 HTML and stylesheet references use the same public prefix.
+Validate the exact public asset list before deployment, excluding `.wrangler/`, dependency directories and configuration/state files from `public/`.
 The generic Wrangler configuration at `web/packages/wrangler.toml` points its assets directory at `public/`, uses the native `404-page` setting and declares workers.dev and preview URLs disabled.
 It declares neither a `route` nor a `routes` key.
 Lab owns route creation independently of the asset upload.
@@ -253,9 +255,11 @@ Retain the verified release comments beside each action SHA so the native update
 Install Wrangler as an exact root development dependency through the existing Bun lockfile, then select `packageManager: bun` in the action.
 The action uses the installed tool.
 The consumer's workflow owns its static-file checks, browser suite and HTTP smoke check.
-Its verification job scans `web/packages/`, including the public payload and generic README, with the free upstream Gitleaks CLI, using the official container pinned by released version and digest in the workflow.
+Its verification job scans the maintained source under `web/packages/`, including the explicit production asset tree and generic README, with the free upstream Gitleaks CLI, using the official container pinned by released version and digest in the workflow.
+Use Gitleaks' native path exclusions for generated `.wrangler/` state and dependency directories.
+Keep its default detection rules enabled.
 Reference the official image directly as `uses: docker://ghcr.io/gitleaks/gitleaks:<released-version>@sha256:<digest>`.
-Pass `dir --redact=100 --no-banner` and `web/packages/` as its arguments.
+Pass `dir --redact=100 --no-banner`, the native component scanner configuration and `web/packages/` as its arguments.
 The managed Renovate GitHub Actions manager discovers this native container reference.
 Add the actual shared baseline `renovate.json` from `knowledge/managed-renovate.md` at the explicitly cited shared-docs revision.
 Its verified presets are `config:recommended` and `helpers:pinGitHubActionDigests`, with the shared manual-review rules for action majors and unversioned action digests.
@@ -350,6 +354,9 @@ Use the existing locked Bun/Playwright dependencies.
 The packages Playwright fixture serves `web/packages/` through native `wrangler dev --local` with `web/packages/wrangler.toml`.
 The manually started preview uses that same command and configuration.
 Retire `docs/prototypes/vhco-packages/preview.mjs` from the maintained preview and test path when adopting the production files.
+Add Wrangler's conventional `.wrangler/` pattern to `.gitignore`.
+Local cache/state may remain there after Wrangler exits.
+It is excluded from the source scan and the explicit deployment asset set.
 Keep site specs and their explicit Playwright configuration under `tests/packages/`, outside the appliance config's `tests/browser/` directory.
 The site workflow selects that configuration explicitly.
 Compare native Playwright test collection before and after the feature and require the appliance job to collect its existing specs only.
@@ -369,7 +376,7 @@ Bootstrap with `bun install --frozen-lockfile --ignore-scripts` and `bun x playw
 `bun run packages:preview` starts native `wrangler dev --local` with `web/packages/wrangler.toml`, serves the production static files on loopback and prints its local URL.
 `bun run packages:verify` runs static checks, the pinned redacted scanner, native Wrangler asset/404 smoke checks and the explicit `tests/packages/` Chromium/Firefox suite.
 Document Docker with daemon access as a local scanner prerequisite.
-The local scanner reads the `secrets` step's immutable `uses: docker://` reference from `.github/workflows/packages-site.yml` with Bun's built-in YAML parser and runs that same image through Docker, with a read-only `web/packages/` mount and network disabled.
+The local scanner reads the `secrets` step's immutable `uses: docker://` reference from `.github/workflows/packages-site.yml` with Bun's built-in YAML parser and runs that same image through Docker, with a read-only `web/packages/` mount, the same native scanner configuration and network disabled.
 This workflow reference is the single authoritative scanner pin.
 Missing Docker, an invalid reference or a scanner error fails the aggregate command.
 `bun run packages:smoke -- <base-url>` runs the same bounded response checks used after deployment.
@@ -404,7 +411,7 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 | AC-02 | Run the specified viewport/theme matrix in Chromium and Firefox. Check overflow, readable type, 44-pixel touch targets, focus and headings. Inspect representative screenshots. Exercise actual 200 percent browser zoom and record its method and resulting viewport. |
 | AC-03 | Run the current prototype's keyboard switch, saved theme, storage denial, URL copy, clipboard failure after success and JavaScript-disabled cases against the production static files served by native `wrangler dev --local`. Check the switch state and reduced-motion behaviour. |
 | AC-04 | **Static checks** require the Wrangler file to have no `route` or `routes` key. **Local checks** serve production files through native Wrangler, verify root/prefixed assets and media types, missing-asset HTTP 404 and the smoke checker. **Live cutover observation** checks the actual root with/without a query, queried asset, missing paths, exact public bytes/media types and native signed catalogue authentication/package fetch. **Independent re-observation** repeats public GETs and native pkg verification from the identified source and public signing inputs. Record response status/hash/media-type summaries, source SHA, run/attempt and native deployment/version ID in this document. The opaque Lab revision is a rollout reference only. Public behavior is verified through these actual reads. Private Lab review is outside this criterion's proof. |
-| AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks source scan. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require every introduced action/container ref, verified release/digest and runtime input to appear, including checkout, setup-bun, wrangler-action, Bun and the scanner image. Require Bun extraction of Wrangler and Playwright with `bun.lock` and a tool update whose regenerated lock passes the frozen install. Validate the consumer against the actual shared Renovate baseline and require managed App access plus a Dashboard entry or update proposal for the scanner image. Record an unavailable updater as unmet or through a separately approved tracked residual. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
+| AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks source scan. Run the local preview before verification and confirm generated Wrangler cache is ignored by Git and excluded from the source scan and deployment assets, while a synthetic secret in maintained source fails scanning. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require every introduced action/container ref, verified release/digest and runtime input to appear, including checkout, setup-bun, wrangler-action, Bun and the scanner image. Require Bun extraction of Wrangler and Playwright with `bun.lock` and a tool update whose regenerated lock passes the frozen install. Validate the consumer against the actual shared Renovate baseline and require managed App access plus a Dashboard entry or update proposal for the scanner image. Record an unavailable updater as unmet or through a separately approved tracked residual. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
 | AC-07 | **Static checks** run actionlint, validate official action inputs, read-only PR permissions, absence of PR Cloudflare inputs, successful-verification dependency, publication-flag/main conditions, independent site concurrency group and absence of package-tag/publish mutations. Desk-review the exact native `if:` and `needs` conditions against GitHub's documented contexts. PR verification runs read-only without Cloudflare inputs. A non-main ref, disabled flag or failed verification excludes deployment. Successful verification on enabled main permits deployment. Compare the job-level verification cancellation and independent non-cancelling deployment groups with GitHub's documented semantics, requiring no workflow-level cancelling group and no extra live deployments. **Local checks** run the documented aggregate command, synthetic secret/error cases, source-restoration/stale-byte checks against native Wrangler serving temporary asset copies, exact restored bytes/media types and root-lockfile trigger coverage. The source-restoration proof is local. **Live cutover observation** is the one normal protected main dispatch already named in Design, including its actual verification/deployment jobs and public smoke. Read the native GitHub environment policy then. **Independent re-observation** reads the public run/job/workflow and environment-policy records, repeats public HTTP/pkg checks and labels one-time operator actions as recorded evidence. Public criterion evidence holds the run/attempt, source SHA, optional opaque rollout revision and native deployment/version identifiers. The private Lab rollout reference is recorded outside the public criterion proof, in the private VitePress execution record, with its opaque revision optionally in public evidence. |
 
 ## Tasks
