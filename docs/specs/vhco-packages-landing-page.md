@@ -76,6 +76,18 @@ An initial npm bootstrap and missing-browser launch were corrected by using the 
 The initial missing-browser evidence remains under the ignored `work/packages-preview-missing-browsers/` directory.
 
 
+### Native hosting compatibility check
+
+On 16 November 2026, Wrangler 4.162.0 accepted an assets-only configuration with the proposed exact-root and `/_site/*` routes during `wrangler deploy --dry-run`.
+The command exited successfully after reading the staged static files.
+The local `wrangler dev --local` runtime served the root and six prefixed assets with the expected bytes and media types.
+Three absent-path requests returned HTTP 404.
+Chromium and Firefox loaded the page, changed and retained the theme, reached the setup section and reported zero page errors.
+
+This check exercised Cloudflare's local workerd runtime and configuration parser.
+The edge route selection and root-query redirect still require live verification at the separately authorised cutover.
+The public feed returned HTTP 200 for `/meta.conf` and HTTP 404 at `/` during the same read-only check.
+
 ## Scope
 
 Add a generic homepage at pkg.vhco.pro with the VHCO mark, website styling and current OPNsense repository entry.
@@ -211,15 +223,26 @@ Tasks follow owner acceptance.
 
 ## Open Questions
 
-### Hosting verification pending
+### Q8 — Which native hosting arrangement should serve the independent page?
 
 The owner selected an independently deployed static homepage and native artifact provenance on 16 November 2026.
 That direction supersedes Q7's joint-lifecycle decisions.
 
-The exact Cloudflare route topology requires a bounded compatibility check before implementation acceptance.
-The candidate is a native static asset deployment for the root and a dedicated page-asset prefix alongside the current Pages package origin.
-The proof must cover root queries, native catalogue/package paths and independent rollback.
-A new routing or hosting trade-off identified by that check is presented to the owner before adoption.
+Recommend an assets-only Cloudflare deployment reached through `pkg.vhco.pro/` and `pkg.vhco.pro/_site/*`.
+The existing Pages project remains the origin for package paths.
+Cloudflare's documented route matching includes the query string, so an exact-root route needs a canonical redirect for root URLs carrying a query.
+One native Single Redirect would match this hostname, path `/` and a nonempty query, return HTTP 301 to `https://pkg.vhco.pro/` and set `preserve_query_string=false`.
+This uses the existing hosting platform's static assets and routing controls.
+
+| Option | You get | It costs |
+| --- | --- | --- |
+| A. Static assets and narrow routes, recommended | Independent page deployment at the existing root, with package paths routed directly to their existing origin. | One static deployment, two routes and one canonical-query redirect to configure and verify at cutover. |
+| B. Adjust the hosting topology | A different hosting or address arrangement selected by the owner. | Another design choice about the public address or request routing. |
+
+This choice determines which hosted target and rules serve the public homepage.
+The local dry run and browser checks passed for the proposed assets-only target.
+Actual edge routing, existing-rule compatibility, native package retrieval and independent rollback remain live cutover checks.
+The design choice is pending the owner's answer.
 
 ## Review Log
 
@@ -522,6 +545,9 @@ PROPOSAL: Name where the observation is stored, or drop the recording step and k
 - [GitHub CLI verification](https://cli.github.com/manual/gh_attestation_verify) documents verification of the downloaded artifact and signer restrictions.
 - [Cloudflare static assets](https://developers.cloudflare.com/workers/static-assets/) documents native static hosting and its deployed asset versions.
 - [Cloudflare routes](https://developers.cloudflare.com/workers/configuration/routing/routes/) documents path matching, query-string behaviour and the proxied-host requirement.
+- [Cloudflare Single Redirect settings](https://developers.cloudflare.com/rules/url-forwarding/single-redirects/settings/) documents static targets and query-string removal.
+- [Cloudflare redirect rules](https://developers.cloudflare.com/rules/url-forwarding/) documents native redirects, their execution and availability across plans.
+- [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/) documents the static-assets and route configuration used by the local dry run.
 - [Cloudflare Direct Upload](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/) documents publishing a static directory through native tooling.
 - [VHCO homepage](https://vhco.pro/) and its [theme source](https://github.com/michielvha/vitepress/blob/main/app/.vitepress/theme/style.css) supply the observed styling.
 - [Company mark](https://vhco.pro/landing/vhco-github.png) is the existing VH & Co logo.
