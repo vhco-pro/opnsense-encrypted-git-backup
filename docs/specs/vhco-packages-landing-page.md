@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "The component scanner configuration is named, with native exclusion behavior probed at an exact official image. The simplified draft awaits fresh independent review."
+status_description: "R-21 found one factual citation nit and no blocking or should-fix findings. The reviewed draft awaits owner acceptance before implementation."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -67,7 +67,8 @@ A permanent main-only manual trigger provides redeployment for repository writer
 
 The prototype passed 40 local Chromium/Firefox cases.
 Production hosting and native attestation integration are still unimplemented.
-This revised draft requires fresh independent review before acceptance.
+Independent R-21 found one factual citation nit and no blocking or should-fix findings.
+Owner acceptance and production implementation remain pending.
 
 ### Background and revision
 
@@ -449,6 +450,7 @@ None. On 16 November 2026 the owner selected normal managed Renovate dependency 
 | 2026-11-16 | R-18 | spec | `d5a111246a3bb6b9b668133262596f9f7303da70` | claude-opus-5-5 | procedural | One should-fix finding. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint, freshness, planned gate, next and diff checks ran. Startup write probe, reviewer mount inspection and actionlint version were denied; repository tests were unexecuted. Launcher read-only snapshots matched. The full return includes appended run notes. |
 | 2026-11-16 | R-19 | spec | `6190abd0778945b372da1e9b5d797b2441dd3eca` | claude-opus-5-5 | procedural | One should-fix finding. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint, freshness, planned gate, next and diff checks ran. Startup write probe, combined mount inspection, one diff form and actionlint were denied; repository tests were unexecuted. Launcher read-only snapshots matched. |
 | 2026-11-16 | R-20 | spec | `4fa45d0b8322dc04fa9eee823fd933b3696805da` | claude-opus-5-5 | procedural | Two should-fix findings. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint, freshness, planned gate, next and diff checks ran. A startup write probe and two combined gate/diff forms were denied; repository tests were unexecuted. Launcher read-only snapshots matched. The full return includes appended run notes. |
+| 2026-11-16 | R-21 | spec | `a5917f92c1e6a7cca8b1895709cc4e92f36c0d80` | claude-opus-5-5 | procedural | One factual citation nit, with no blocking or should-fix findings. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint, freshness, planned gate, next and diff checks ran, and the reviewer read the native probe evidence and public image/default configuration. Startup write probe and one combined command were denied; repository tests were unexecuted. Launcher read-only snapshots matched. |
 
 ### R-1
 
@@ -1183,6 +1185,17 @@ PROPOSAL: In the AC-06 row, place one synthetic secret in each maintained file c
   - **Mount proof:** none. My first startup command included `findmnt` and a write probe in the clone. It was denied, so no file was created, but it also means I have no reviewer-side mount proof.
   - **Preservation:** I can only show that HEAD was at the target and the tree was clean at the start and at the end.
   - **Checks not run:** actionlint, the PHP checks and Playwright.
+
+### R-21
+
+TARGET: a5917f92c1e6a7cca8b1895709cc4e92f36c0d80
+
+FINDING: F-01
+KIND: factual
+SEVERITY: nit
+WHERE: Design (Pipeline and reuse) line 264, Sources line 1189
+EVIDENCE: Line 264 says "The locally verified initial pin is `ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f`". The Sources entry at line 1189 describes "A local synthetic probe" and its per-file results. Neither line cites the command or its output, and the pinned conventions/feature-documents.md:75-76 says Design claims cite "a `file:line`, or a command and its output". The probe evidence is outside the repository, at /tmp/vhco-packages-gitleaks-native.9qy4_aro. I read it in this pass. probe.py runs `docker run --rm --network none --read-only ... --mount type=bind,source=<source>,target=/src,readonly <image> dir --config /src/.gitleaks.toml --redact=100 --no-banner --no-color /src`. The config is `[extend] useDefault = true` with an allowlist path `(^|/)(\.wrangler|node_modules)/`. results.json shows exit 1 for README.md, wrangler.toml, public/index.html and public/_site/page.js, and exit 0 for .gitleaks.toml, .wrangler/probe.txt and node_modules/probe.txt. output-1.txt reads "leaks found: 1" and output-5.txt reads "no leaks found", so the exit codes come from findings and not from scanner errors. initial/results.json keeps the first run, which wrongly expected the .gitleaks.toml case to fail. The claims are therefore true. A public reader just cannot trace them from the document. Line 1190 is also blank, which splits the Sources list in two. Nothing an implementer builds or a proof checks changes. Tool record for this pass: `/home/m/.local/bin/vh-adlc lint docs/specs/vhco-packages-landing-page.md --repo /tmp/eg-packages-opus-r21.ZwIQYj/source --plugin-pin 1ccf8f314575ece1f3fcc8e48c4fd804a1ca88ff` returned `"result":"pass"` with no findings at docs revision 1edeb5f32d868bbe761ef3221f350634cd6ff022. `vh-adlc fresh` with the same arguments returned local and remote SHA a5917f92c1e6a7cca8b1895709cc4e92f36c0d80. It reported the latest spec review as R-20 at 4fa45d0b8322dc04fa9eee823fd933b3696805da, stale with `baseline-changed`, `no-review` for implementation, and a clean feature tree, so the new R-20 row belongs to the Review Log table. `vh-adlc gate planned` exited 1 with failing conditions `spec_review_fresh` and `accepted` and transition `allowed`. `vh-adlc next` returned action `spec review` (rule 4). `git diff --stat 4fa45d0 a5917f9` shows only the spec changed. `git diff 4fa45d0 a5917f9` touches only status_description, Design lines 259-265 and 288, the AC-06 row, the new R-20 row and subsection, and the new Sources entry, and no earlier review subsection changed. `git diff --check 4fa45d0 a5917f9` printed nothing. A public fetch of the Gitleaks v8.30.1 `config/gitleaks.toml` confirmed that the default global allowlist paths include the unanchored `gitleaks\.toml` and `(?:^|/)node_modules(?:/.*)?$`. That supports the configuration-file exclusion stated at line 261 and in the AC-06 row. A public fetch of the ghcr.io gitleaks package page listed tag v8.30.1 with digest sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f, which matches line 264. Pinned conventions/repository-security.md:47-50 asks that tools, rules and coverage be recorded, and lines 259-262 and the AC-06 row now do that. At the end, `git rev-parse HEAD` returned the target and `git status --porcelain=v2 --branch` showed a clean detached HEAD. The host's don't-ask mode denied two commands. The first was my startup command, which wrongly included a `touch` write probe in the clone along with `git status` and `mount`. Because it was denied, no file was created, and I have no reviewer-side mount proof. The second was a combined `ls` of the probe directory and `git diff --check`; I read the directory with Glob instead and ran the diff check alone. I did not run actionlint, PHP lint, phpcs, phpstan, phpunit or Playwright. I wrote no artifact files (verbatim return, raw stream, attestation, mount proof or preservation record) under /tmp/eg-packages-opus-r21.*, because the reviewer role allows no file writes. I used no Cloudflare, firewall, Oracle, provider or account access. Confirmed without finding: the R-20 F-01 repair names `web/packages/.gitleaks.toml` inside covers, the `web/packages/**` trigger and the local mount, and adds `.gitignore` to the trigger paths at line 288. The R-20 F-02 repair lists the four must-fail file classes and the two no-finding cases in the AC-06 row, and records the upstream configuration exclusion with direct review in place of a self-scan.
+PROPOSAL: Cite the probe command and its observed exit codes at line 264, or in the Sources entry, as sanitized evidence, and remove the blank line at 1190.
 
 ## Sources
 
