@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated local Wrangler state and installed dependencies"
+paths = ['''(^|/)(\.wrangler|node_modules)/''']

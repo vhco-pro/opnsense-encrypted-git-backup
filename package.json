@@ -2,9 +2,15 @@
   "name": "opnsense-encrypted-git-backup-browser",
   "private": true,
   "scripts": {
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "packages:preview": "wrangler dev --local --ip 127.0.0.1 --port 39441 --config web/packages/wrangler.toml",
+    "packages:browser": "playwright test --config tests/packages/playwright.config.mjs",
+    "packages:verify": "bun web/packages/check.ts",
+    "packages:smoke": "bun web/packages/smoke.ts",
+    "packages:references": "bun web/packages/references.ts"
   },
   "devDependencies": {
-    "@playwright/test": "1.59.1"
+    "@playwright/test": "1.59.1",
+    "wrangler": "4.163.0"
   }
 }

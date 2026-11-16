@@ -25,7 +25,13 @@ the [recovery guide](docs/recovery.md) for restore and rollback.
 - [Existing upstream encryption discussion](https://github.com/opnsense/plugins/issues/5833)
 
 Plugin code is licensed under [BSD-2-Clause](LICENSE). The VH & Co logo uses
-its [logo-specific notice](docs/prototypes/vhco-packages/VHCO-LOGO-NOTICE.txt).
+its [logo-specific notice](web/packages/public/_site/VHCO-LOGO-NOTICE.txt).
 This independent plugin uses
 OPNsense interfaces. Upstream submission is a separate maintainer
 decision and would require upstream review.
+
+## Package homepage
+
+The VHCO Packages homepage source lists repositories and setup guides.
+See [homepage development and verification](web/packages/README.md) for its native preview,
+browser checks and independent Cloudflare pipeline.

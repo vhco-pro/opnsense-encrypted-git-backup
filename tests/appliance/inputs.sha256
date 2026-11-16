@@ -96,7 +96,7 @@ a957f918b7e08b3690bd438798d1bde15f10fa78fc4343ab913f6c539365b0d9  FreeBSD:15:amd
 ec98709cc5222812e906c01a5f126a69bc6b0017a54c74d757f85a5a4d104b82  FreeBSD:15:amd64/26.7/latest/All/unbound-1.26.2.pkg
 9cc3ae60cac664c989e6ec278c5b7501eb757c7884e2649483f5784004a62933  FreeBSD:15:amd64/26.7/latest/All/wpa_supplicant-2.12_1.pkg
 4684d6c59396eff488ed2157f23ece5b426b5afb0cb630b5e6ba1e7eded333f4  FreeBSD:15:amd64/26.7/latest/All/zip-3.0_6.pkg
-c790829c249e9aa209698ca148327f60e64b99dba75c1be5c4b8e3e10963a34e  FreeBSD:15:amd64/26.7/latest/All/opnsense-26.7.9_1.pkg
+60d04f769c81b3ce7922c1d78124cdeb116ca83ae2f4f2b52e573c8d7ae0c2b4  FreeBSD:15:amd64/26.7/latest/All/opnsense-26.7.9_3.pkg
 dcb544ab7a38a375ac436b950b7e986cf1f3ca8a29f7bb89bb6399f2aa292f40  FreeBSD:15:amd64/26.7/latest/All/php85-8.5.12_2.pkg
 1ae252ba9fce3a2042da417d586250b42e51725226087b154ef2e6c8bd082174  FreeBSD:15:amd64/26.7/latest/All/bash-5.3.20.pkg
 a83845be0e9f885fa213a4fff6f6a9761b1a6a142e72792d20fedd9b7cb46bad  FreeBSD:15:amd64/26.7/latest/All/git-2.56.1.pkg

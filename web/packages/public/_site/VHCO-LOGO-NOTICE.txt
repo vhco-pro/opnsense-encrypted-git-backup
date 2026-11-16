@@ -1,0 +1,11 @@
+VH & Co logo
+
+Copyright (c) 2026 VH & Co BV. All rights reserved.
+
+You may display and redistribute the unmodified VH & Co logo with this
+project's website, documentation and package assets when this notice is
+retained.
+
+Other uses require permission from VH & Co BV.
+
+This notice applies to vhco.png.
