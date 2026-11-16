@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "R-16 recorded with seven should-fix findings and one nit. Further dispatches are held while the added mechanisms are simplified."
+status_description: "This revision simplifies documentation ownership and specifies native workflow checks. Review dispatch remains coordinated."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -47,8 +47,8 @@ Package URLs continue directly to their existing Pages origin.
 A new main commit restoring previously reviewed page files recovers a broken page through the ordinary pipeline.
 The site pipeline uses a credential for the existing site Worker.
 Lab owns the separately reviewed one-time Worker bootstrap, route, redirect and main-only deployment-environment setup.
-This repository owns the generic manual cutover procedure in `web/packages/README.md`; the operator performs its steps.
-Private deployment configuration and execution records remain with Lab and VitePress respectively.
+The component README documents development and pipeline usage.
+Homelab operator deployment procedures and execution notes belong in private VitePress, with deployment configuration in Lab.
 Production site deployments use their own concurrency group, separate from package publication.
 A running site deployment finishes, and a newly pending deployment replaces an older pending one under GitHub's default single-pending behaviour.
 The page's own free secret scan and browser checks gate its deployment.
@@ -57,10 +57,11 @@ On 16 November 2026 the owner selected ordinary managed Renovate dependency upda
 Use the shared repository baseline and normal manager detection, with the page's run/verify commands documented in README and AGENTS.
 AGENTS.md Project scope also names the v1 hub under the retained 15 November code-home decision.
 The shared Playwright dependency also serves the appliance tests.
-Renovate proposes dependency PRs for supported, discoverable inputs through the repository's existing review and merge policy.
+Normal Renovate dependency PRs are planned for supported, discoverable inputs through the repository's existing review and merge policy.
+Its managed App activation for this repository is still pending.
 
 During cutover, the normal pipeline runs once after bootstrap checks.
-For any non-success result, the operator follows that procedure to disable publication and restore the prior Pages routing baseline.
+For any non-success initial cutover result, the operator follows the private deployment procedure to disable publication and restore the prior Pages routing baseline.
 A permanent main-only manual trigger provides redeployment for repository writers under the publication flag and environment policy.
 
 The prototype passed 40 local Chromium/Firefox cases.
@@ -76,6 +77,8 @@ The owner requested independent page deployment and removal of the additional pa
 That direction replaces the earlier Q7 decisions.
 Former AC-05 described the joint publication lifecycle and is retired by this scope correction.
 AC-07 defines independent page delivery.
+AC-08 is retired with removal of the added public cutover-guide requirement.
+Component usage remains in the README, and Homelab deployment procedures stay with their private owners.
 Historical reviewer records are retained verbatim below.
 
 The existing publisher deploys a complete retained Pages bundle through `scripts/publish-feed.sh` and `.github/workflows/feed.yml`.
@@ -132,6 +135,9 @@ This check exercised Cloudflare's local workerd runtime and configuration parser
 The edge route selection and root-query redirect still require live verification at the separately authorised cutover.
 The public feed returned HTTP 200 for `/meta.conf` and HTTP 404 at `/` during the same read-only check.
 
+The initial dry-run configuration included the earlier proposed routes.
+The production configuration in Design is route-free.
+
 ## Scope
 
 Add a generic homepage at pkg.vhco.pro with the VHCO mark, website styling and current OPNsense repository entry.
@@ -183,6 +189,8 @@ Use Cloudflare Workers Static Assets for the homepage and a dedicated `/_site/` 
 Production files live in `web/packages/public/`, with `index.html` and `404.html` at that directory's root and the stylesheet, browser script, logo, font and both notices under `_site/`.
 HTML and stylesheet references use the same public prefix.
 The generic Wrangler configuration at `web/packages/wrangler.toml` points its assets directory at `public/`, uses the native `404-page` setting and declares workers.dev and preview URLs disabled.
+It declares neither a `route` nor a `routes` key.
+Lab owns route creation independently of the asset upload.
 Lab's bootstrap applies these settings on the live Worker through native deployment, then explicitly reads back its subdomain and preview settings before activating public routes.
 
 Lab owns the site Worker bootstrap and subsequent activation of two routes, `pkg.vhco.pro/` and `pkg.vhco.pro/_site/*`.
@@ -211,54 +219,30 @@ Native package verification immediately follows cutover.
 
 ### First cutover and infrastructure ownership
 
-This repository delivers the generic manual procedure in `web/packages/README.md`.
-It names the operator steps, environment inputs, native GitHub run/variable commands, Cloudflare operations, baseline checks and restoration pass conditions.
-The operator carries it out using separately reviewed Lab provisioning under `vhco-pro/lab:cloudflare/packages-site/`.
-That external configuration is a live rollout dependency with its own review and approval, rather than code delivered by this public feature.
-Its approved rollout reference and exact reviewed commit are recorded before cutover; no such configuration is established as implemented by this draft.
-Record the exact public procedure revision and the external Lab revision used for live evidence.
-Private Lab review needs authorised access to that repository.
-Public source verification uses this repository's generic procedure and local fixtures.
-The criterion evidence distinguishes observed public checks from recorded Lab rollout review at its stated revision.
-The operator records Homelab-specific inputs and execution observations in private VitePress as separate deployment documentation.
-Run classification and route restoration are manual steps.
-The public guide follows the existing repository secrecy policy, using synthetic account/zone/Worker examples and placeholders.
-It may name public package URLs, logical input/variable/job/environment keys and generic CLI/API operations.
-Actual account/zone identifiers, live Worker identity, credentials, private hosts/inventories and deployment-specific inputs stay in Lab or private VitePress as appropriate.
+The operator uses the separately reviewed Lab provisioning and private VitePress deployment procedure for the live cutover.
+Those deployment artifacts are maintained by their owning repositories.
+This public feature delivers the static page, its workflow, tests and component usage documentation.
 
-The operator's initial Lab-controlled bootstrap runs the official action's native `deploy` command against the selected reviewed page source with a creation-capable bootstrap credential.
-It creates the asset Worker with that actual page content and its public route settings disabled.
-This step precedes the resource-scoped Editor credential used by ordinary site CI, since that role requires an existing Worker.
-The bootstrap credential and its broader creation permission belong to the separately authorised initial setup.
-Its site upload is followed by a native API readback requiring workers.dev and version preview access to be disabled.
+The operator's initial bootstrap uses native Wrangler `deploy` with a creation-capable credential to create the asset Worker.
+The route-free configuration leaves public routes inactive and disables workers.dev and preview URLs.
+Read back those settings before Lab activates the two routes and canonical-query redirect.
+Lab supplies the main-only GitHub environment, Worker identity and existing-Worker Editor credential for routine site publication.
+The page pipeline owns Worker content after bootstrap, while Lab owns the routes and redirect.
 
-Lab then configures the site GitHub environment with a selected-branches policy permitting the branch `main` and its Cloudflare account, Worker name and Editor credential.
-That environment permits workflow runs on `main` through GitHub's native branch policy.
-Lab's maintained infrastructure configuration owns the two routes and the canonical-query redirect.
-Routine Lab runs manage those infrastructure settings and reference the already created Worker by identity.
-The page pipeline owns the Worker's content after bootstrap.
+First confirm the prior root HTTP 404 and authenticated package-feed baseline.
+After bootstrap and settings readback, activate the site routes, check the public responses and run native catalogue authentication/package fetch.
+Then enable `PACKAGES_SITE_PUBLISH_ENABLED` and dispatch the normal site workflow once on reviewed `main`.
+Require its verification and deployment jobs to pass, record the native deployment/version and compare the public bytes/media types.
+Repeat native package verification before declaring cutover complete.
 
-The cutover first confirms the expected HTTP 404 root and authenticated existing feed baseline.
-After checking the uploaded site in the native fixture, it applies the two routes and redirect, checks their actual public responses and runs native catalogue authentication and package fetch.
-If any cutover check fails, revert the site-specific routes and redirect through the Lab configuration and verify the existing Pages origin again.
-The restored baseline has HTTP 404 at `/` and absent page paths, with the retained catalogue and package responding as they did before cutover.
-Completion requires the public response checks and native package verification to pass after restoration.
-A failed or unverified restoration is reported as an incomplete cutover.
+For any non-success result, including a cancelled, replaced, skipped or unverified run, the operator disables publication and restores the prior routing baseline through the private procedure.
+Verify the prior root HTTP 404 and authenticated package responses and report an incomplete cutover if restoration is uncertain.
+Routine site deployment cannot restore removed routes because its credential controls Worker content only.
 
-After bootstrap routing and public/native checks pass, enable the repository-level `PACKAGES_SITE_PUBLISH_ENABLED` variable and dispatch the normal site workflow once on the reviewed `main` through `workflow_dispatch`.
-The dispatch uses the existing-Worker Editor credential and the same verification, version upload, activation and smoke steps as routine main pushes.
-Record the actual Actions run and require both its verification and deployment jobs to succeed. Record its source, run/attempt annotation and native Cloudflare deployment, then repeat the native package check.
-The first cutover completes after those checks pass.
-Any non-success result from that initial dispatch leaves the cutover incomplete.
-This includes verification failure, skipped deployment, cancellation, pending replacement by another site run, upload/activation/smoke failure or an unverified result.
-Disable the publication flag, restore the site-specific routes and redirect to the prior Pages baseline and verify the expected root HTTP 404 plus authenticated package responses.
-The site pipeline can change Worker content only, so a later-finishing content deployment cannot reactivate the removed routes.
-Report the observed run state, flag and routing restoration, and any remaining uncertainty.
-A later cutover attempt begins again from the verified baseline through the same documented procedure.
-Record Homelab-specific setup values and execution notes in private VitePress at `docs/internal/deployment/packages-homepage.md`.
-Lab retains its deployment configuration.
-This public feature document's criterion evidence records sanitized source/procedure and Lab commit SHAs, run ID/attempt, native deployment/version ID and response observations.
-Private values and credentials stay in their existing protected homes.
+Lab retains deployment configuration, and private VitePress retains Homelab inputs, detailed execution notes and raw operational output.
+Public criterion evidence records run ID/attempt, source SHA, native deployment/version ID and response status/hash/media-type summaries.
+It may record the opaque external Lab revision as a rollout reference.
+Private Lab review is outside the AC-04 and AC-07 proofs; their verdicts rest on public behavior and workflow evidence.
 
 ### Pipeline and reuse
 
@@ -282,8 +266,11 @@ Use a managed update proposal to verify that a tool-version change also maintain
 Require confirmed managed App access plus a Dependency Dashboard entry or proposed update identifying the introduced scanner dependency for AC-06.
 An unavailable updater remains an unmet criterion or separately approved tracked residual.
 The repository currently has no updater configuration.
-On 16 November, a read-only organization installation query returned no Renovate App, and the repository had no Dependency Dashboard issue.
-Configuration and managed-bot activation remain implementation work.
+On 16 November, `gh api --paginate orgs/vhco-pro/installations` succeeded, and filtering its installation records for the Renovate App returned an empty list.
+An authenticated issue-title query also returned no Dependency Dashboard.
+Managed App activation uses GitHub's normal owner-controlled installation for this repository, outside source commits.
+Verify actual App access and the repository Dashboard/update record during ordinary bot setup.
+Check the existing repository-security settings at takeover, keeping Dependabot alerts on and duplicate Dependabot version/security updates off for Renovate-owned ecosystems.
 Both a finding and a scanner error fail verification.
 The deployment job depends on this same verification job, including the secret scan.
 Pull requests run that job with read-only GitHub permissions and without Cloudflare credentials.
@@ -323,7 +310,8 @@ This group is separate from the package publisher's `native-package-pages-publis
 One site deployment can run while one waits.
 A new pending site job replaces the previous pending site job, and the running site job finishes.
 That behaviour permits missed intermediate homepage updates, as selected by the owner.
-Read-only verification can cancel superseded work independently.
+Verification must have its own job-level concurrency group keyed by PR number or ref, with `cancel-in-progress: true`.
+There is no workflow-level concurrency group, so verification cancellation cannot cancel a running deployment job.
 
 Recover older page content by restoring the selected page files in a new main commit and letting the ordinary verification and deployment run.
 This source-restoration path works beyond Actions' rerun window and keeps the deployment environment on `main`.
@@ -404,7 +392,6 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 - [ ] AC-04: The public page and its assets return their expected HTTP responses while native repository paths retain catalogue authentication, package retrieval and missing-path HTTP 404 behaviour.
 - [ ] AC-06: The public page contains repository information without private deployment inputs or credentials, uses its glossary terms consistently, has verified managed update coverage for its scanner/tooling and links to maintained package version information and the installation guide's independent trusted-channel verification of signing fingerprints.
 - [ ] AC-07: A page edit and page rollback deploy independently of package releases, version calculation, package publication failures and package recovery.
-- [ ] AC-08: The already included public generic guide documents setup, verification, cutover and restoration steps with their pass conditions, using synthetic examples under the existing repository secrecy policy.
 
 ## Test Plan
 
@@ -413,10 +400,9 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 | AC-01 | Serve the production static directory in the packages Playwright fixture. Check the actual package identifier and repository URL, follow the setup anchor and verify each public reference's final route. A two-entry synthetic page checks that another authored repository can be listed. |
 | AC-02 | Run the specified viewport/theme matrix in Chromium and Firefox. Check overflow, readable type, 44-pixel touch targets, focus and headings. Inspect representative screenshots. Exercise actual 200 percent browser zoom and record its method and resulting viewport. |
 | AC-03 | Run the current prototype's keyboard switch, saved theme, storage denial, URL copy, clipboard failure after success and JavaScript-disabled cases against the production static files. Check the switch state and reduced-motion behaviour. |
-| AC-04 | **Local checks** serve production files through native Wrangler, verify root/prefixed assets and media types, missing-asset HTTP 404 and a synthetic package origin through the routing fixture. **Live cutover observation** checks the actual root with/without a query, queried asset, missing paths, exact public bytes/media types and native signed catalogue authentication/package fetch. **Independent re-observation** repeats public GETs and native pkg verification from the identified source and public signing inputs. Record sanitized response/hash observations, source/procedure SHA, run/attempt, native deployment/version ID and the separately approved Lab revision in this document. External Lab review is rollout evidence reported separately; public behavior is verified through these actual reads without requiring private source access. |
+| AC-04 | **Static checks** require the Wrangler file to have no `route` or `routes` key. **Local checks** serve production files through native Wrangler, verify root/prefixed assets and media types, missing-asset HTTP 404 and a synthetic package origin through the routing fixture. **Live cutover observation** checks the actual root with/without a query, queried asset, missing paths, exact public bytes/media types and native signed catalogue authentication/package fetch. **Independent re-observation** repeats public GETs and native pkg verification from the identified source and public signing inputs. Record response status/hash/media-type summaries, source SHA, run/attempt and native deployment/version ID in this document. The opaque Lab revision is a rollout reference only. Public behavior is verified through these actual reads; private Lab review is outside this criterion's proof. |
 | AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks source scan. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require every introduced action/container ref, verified release/digest and runtime input to appear, including checkout, setup-bun, wrangler-action, Bun and the scanner image. Require Bun extraction of Wrangler and Playwright with `bun.lock` and a tool update whose regenerated lock passes the frozen install. Validate the consumer against the actual shared Renovate baseline and require managed App access plus a Dashboard entry or update proposal for the scanner image. Record an unavailable updater as unmet or through a separately approved tracked residual. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
-| AC-07 | **Static checks** run actionlint, validate official action inputs, read-only PR permissions, absence of PR Cloudflare inputs, successful-verification dependency, publication-flag/main conditions, independent site concurrency group and absence of package-tag/publish mutations. Evaluate the flag/main/verification condition cases locally against the workflow configuration. Compare concurrency configuration with GitHub's documented semantics, without extra live deployments. **Local checks** run the documented aggregate command, synthetic secret/error cases, source-restoration/stale-byte HTTP fixture with the package origin unavailable, exact restored bytes/media types and root-lockfile trigger coverage. The source-restoration proof is local. **Live cutover observation** is the one normal protected main dispatch already named in Design, including its actual verification/deployment jobs and public smoke; read the native GitHub environment policy then. **Independent re-observation** reads the public run/job/workflow and environment-policy records, repeats public HTTP/pkg checks and labels one-time operator actions as recorded evidence. Public criterion evidence holds the sanitized run/attempt, source/procedure/rollout revision and native deployment/version identifiers. An unavailable private Lab review is reported as external rollout evidence not verified; it is not inferred from public-code checks. |
-| AC-08 | **Static/document review** reads `web/packages/README.md` for the named setup, flag/dispatch, native verification, cutover success and non-success/restoration instructions and pass conditions. Apply the existing AGENTS.md secrecy rule to its synthetic examples and allowed logical keys/public URLs. **Local checks** run the expanded redacted `web/packages/` scan, including README, and the documented bootstrap/preview/verify/smoke/teardown commands. **Desk review** walks non-success steps against native interfaces, recording that no production failure drill was performed. Actual Homelab configuration belongs to the separately approved rollout inputs. |
+| AC-07 | **Static checks** run actionlint, validate official action inputs, read-only PR permissions, absence of PR Cloudflare inputs, successful-verification dependency, publication-flag/main conditions, independent site concurrency group and absence of package-tag/publish mutations. Desk-review the exact native `if:` and `needs` conditions against GitHub's documented contexts. PR verification runs read-only without Cloudflare inputs; a non-main ref, disabled flag or failed verification excludes deployment; successful verification on enabled main permits deployment. Compare the job-level verification cancellation and independent non-cancelling deployment groups with GitHub's documented semantics, requiring no workflow-level cancelling group and no extra live deployments. **Local checks** run the documented aggregate command, synthetic secret/error cases, source-restoration/stale-byte HTTP fixture with the package origin unavailable, exact restored bytes/media types and root-lockfile trigger coverage. The source-restoration proof is local. **Live cutover observation** is the one normal protected main dispatch already named in Design, including its actual verification/deployment jobs and public smoke; read the native GitHub environment policy then. **Independent re-observation** reads the public run/job/workflow and environment-policy records, repeats public HTTP/pkg checks and labels one-time operator actions as recorded evidence. Public criterion evidence holds the run/attempt, source SHA, optional opaque rollout revision and native deployment/version identifiers. The private Lab rollout reference is recorded outside the public criterion proof, in the private VitePress execution record, with its opaque revision in public evidence. |
 
 ## Tasks
 
