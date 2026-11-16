@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "R-9 findings addressed with isolated site test discovery, byte-verified public smoke checks, native scanner update discovery and the existing shared version policy. Fresh review pending."
+status_description: "R-10 recorded with five should-fix findings and one nit. Review table continuity corrected; deployment verification details remain to revise."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -341,8 +341,8 @@ None. The owner selected native static hosting and the official action on 16 Nov
 | 2026-11-16 | R-6 | spec | `2589d822e1be608a5867232dba7a995cccf98bba` | claude-opus-5-5 | procedural | Four should-fix findings and one nit. Static read-only source/Git snapshots matched. Pinned lint/fresh and repository checks were not executed after host refusal. |
 | 2026-11-16 | R-7 | spec | `daaadce631326105842f7165640d697dc9e8fe67` | claude-opus-5-5 | procedural | Five should-fix findings. First-party primary reviewer attested, with Haiku also listed separately in usage metadata. Independent lint passed, fresh reported baseline/covered drift, and the boundary denied the planned gate and repository tests. Read-only snapshots matched. |
 | 2026-11-16 | R-8 | spec | `a19054e76b712b303c936efdf2d6558d3b40fe83` | claude-opus-5-5 | procedural | Five should-fix findings. First-party primary reviewer attested, with Haiku also listed separately in usage metadata. Independent lint passed, fresh reported the expected baseline change, and the planned gate and two shell requests were denied. Repository tests were unexecuted. Read-only snapshots matched. |
-
 | 2026-11-16 | R-9 | spec | `7b9348cea8ccbaccc0333e4e73010d9491e4ccad` | claude-opus-5-5 | procedural | Four should-fix findings. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint passed, fresh reported expected baseline change, and gate/repository checks were denied or unexecuted. Read-only snapshots matched. |
+| 2026-11-16 | R-10 | spec | `e694ca001f65057698809d91c45d2355b47ded15` | claude-opus-5-5 | procedural | Five should-fix findings and one nit. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint passed. Fresh exposed the broken R-9 table row. Planned/next and repository checks were denied or unexecuted. Read-only snapshots matched. |
 
 ### R-1
 
@@ -736,6 +736,52 @@ SEVERITY: should-fix
 WHERE: Owner summary line 29, Scope lines 115-117, Acceptance Criteria AC-07, Test Plan AC-07
 EVIDENCE: The Owner summary says "The package artifact keeps its existing shared GitVersion version", and AC-07 requires page edits to deploy independently of "version calculation". The page source lives in the same repository and on the same `main` that the package tag job versions (.github/workflows/feed.yml:82-108, shared GitVersion action). The pinned convention makes commit subjects decide version intent: `feat` is minor, `fix` and `chore` are patch, and `docs`, `style`, `test` and `ci` do not normally bump (conventions/delivery.md:30-40). So a `feat(packages): add repository entry` or `fix(packages): correct link` page commit raises the next plugin package version even when no plugin bytes changed. Wrangler or Playwright `chore(deps)` updates do the same. Page deployment does not depend on version calculation, but version calculation does depend on page commits, and the document never says whether that is intended. Implementers and committers could follow either convention, and the AC-07 row has no check either way.
 PROPOSAL: State whether page-only commits may change the package's next GitVersion number. If they should not, name the commit type page and site-tooling changes use and check it in AC-07. If they may, say so in the Owner summary.
+
+### R-10
+
+TARGET: e694ca001f65057698809d91c45d2355b47ded15
+
+FINDING: F-01
+KIND: factual
+SEVERITY: should-fix
+WHERE: Review Log table lines 334-345
+EVIDENCE: Line 344 is blank, so the R-9 row at line 345 is no longer part of the Review Log table that starts at line 334. `vh-adlc fresh docs/specs/vhco-packages-landing-page.md --repo <clone> --plugin-pin 1ccf8f314575ece1f3fcc8e48c4fd804a1ca88ff` reported the latest spec review as `"review":"R-8","commit":"a19054e76b712b303c936efdf2d6558d3b40fe83"` with `baseline-changed`. It did not see R-9 at all. If the next row is appended after line 345, the binary will miss it too. `spec_review_fresh` and acceptance would then keep resolving to R-8, and the gate would read the document differently from its author. Tool record for this pass: `vh-adlc lint` with the same arguments passed with no findings. `fresh` reported R-8 stale (`baseline-changed`), `no-review` for implementation and a clean feature tree. The host permission mode denied a combined `cat` of convention pages, a combined lint/fresh/gate/next command, the separate `vh-adlc gate planned` and `vh-adlc next` calls, and `git diff` from the R-9 commit to the target. I did not attempt the repository checks (PHP lint, phpcs, phpstan, phpunit, actionlint, Playwright) after those refusals. I fetched public documentation for Wrangler worker commands, Cloudflare routes, Cloudflare versions and deployments, wrangler-action action.yml at 953926a, the Renovate github-actions manager, GitHub concurrency, and vhco-pro/docs at 1edeb5f and 2028365. The first Cloudflare routes fetch failed with a temporary router error ("Can't reach the API server ... ENOTFOUND"). The retry succeeded. No live provider access was used. Confirmed without finding: root `playwright.config.ts:4` collects only `./tests/browser`, and `tests/appliance/browser.sh:50-54` uses that root config, so `tests/packages/` stays out of the appliance run. The GitVersion statements at lines 29-31 and in the AC-07 row match conventions/delivery.md:30-40. `versions deploy --version-tag` and `--yes` exist. Exact-root routes do not match query URLs. The concurrency text matches GitHub's single-pending behaviour.
+PROPOSAL: Remove the blank line 344 so that R-9 and every later row belong to the one Review Log table, then confirm that `vh-adlc fresh` names the latest review.
+
+FINDING: F-02
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 223-237, Design (First cutover and infrastructure ownership) lines 189-190, Design (Independent hosting) line 154, Owner summary line 44, Test Plan AC-07
+EVIDENCE: Line 233 fixes the smoke target as `https://pkg.vhco.pro/` and its `/_site/` assets. The AC-07 row requires the workflow to run "against an owned isolated deployment", to "Publish a changed page, then restore older page files" and to "Serve stale bytes after a synthetic deployment and require the public smoke check to fail". The site environment allows only `main` and carries the production Worker name (lines 189-190, 223-224), and workers.dev and preview URLs are disabled (line 154). The document therefore gives an isolated deployment no hostname, Worker, environment or way to point the smoke check at it. If the target stays hard-coded, the isolated run checks production instead. The restoration case then passes even when the isolated deployment did nothing, because production still serves the older bytes. The stale-bytes case cannot be injected without breaking production. One implementer would read the smoke URL from an environment input. Another would keep the literal URL, and the row cannot tell the two apart.
+PROPOSAL: Make the smoke base URL an input supplied by the deployment environment, and name the owned isolated target used for AC-07 (its Worker, hostname, environment and credential). Require the restoration and stale-bytes cases to check that target and not production.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 211-217, frontmatter covers line 13, Test Plan AC-06
+EVIDENCE: conventions/delivery.md:159-160 says "Adding a dependency includes confirming the updater will propose its next version", and delivery.md:113-116 says to keep existing coverage until managed App access is confirmed. Line 217 says App access could not be verified, and the repository has neither `renovate.json` nor `.github/dependabot.yml`. The AC-06 row checks local extraction and says to "record managed App/Dashboard visibility separately", so the row passes when no updater ever proposes a Gitleaks update. The Renovate page documents the `docker` depType for `uses: docker://alpine:3` but does not say that a `uses: docker://` reference with an `@sha256` digest gets digest updates. Only actual extraction or Dashboard listing shows that. Line 215 also adds the shared baseline `renovate.json` at the repository root without stating its scope. That config also enrols Composer, Bun and every existing package workflow pin. Under the patch policy at delivery.md:37-40, the resulting `chore(deps)` PRs change package workflow files and bump the package version. One implementer would adopt the full baseline. Another would limit it to the site workflow. That choice affects the lifecycle of the existing package workflows.
+PROPOSAL: Make App access and a Dependency Dashboard entry (or proposed update) for the scanner image a pass condition of AC-06, or record its absence as a residual. Raise an Open Question on whether the new `renovate.json` covers the whole repository or only the site workflow and its tooling.
+
+FINDING: F-04
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Pipeline and reuse) lines 208-209 and 255, Design (Browser and workflow checks) lines 284 and 291, frontmatter covers lines 9-10, Test Plan AC-07
+EVIDENCE: Line 291 says "Page CI is scoped to the site source and its workflow/tests", and line 255 says "Its source paths and workflow select its own checks". Wrangler and Playwright, which the site build, deployment and browser suite depend on, are pinned in the root `package.json` and `bun.lock` (lines 208, 284; package.json:7-9). Both files are in `covers`. The document does not say whether changes to them trigger the site workflow. If they do not, a Wrangler or Playwright update PR merges without site CI, against delivery.md:120 ("Project CI still validates the proposed changes"). The next page deployment then runs an untested Wrangler. One implementer would include the root manifests in the path filter and another would not. The AC-07 row checks no trigger paths.
+PROPOSAL: List the site workflow's exact trigger paths, including `package.json` and `bun.lock`. Add an AC-07 case where a lockfile-only change runs site verification.
+
+FINDING: F-05
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Browser and workflow checks) lines 280-293, frontmatter covers line 7, Test Plan AC-01, AC-03, AC-07
+EVIDENCE: The pinned conventions/frontend-testing.md:28-33 requires that "The repository's README and agent instructions name the commands to bootstrap, seed, run, verify and clean" and that there be a documented aggregate verification command. The repository AGENTS.md Verification section lists only PHP checks and actionlint. `README.md` is in `covers`, but the Design never says which site commands it gains: fixture start, the explicit `tests/packages/` Playwright config, the Gitleaks scan and the local Wrangler routing fixture. It also does not say whether AGENTS.md changes. No Test Plan row checks that these commands are documented and work, so an implementation that documents nothing passes.
+PROPOSAL: Name the documented site fixture and verification commands and where they live. Raise the AGENTS.md verification-list change as an Open Question, and add a proof that runs the documented commands.
+
+FINDING: F-06
+KIND: judgement
+SEVERITY: nit
+WHERE: Context (Background and revision) line 71, Design (Pipeline and reuse) line 259, Sources lines 748 and 754
+EVIDENCE: The repository pins vhco-pro/docs at 1edeb5f (AGENTS.md). The cited `conventions/cloudflare-static-sites.md` returns HTTP 404 at 1edeb5f but loads at 2028365, which is the revision the document cites. So an implementation review under the pinned revision does not route to that standard. The document restates its requirements, so nothing built changes.
+PROPOSAL: Say that the document adopts the static-site standard at 2028365 by explicit reference, or note that the repository pin does not yet include it.
 
 ## Sources
 
