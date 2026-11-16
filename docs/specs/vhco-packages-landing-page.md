@@ -402,12 +402,18 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 
 ## Acceptance Criteria
 
-- [ ] AC-01: The root page identifies VHCO Packages, presents the current OPNsense repository and its actual package, and links to working setup, compatibility, source and release references.
-- [ ] AC-02: The page uses the existing VHCO logo, Inter typography and brand colours, supports light and dark themes and provides readable keyboard-accessible layouts at the specified viewports.
-- [ ] AC-03: Explicit URL copying and theme selection work with visible feedback, and reading and reference links work with JavaScript or storage/clipboard access unavailable.
+- [x] AC-01: The root page identifies VHCO Packages, presents the current OPNsense repository and its actual package, and links to working setup, compatibility, source and release references.
+  Evidence: R-23 met at a2d5806 through the native browser journey and six independently followed public references.
+- [x] AC-02: The page uses the existing VHCO logo, Inter typography and brand colours, supports light and dark themes and provides readable keyboard-accessible layouts at the specified viewports.
+  Evidence: R-23 met at a2d5806 through both browser engines, actual Chromium 200 percent zoom and inspected captures. Firefox runs the viewport/reflow matrix.
+- [x] AC-03: Explicit URL copying and theme selection work with visible feedback, and reading and reference links work with JavaScript or storage/clipboard access unavailable.
+  Evidence: R-23 met at a2d5806 through native copy/theme success and failure paths, keyboard access, unavailable storage and JavaScript-disabled reading.
 - [ ] AC-04: The public page and its assets return their expected HTTP responses while native repository paths retain catalogue authentication, package retrieval and missing-path HTTP 404 behaviour.
+  Evidence: R-23 not verified. Local native byte/header/restoration checks passed; public cutover and native package re-observation remain pending.
 - [ ] AC-06: The public page contains repository information without private deployment inputs or credentials, uses its glossary terms consistently, has verified managed update coverage for its scanner/tooling and links to maintained package version information and the installation guide's independent trusted-channel verification of signing fingerprints.
+  Evidence: R-23 not verified. Source, notices and native scanner checks passed; actual managed App/update evidence remains pending.
 - [ ] AC-07: A page edit and page rollback deploy independently of package releases, version calculation, package publication failures and package recovery.
+  Evidence: R-23 not verified. Native workflow guards and local restoration passed; the protected live dispatch and independent re-observation remain pending.
 
 ## Test Plan
 
@@ -442,6 +448,7 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 
 None. On 16 November 2026 the owner selected normal managed Renovate dependency handling after the static-hosting and official-action choices.
 
+
 ## Review Log
 
 | Date | Review | Kind | Commit | Model | Isolation | Outcome |
@@ -469,6 +476,7 @@ None. On 16 November 2026 the owner selected normal managed Renovate dependency 
 | 2026-11-16 | R-21 | spec | `a5917f92c1e6a7cca8b1895709cc4e92f36c0d80` | claude-opus-5-5 | procedural | One factual citation nit, with no blocking or should-fix findings. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint, freshness, planned gate, next and diff checks ran, and the reviewer read the native probe evidence and public image/default configuration. Startup write probe and one combined command were denied; repository tests were unexecuted. Launcher read-only snapshots matched. |
 | 2026-11-16 | R-21 | spec | `a5917f92c1e6a7cca8b1895709cc4e92f36c0d80` | n/a | n/a | accepted by owner |
 | 2026-11-16 | R-22 | implementation | `1e46f6b5953163e83883c7c2241a01fa67269799` | claude-opus-5-5 | procedural | Two should-fix findings and three nits. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Five Bun checks passed. Native browser/restoration and Docker scans were blocked by review-cache permissions and read-only overlays; all criteria remain unverified or untested. Live and managed-bot checks were pending. Source/Git snapshots matched. |
+| 2026-11-16 | R-23 | implementation | `a2d58067d0d3742e07bd3dca414d6fffce10a0f4` | claude-opus-5-5 | procedural | Three criteria met and three not verified pending live hosting and managed-bot evidence. Two nits, with no blocking or should-fix findings. First-party Opus-only usage attested. Independent aggregate, 45 browser cases, actual zoom/captures, six public references, scanner and native restoration passed. Actionlint passed. Denied command variants and unexecuted native appliance/catalogue checks remain recorded. Source/Git snapshots matched. |
 
 ### R-1
 
@@ -1277,6 +1285,48 @@ SEVERITY: nit
 WHERE: README.md:33-37
 EVIDENCE: The new root README section says "The [VHCO Packages homepage](https://pkg.vhco.pro) lists repositories and setup guides." The cutover is pending. The document's Native hosting compatibility check (spec line 140) records that the public root returns HTTP 404, so the public link currently does not show the described page.
 PROPOSAL: Phrase the section as the homepage source and its local preview until cutover, or add the public link with the cutover evidence in T5.
+
+### R-23
+
+TARGET: a2d58067d0d3742e07bd3dca414d6fffce10a0f4
+
+CRITERION: AC-01 The root page identifies VHCO Packages, presents the current OPNsense repository and its actual package, and links to working setup, compatibility, source and release references.
+VERDICT: met
+EVIDENCE: `bun run packages:verify` at a2d5806 served web/packages/public through native `wrangler dev --local` (Wrangler 4.163.0). The Chromium and Firefox cases passed for the `os-encrypted-git-backup` identifier, the "Packages from VH & Co." heading, following the `#repository-setup` anchor and the two-entry synthetic layout (page.spec.mjs:15-42,152-163). `bun run packages:references` followed all six unique https references in index.html: vhco.pro, the GitHub org, blob/main docs/compatibility.md, the source repository, blob/main docs/installation.md and /releases. Each returned HTTP 200 at the same origin and path. references.ts:1-14 fails on any other status, origin or path. Limitation: this is a public network check, run once on 2026-11-16, and it is not part of the deterministic suite. The live pkg.vhco.pro root is not cut over, which this criterion's Test Plan row does not require.
+
+CRITERION: AC-02 The page uses the existing VHCO logo, Inter typography and brand colours, supports light and dark themes and provides readable keyboard-accessible layouts at the specified viewports.
+VERDICT: met
+EVIDENCE: `sha256sum` showed public/_site/vhco.png (bd5d562d...) and inter-latin.woff2 (f7ab715c...) are byte-identical to the prototype assets. In `bun run packages:verify`, all 12 viewport/theme cases passed in both Chromium and Firefox, checking overflow, 44 px targets, h1 size, switch state, the setup anchor and zero page or HTTP errors. The keyboard skip-link and switch cases also passed. The native Chromium 200 percent zoom case (page.spec.mjs:166-201) passed in 1.1s. It checks setZoom 2, the devicePixelRatio ratio, halved innerWidth, no horizontal overflow and setup navigation, and it attaches the zoom/before/after JSON. The two-frame requestAnimationFrame wait at :191-192 sits before captureVisibleTab, and the capture succeeded in this run. Firefox skips that case explicitly. I inspected real-200-zoom.png, light 1440x900 Chromium and dark 320x568 Firefox. Each shows the logo, the cyan/blue/purple heading gradient, Inter and a readable reflow. Limitation: this was one aggregate run, not a repeat-stability check. See F-01 for the hidden header link.
+
+CRITERION: AC-03 Explicit URL copying and theme selection work with visible feedback, and reading and reference links work with JavaScript or storage/clipboard access unavailable.
+VERDICT: met
+EVIDENCE: `bun run packages:verify` passed these cases in both Chromium and Firefox against native Wrangler: theme persistence across reload, Space/Enter switch activation with the stable "Dark theme" label and a 0s reduced-motion transition, URL copy success followed by clipboard rejection (selection, "Selected" label, status text in the viewport), storage denial and JavaScript-disabled reading with hidden controls and the installation/release hrefs (page.spec.mjs:44-115). The link targets themselves were followed under AC-01.
+
+CRITERION: AC-04 The public page and its assets return their expected HTTP responses while native repository paths retain catalogue authentication, package retrieval and missing-path HTTP 404 behaviour.
+VERDICT: not verified
+EVIDENCE: Static: verify.ts printed "Public assets and native Wrangler configuration verified." That covers the exact eight-file list, no route/routes key, workers_dev and preview_urls false, and 404-page. Local: restoration-check.ts served temporary copies through native Wrangler and logged 200 for root and six /_site/ assets and 404 for /_site/__vhco_missing_asset__. It then printed "Native Wrangler rejected stale bytes and verified restored source bytes." The browser 404 and smoke cases passed in both engines. smoke.ts:21-23 now caps each fetch at the remaining deadline, and timeoutMs 0 makes one bounded attempt. Live: the cutover, root query redirect, public byte/media checks and native pkg catalogue authentication/fetch were not observed. No provider or control-plane access was used, as the dispatch directs.
+
+CRITERION: AC-06 The public page contains repository information without private deployment inputs or credentials, uses its glossary terms consistently, has verified managed update coverage for its scanner/tooling and links to maintained package version information and the installation guide's independent trusted-channel verification of signing fingerprints.
+VERDICT: not verified
+EVIDENCE: The pinned offline Gitleaks v8.30.1 digest scanned web/packages with "no leaks found" (exit 0). scanner-check.ts passed. The README, wrangler.toml, public/index.html and public/_site/page.js cases each printed "leaks found: 1" and were accepted only at the distinct `--exit-code 2`, so a config error (exit 1) now fails. The .wrangler and node_modules cases gave no leaks and exit 0. The workflow step passes the same `--exit-code 2` (packages-site.yml:35). index.html loads only same-origin /_site/ assets, has no deployment addresses or credentials, carries the must-pass signing sentence (:82) and links to the installation guide and releases, which were followed under AC-01. Renovate's actual extraction was not run, and no repository check runs it. Managed App access and a Dashboard entry or proposal for the scanner image are pending and were not observed.
+
+CRITERION: AC-07 A page edit and page rollback deploy independently of package releases, version calculation, package publication failures and package recovery.
+VERDICT: not verified
+EVIDENCE: `actionlint` over all workflows exited 0 with no output. delivery.test.ts passed within the 5 Bun tests. It asserts the exact deploy `if:`, no `secrets.` or `vars.CLOUDFLARE` in verify, the verify job cancelling group, the non-cancelling deploy group, `needs: verify`, the environment, the exact wrangler-action `with` keys and values, both versions commands, no tag/release text and the scanner pin shape. This resolves R-22 F-02. The source-restoration and stale-byte local check passed (see AC-04). `bun run test:browser --list` listed 12 native.spec.ts tests only, and `git diff --stat 9fbd432 a2d5806` showed no change to the appliance playwright config or tests/browser. The appliance pin change from 26.7.9_1 to 26.7.9_3 replaces one inputs.sha256 line and the matching exact `pkg query` assertion (prepare-guest.sh:23), keeping checksum and version enforcement. I did not observe its hash against the vendor catalogue or a fresh appliance boot. .gitleaksignore suppresses one exact commit:path:rule:line fingerprint, and that line (74705bc:529) holds header-only review prose. The live protected dispatch, the environment-policy readback and the independent re-observation are pending. Denied: the env-prefixed fresh-XDG/metrics-off form of the aggregate (it was rerun with inherited env; the webServer and restoration child set WRANGLER_SEND_METRICS=false themselves), `gitleaks version`, the pinned-image Git history scan, `bash -n tests/appliance/prepare-guest.sh`, `git log -S` and combined diff/cat reads. `git status --porcelain` was empty after the checks.
+
+FINDING: F-01
+KIND: judgement
+SEVERITY: nit
+WHERE: web/packages/public/_site/style.css:546-548, Design Content and visual structure
+EVIDENCE: Design says "The header ... links to vhco.pro and the GitHub organisation." Under `@media (max-width: 600px)` the rule `nav a[href='https://github.com/vhco-pro'] { display: none; }` removes that link. The dark 320x568 Firefox capture and the 200 percent zoom capture show only vhco.pro in the header. The rule comes from docs/prototypes/vhco-packages/style.css. The source repository link stays visible.
+PROPOSAL: Keep the GitHub organisation link reachable at narrow widths, for example as a shorter label or in the footer, or record that narrow layouts omit it.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: nit
+WHERE: docs/compatibility.md:3,44,50,148, tests/appliance/prepare-guest.sh:23
+EVIDENCE: prepare-guest.sh:23 and inputs.sha256:99 now require OPNsense 26.7.9_3. docs/compatibility.md:3 still says "The first target is OPNsense Community Edition 26.7.9_1". The fixture observations at :44,50,148 also name 26.7.9_1, which is correct for those historical runs. T6 says the fresh full native CI boot on _3 is pending.
+PROPOSAL: Once the _3 fixture boot passes, add a line to the compatibility page that the fixture moved to 26.7.9_3 after the vendor retired _1, and leave the historical observations as they are.
 
 ## Sources
 
