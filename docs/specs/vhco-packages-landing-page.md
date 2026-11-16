@@ -427,13 +427,28 @@ None yet; written after owner acceptance.
 
 ## Open Questions
 
-None.
-The owner selected publisher reuse, independent page-only updates and public byte/header verification on 15 November 2026.
-The owner then accepted the actually served recovery baseline, explicit HTML response routes and retained-only provenance metadata with a complete public-file list.
-On 16 November 2026 the owner accepted generated and verified recovery metadata, site failures under the existing recovery/retry/hold contract, GitHub CLI preparation with protected-job Cloudflare checks, and independent protected verification of the explicit page-source commit.
-Following continuation, the R-4 recommendations were applied to the draft.
-The owner then explicitly selected the logo-specific rights notice and accepted all four R-5 delivery recommendations: the deployed empty-catalogue baseline, recorded replay mode, successful page CI with protected-job manual review, and complete release-asset listing with a quota hold.
-Whole-spec acceptance remains pending.
+### Q7 — Catalogue-empty page edits and remaining verification details
+
+R-6 F-01 asks which job independently binds archive bytes to the reviewed page source.
+Recommend the protected publisher compare every listed site file with the same path under `web/packages/` at its verified page commit, using its own checkout before effects.
+New bootstrap recovery uses its independently verified recovery page commit.
+
+R-6 F-02 asks for an explicit environment-protection check and the sole-owner self-review rule.
+A read-only GitHub environment API check on 16 November 2026 observed one required-reviewer rule, `prevent_self_review=false` and `can_admins_bypass=false`.
+Recommend keeping sole-owner self-review for manual dispatch and requiring a fresh protection-rule check before publication.
+The protected job can use its existing Actions-read permission for this read.
+
+R-6 F-03 asks whether page-only mode operates on a catalogue-absent predecessor.
+Recommend a v1 hold for page-only mode until a successful package publication establishes a catalogue.
+Ordinary package publication, unchanged-feed closure and recovery still support a predecessor serving a page with an empty catalogue.
+The alternative adds page-only catalogue-absent publication semantics to this feature.
+
+R-6 F-04 asks how retention accounts for later publication assets.
+Recommend checking the complete set of missing candidate, recovery, approval and new-history asset names against the provider quota before archive upload, then rechecking in the protected job.
+Partial or abandoned retained uploads still consume quota and are preserved.
+
+Owner answer pending for the catalogue-empty page-only scope and these verification recommendations.
+All R-5 owner choices are explicitly recorded in the preceding revision.
 
 ## Review Log
 
@@ -444,6 +459,7 @@ Whole-spec acceptance remains pending.
 | 2026-11-15 | R-3 | spec | `340d9014f0b9671257bf6594270681967f82b6b7` | claude-opus-5-5 | procedural | Seven should-fix findings. Static source review, with read-only source and Git preservation verified. |
 | 2026-11-16 | R-4 | spec | `e7056a8df471b467d140b965cbc08540373a6fe2` | claude-opus-5-5 | procedural | Five should-fix findings. Static review with matched read-only source/Git snapshots. Reviewer shell execution was denied. |
 | 2026-11-16 | R-5 | spec | `30ef9f29d39e7771fffecf406db7b4c23228a7fc` | claude-opus-5-5 | procedural | Six should-fix findings and two nits. Independent pinned lint passed. Static source/Git snapshots matched; PHP/actionlint checks were unexecuted. |
+| 2026-11-16 | R-6 | spec | `2589d822e1be608a5867232dba7a995cccf98bba` | claude-opus-5-5 | procedural | Four should-fix findings and one nit. Static read-only source/Git snapshots matched. Pinned lint/fresh and repository checks were not executed after host refusal. |
 
 ### R-1
 
@@ -689,8 +705,48 @@ WHERE: Design (Complete inventory reads) lines 318 and 332, Design (Selecting pr
 EVIDENCE: Line 332 says the reader takes two complete views "Under the existing single-writer lock". The same reader also serves read-only preparation, which runs with the operator's GitHub CLI login outside the protected workflow (lines 284 and 318). The workflow concurrency group applies only to feed.yml jobs (.github/workflows/feed.yml:44-46).
 PROPOSAL: Say that the two-view check runs under the lock only in the protected job, and that preparation's result is advisory until the protected job repeats it.
 
+### R-6
+
+TARGET: 2589d822e1be608a5867232dba7a995cccf98bba
+
+FINDING: F-01
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Public content checks) lines 166 and 169-174, Design (Homepage-only updates) lines 241-242, 247 and 250, Owner summary lines 61-63, Test Plan AC-06
+EVIDENCE: The CI and Gitleaks proof is tied to the page commit, but nothing in the protected job ties the archived page bytes to that commit. The byte-for-byte copy and SHA-256 check happen at assembly (line 166). Assembly is part of read-only preparation, which runs outside the protected job with the operator's CLI login (lines 320, 328, 370). The protected job compares only the commit SHA with site.json (line 241). Protected preflight checks "every listed file's bytes and media type" (line 250), but against the hashes that site.json lists, and preparation wrote site.json too. So an archive whose site.json names a valid main commit with a successful php.yml run, and lists hashes for bytes that are not at that commit, passes every protected check except the human review. Package bytes have an independent binding: feed-preflight.sh:15,26-36 checks release.json against the version run and tag through feed-release-identity.sh:16-28. The protected checkout already has fetch-depth 0 at feed.yml:179-184, so it could compare against `git show <page_source>:web/packages/<file>`. AC-06's "altered staged bytes must fail source-provenance comparison" does not say which job runs that comparison. An implementation that compares only at assembly passes it. Tool record for this pass: Bash ran the first few read commands. Then `vh-adlc lint docs/specs/vhco-packages-landing-page.md --repo . --plugin-pin 1ccf8f314575ece1f3fcc8e48c4fd804a1ca88ff` and `vh-adlc fresh` were refused by the host permission mode ("don't ask mode"), as were two later read-only shell commands. The rest of the review read files with the Read and Grep tools. Pinned lint, fresh, PHP checks and actionlint were not executed in this pass.
+PROPOSAL: Require the protected job, before effects, to compare every site.json-listed file in each archive with the same path at the verified `page_source`, or `recovery_page_source` for a new bootstrap recovery, from its own checkout. Name the protected job in the AC-06 altered-bytes case.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: should-fix
+WHERE: Design (Public content checks) lines 176-179, Owner summary lines 62-63, Test Plan AC-06
+EVIDENCE: Line 177 calls the approval "the existing required `signed-feed-production` environment approval", and line 178 says "GitHub enforces that approval before the job executes". The repository shows only that the publish, tag and verify-release jobs name that environment (.github/workflows/feed.yml:57,140,169). An environment gates a job on approval only if it has required reviewers configured. No workflow step, script or repository document records or checks that setting. The only other mentions are long lines in docs/specs/native-encrypted-git-backup.md:2369,2441. The AC-06 row says "The protected environment must require approval for the exact run inputs" but gives no procedure, such as reading the environment's protection rules through the GitHub API. Without required reviewers, the job runs with no payload review at all, and every fixture in the row still passes. This is the manual review that the R-5 F-03 repair relies on.
+PROPOSAL: Give a written check of the environment's required-reviewer protection rule, run before publication approval and kept as sanitized evidence, or have the protected job check it. Say whether self-review is acceptable for a sole owner.
+
+FINDING: F-03
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Publication and recovery) lines 213-218 and 227, Design (Homepage-only updates) lines 263 and 265, Design (Completed catalogue withdrawals) line 278, Design (Selecting predecessor history and recovery bytes) lines 340 and 345, Owner summary lines 54-56, Test Plan AC-05
+EVIDENCE: The R-5 F-01 repair defines verification and recovery construction for a predecessor that closed on a deployed empty-catalogue bootstrap recovery. It does not define a page-only update on top of that predecessor. Line 278 requires a new page-only submission to prove that "the native catalogue, package bytes and release identity match the selected predecessor archive and its live deployment". That predecessor serves no catalogue and has no release.json (line 214). A page-only candidate must still carry a candidate release.json with catalogue and package (line 265, scripts/feed-preflight.sh:25-36). Line 345 says what a page-only approval pins only "When a recovered predecessor serves a catalogue". The closure still records the failed bootstrap candidate's version and release, because scripts/publish-feed.sh:254,321-323 passes them from the candidate manifest to feed-close.sh. So an implementer who compares closure release identity would let a page-only dispatch publish the catalogue that failed native verification. An implementer who compares catalogue bytes would hold every page-only update until a package publication succeeds. The Owner summary presents page-only updates as the way to correct the page (line 108) and does not state either outcome. AC-05's page-only cases repeat only "after both candidate and recovery predecessor closures".
+PROPOSAL: State that a page-only dispatch holds when the selected predecessor is catalogue-absent, or define what it pins in that case. Add that case to AC-05 and mention the result in the Owner summary.
+
+FINDING: F-04
+KIND: judgement
+SEVERITY: should-fix
+WHERE: Design (Retained release assets and capacity) lines 384-391, Design (Selecting predecessor history and recovery bytes) line 320, Design (Complete inventory reads) line 370, Owner summary line 60, Test Plan AC-05
+EVIDENCE: Line 386 splits the quota check. Archive retention counts only the candidate and recovery archives, and only the protected publisher counts the approval and history assets. Archive retention runs during preparation, through scripts/retain-feed-bundles.sh:15-24 with the operator's asset-writer token, outside the feed.yml concurrency lock (.github/workflows/feed.yml:44-46). Its result is advisory (line 370). The approval name is computable at preparation, because the approval inputs at scripts/publish-feed.sh:81-86 are all known then. Even so, preparation can fill the release to the quota with archives that the protected job can never submit, since it then holds for the missing approval. Lines 271 and 390 keep every retained asset, so archives from such holds and from abandoned or concurrent preparations use quota permanently. The design and the Owner summary do not state this cost. AC-05's capacity case checks only the protected hold "before submission".
+PROPOSAL: Have archive retention reserve the phase's approval and new history names in its capacity count, or state that preparation-retained archives and their holds use quota permanently. Add an AC-05 case for retention at the quota boundary.
+
+FINDING: F-05
+KIND: judgement
+SEVERITY: nit
+WHERE: Design (Publication and recovery) lines 230-232, Test Plan AC-05
+EVIDENCE: Line 231 says initial-adoption preparation "records the HTTP 404 observation in the approved dispatch evidence", but neither the Design nor the site.json, approval or submission fields at lines 248 and 258 name that record. Line 230 already derives the expected root HTTP 404 from the selected baseline having no index, so the record does not affect any later check. AC-05's "verifies the initial root HTTP 404 observation" leaves open where that observation is read.
+PROPOSAL: Name where the observation is stored, or drop the recording step and keep the derived expectation with the recovery-time HTTP 404 check.
+
 ## Sources
 
+- [GitHub environment API](https://docs.github.com/en/rest/deployments/environments#get-an-environment) documents required-reviewer policy readback and its Actions-read permission. The owner CLI read the current protected environment on 16 November 2026.
 - [GitHub release limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases#storage-and-bandwidth-quotas) documents the 1,000-asset limit for each release.
 - [GitHub release-asset API](https://docs.github.com/en/rest/releases/assets#list-release-assets) documents paginated asset listing and asset-ID downloads.
 - [GitHub deployment listing](https://docs.github.com/en/rest/deployments/deployments#list-deployments) documents the repository/environment filters and deployment-list page parameters.
