@@ -1,6 +1,6 @@
 ---
 status: draft
-status_description: "Initial-dispatch outcomes are clarified. The bounded site-tooling and command-route choice awaits the owner, with fresh review pending."
+status_description: "The owner selected standard managed Renovate. Initial-dispatch outcomes and normal verification documentation are specified. Fresh review pending."
 issue: null
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -51,10 +51,10 @@ Production site deployments use their own concurrency group, separate from packa
 A running site deployment finishes, and a newly pending deployment replaces an older pending one under GitHub's default single-pending behaviour.
 The page's own free secret scan and browser checks gate its deployment.
 Existing package workflows retain their current checks and triggers.
-The proposed bounded tooling choice adds its verification route to README/AGENTS and scopes managed updates to the introduced site refs and the shared Bun tooling.
-The owner's 16 November question about the maintenance needed for plain files is recorded as Q1 below.
+On 16 November 2026 the owner selected ordinary managed Renovate dependency updates and continuation of the homepage.
+Use the shared repository baseline and normal manager detection, with the page's run/verify commands documented in README and AGENTS.
 The shared Playwright dependency also serves the appliance tests.
-Existing Composer and package-workflow refs have a pre-existing updater coverage gap recorded below.
+Renovate proposes dependency PRs through the repository's existing review and merge policy.
 
 During cutover, the normal pipeline runs once after bootstrap checks.
 Any non-success result disables publication and restores the prior Pages routing baseline.
@@ -90,8 +90,8 @@ The official action supports Bun and multiple native Wrangler commands through i
 
 The inspected repository has neither Renovate nor Dependabot configuration.
 Composer dependencies and existing package-workflow refs therefore have no configured version-update coverage established by this inspection.
-The homepage's narrow configuration and proof cover the dependencies it introduces and the shared Bun toolchain it uses.
-Repository-wide maintenance remains separate work.
+The owner-selected standard Renovate configuration covers repository dependencies through normal manager detection, including Bun, Composer and workflow refs.
+The homepage's verification exercises its introduced pins and the shared Bun toolchain, while Renovate proposes ordinary maintenance PRs for the repository.
 Dependabot security-update settings were not inspected or changed.
 
 ### Prototype verification
@@ -244,9 +244,9 @@ Its verification job scans the actual `web/packages/public/` payload with the fr
 Reference the official image directly as `uses: docker://ghcr.io/gitleaks/gitleaks:<released-version>@sha256:<digest>`.
 Pass `dir --redact=100 --no-banner` and the public directory as its arguments.
 The managed Renovate GitHub Actions manager discovers this native container reference.
-Add `renovate.json` with the shared pinning baseline limited to this feature's tooling.
-Enable only the `github-actions` and `bun` managers and include only `.github/workflows/packages-site.yml`, `package.json` and `bun.lock`.
-That scope covers the site action/container refs and the root Wrangler/Playwright tooling.
+Add the actual shared baseline `renovate.json` from `knowledge/managed-renovate.md` at the explicitly cited shared-docs revision.
+Its verified presets are `config:recommended` and `helpers:pinGitHubActionDigests`, with the shared manual-review rules for action majors and unversioned action digests.
+Use normal manager detection so the Bun manager maintains `package.json` with `bun.lock`, the GitHub Actions manager tracks native action/container refs and Composer receives its ordinary dependency PRs.
 Preserve any established consumer rules and update coverage encountered during implementation.
 Verify actual extraction of the scanner image, version and digest, plus Wrangler and Playwright associated with `bun.lock`.
 Use a managed update proposal to verify that a tool-version change also maintains the Bun lock and passes a frozen install.
@@ -382,7 +382,7 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 | AC-02 | Run the specified viewport/theme matrix in Chromium and Firefox. Check overflow, readable type, 44-pixel touch targets, focus and headings. Inspect representative screenshots. Exercise actual 200 percent browser zoom and record its method and resulting viewport. |
 | AC-03 | Run the current prototype's keyboard switch, saved theme, storage denial, URL copy, clipboard failure after success and JavaScript-disabled cases against the production static files. Check the switch state and reduced-motion behaviour. |
 | AC-04 | Serve the production directory through native Wrangler. Check the root and every prefixed asset's HTTP response and media type, plus native missing-asset HTTP 404. The routing fixture checks the exact root, the `/_site/*` prefix and the canonical-query redirect, with package and catalogue requests reaching a synthetic feed target. Replace and roll back the site while that target serves recorded fixture bytes, then compare responses with those bytes. At authorised bootstrap read back disabled workers.dev and preview access before route activation. At cutover verify the actual hostname's root with and without a query, an asset with a query, missing paths, root/assets smoke responses and native catalogue authentication plus exact package fetch. Inject failure in the owned cutover fixture and revert the site-specific routes and redirect, requiring the prior HTTP 404 root and authenticated package responses. Verify a later Lab infrastructure run preserves the pipeline-selected Worker content. Local Wrangler proof is recorded separately from live edge proof. |
-| AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks payload scan. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require the official scanner image, released version and digest to appear. Require Bun extraction of Wrangler and Playwright with `bun.lock` and a tool update whose regenerated lock passes the frozen install. Validate the site-only consumer Renovate scope and require managed App access plus a Dashboard entry or update proposal for the scanner image. Record an unavailable updater as unmet or through a separately approved tracked residual. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
+| AC-06 | Check the explicit public asset list, both licence notices and the site verification job's Gitleaks payload scan. Run Renovate's actual GitHub Actions dependency extraction against the workflow and require the official scanner image, released version and digest to appear. Require Bun extraction of Wrangler and Playwright with `bun.lock` and a tool update whose regenerated lock passes the frozen install. Validate the consumer against the actual shared Renovate baseline and require managed App access plus a Dashboard entry or update proposal for the scanner image. Record an unavailable updater as unmet or through a separately approved tracked residual. Review rendered text and network requests for deployment-specific addresses or credentials. Verify maintained documentation links and glossary terms. "Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository" passes the signing-copy check. "Trust this downloaded key without verification" fails it. |
 | AC-07 | Run actionlint and verify the selected official action's supplied inputs against its exact metadata. The site workflow installs the locked tool and uses the upstream action for native upload and deployment. Check that PR verification has read-only GitHub permissions and can finish without a Cloudflare credential, failed verification prevents deployment, a disabled publication flag skips the deployment job and enabled successful main verification permits it. Read the site's environment branch policy through GitHub and require only branch `main`, with tag refs excluded. At the authorised cutover, enable the publication flag after bootstrap checks and dispatch the normal workflow once on reviewed `main`. Verify its Editor-credential upload/activation, Actions and Cloudflare records, public smoke and final native package check. Exercise first-dispatch verification failure, skipped/cancelled/replaced deployment, upload/activation/smoke failure and unknown result in the owned fixture. Require flag disabling, restoration of the Pages routing baseline and an incomplete-cutover report. Check that the manual trigger remains main-only after cutover. Exercise an owned non-main rejection case without exposing the real credential. Check that the site group is `vhco-packages-site-production`, distinct from the package publication group, with one running and one pending job, pending replacement and no running-job cancellation. Compare the appliance Playwright list before and after adding the separate `tests/packages/` suite and require its existing spec set only. Check that page publication does not invoke package tagging or publication while ordinary commit subjects retain their shared GitVersion meaning. Confirm that the package workflow files retain their existing definitions and that a failing native-feed fixture cannot be hidden by page-only job skipping. Inject a synthetic secret into the public payload and require the site verification job to fail with deployment skipped. Exercise scanner error and clean-payload cases separately. Run the documented local aggregate command and use its owned loopback/native Wrangler fixture for a changed page and restored older page files while a synthetic package origin is unavailable. Require the restored checked-out content and retained package hashes. Verify the actual normal Actions deployment, its native Cloudflare record and public smoke check at the authorised cutover. Pass the loopback base URL to the same smoke checker, serve stale bytes and require failure after its retry bound without requesting production. Verify that successful source restoration serves the checked-out bytes and media types at the root and every asset URL. Check the documented native rerun window and original-source behaviour separately. Exercise a root-lockfile-only change and require site verification to run. Run the README/AGENTS bootstrap, preview and aggregate commands, including the same workflow-pinned scanner through Docker. Verify aggregate teardown and Ctrl+C cleanup as documented. Review the workflow's mutations and require them to be confined to site deployment. |
 
 ## Tasks
@@ -391,19 +391,7 @@ Tasks follow owner acceptance.
 
 ## Open Questions
 
-### Q1. Limit maintenance and repository command documentation to the page tooling?
-
-**Recommendation** Use the bounded site-tooling scope and document its preview/verification commands in README and AGENTS.
-
-| Option | You get | It costs |
-| --- | --- | --- |
-| **A. Bounded site tooling** | Update coverage for the introduced site action/scanner refs and shared Bun development tools, with their run/verify commands. | The existing Composer and package-workflow updater gap remains separate work. |
-| **B. Broader repository maintenance** | Add Composer and the existing workflow refs to the update scope too. | A separate maintenance rollout and its validation. |
-
-The prototype uses plain HTML/CSS and 45 lines of browser JavaScript.
-The proposed update coverage concerns build, test and deployment tools.
-The owner asked on 16 November whether a plain static page needs wider maintenance and has not yet selected this scope.
-The official Cloudflare action and independent page delivery were selected earlier.
+None. On 16 November 2026 the owner selected normal managed Renovate dependency handling after the static-hosting and official-action choices.
 
 ## Review Log
 
