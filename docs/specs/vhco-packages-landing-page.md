@@ -1,7 +1,7 @@
 ---
-status: draft
-status_description: "R-21 found one factual citation nit and no blocking or should-fix findings. The reviewed draft awaits owner acceptance before implementation."
-issue: null
+status: planned
+status_description: "The owner accepted R-21 at a5917f9. Planned gate passed, and issue 9 tracks implementation. R-21 F-01 remains a citation nit under the pinned nit rule."
+issue: 9
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
   - AGENTS.md
@@ -68,7 +68,8 @@ A permanent main-only manual trigger provides redeployment for repository writer
 The prototype passed 40 local Chromium/Firefox cases.
 Production hosting and native attestation integration are still unimplemented.
 Independent R-21 found one factual citation nit and no blocking or should-fix findings.
-Owner acceptance and production implementation remain pending.
+The owner accepted R-21 on 16 November 2026.
+Production implementation remains pending.
 
 ### Background and revision
 
@@ -451,6 +452,7 @@ None. On 16 November 2026 the owner selected normal managed Renovate dependency 
 | 2026-11-16 | R-19 | spec | `6190abd0778945b372da1e9b5d797b2441dd3eca` | claude-opus-5-5 | procedural | One should-fix finding. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint, freshness, planned gate, next and diff checks ran. Startup write probe, combined mount inspection, one diff form and actionlint were denied; repository tests were unexecuted. Launcher read-only snapshots matched. |
 | 2026-11-16 | R-20 | spec | `4fa45d0b8322dc04fa9eee823fd933b3696805da` | claude-opus-5-5 | procedural | Two should-fix findings. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint, freshness, planned gate, next and diff checks ran. A startup write probe and two combined gate/diff forms were denied; repository tests were unexecuted. Launcher read-only snapshots matched. The full return includes appended run notes. |
 | 2026-11-16 | R-21 | spec | `a5917f92c1e6a7cca8b1895709cc4e92f36c0d80` | claude-opus-5-5 | procedural | One factual citation nit, with no blocking or should-fix findings. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Independent lint, freshness, planned gate, next and diff checks ran, and the reviewer read the native probe evidence and public image/default configuration. Startup write probe and one combined command were denied; repository tests were unexecuted. Launcher read-only snapshots matched. |
+| 2026-11-16 | R-21 | spec | `a5917f92c1e6a7cca8b1895709cc4e92f36c0d80` | n/a | n/a | accepted by owner |
 
 ### R-1
 
