@@ -20,7 +20,7 @@ case "$1" in
         pkg -o REPOS_DIR="$build/repos" upgrade -y -r Fixture
         pkg -o REPOS_DIR="$build/repos" install -y -r Fixture bash git
         test "$(freebsd-version -k)" = 15.1-RELEASE-p6
-        test "$(pkg query '%v' opnsense)" = 26.7.9_1
+        test "$(pkg query '%v' opnsense)" = 26.7.9_3
         test "$(php -r 'echo PHP_VERSION;')" = 8.5.12
         test "$(pkg config ABI)" = FreeBSD:15:amd64
         git clone "$input/plugin.bundle" "$build/plugin"
