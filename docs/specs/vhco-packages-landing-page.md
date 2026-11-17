@@ -1,7 +1,7 @@
 ---
 status: in-progress
 status_description: "Homepage live at pkg.vhco.pro. Protected official-action run 44022104381 passed at 6a74690 with public and native package checks. Managed-bot evidence and final independent review remain pending."
-issue: 9
+issue: https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/9
 branch: feat/vhco-packages-homepage
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
 covers:
@@ -529,6 +529,8 @@ None. On 16 November 2026 the owner selected normal managed Renovate dependency 
 | 2026-11-16 | R-21 | spec | `a5917f92c1e6a7cca8b1895709cc4e92f36c0d80` | n/a | n/a | accepted by owner |
 | 2026-11-16 | R-22 | implementation | `1e46f6b5953163e83883c7c2241a01fa67269799` | claude-opus-5-5 | procedural | Two should-fix findings and three nits. First-party Opus assistant identity attested, with Haiku also listed separately in usage. Five Bun checks passed. Native browser/restoration and Docker scans were blocked by review-cache permissions and read-only overlays; all criteria remain unverified or untested. Live and managed-bot checks were pending. Source/Git snapshots matched. |
 | 2026-11-16 | R-23 | implementation | `a2d58067d0d3742e07bd3dca414d6fffce10a0f4` | claude-opus-5-5 | procedural | Three criteria met and three not verified pending live hosting and managed-bot evidence. Two nits, with no blocking or should-fix findings. First-party Opus-only usage attested. Independent aggregate, 45 browser cases, actual zoom/captures, six public references, scanner and native restoration passed. Actionlint passed. Denied command variants and unexecuted native appliance/catalogue checks remain recorded. Source/Git snapshots matched. |
+
+| 2026-11-17 | R-24 | spec | `7a4b5278b87cecfa77a1dbf27b83723fada9f6e3` | claude-opus-5-5 | procedural | Three factual nits, with no blocking or should-fix findings. First-party Opus-only assistant and result usage attested. Integrated-main spec refresh preserves the accepted normative baseline. Source/Git read-only mounts and matched before/after snapshots verified. |
 
 ### R-1
 
@@ -1412,3 +1414,28 @@ PROPOSAL: Once the _3 fixture boot passes, add a line to the compatibility page 
 - [Company mark](https://vhco.pro/landing/vhco-github.png) is the existing VH & Co logo.
 - [Current installation guide](../installation.md) documents version calculation, off-host native package preparation, signing and client trust.
 - [Prototype asset provenance](../prototypes/vhco-packages/README.md#asset-sources) records the logo and font sources and notices.
+
+### R-24
+
+TARGET: 7a4b5278b87cecfa77a1dbf27b83723fada9f6e3
+
+FINDING: F-01
+KIND: factual
+SEVERITY: nit
+WHERE: Design, Pipeline and reuse; Context, Pre-existing maintenance observation
+EVIDENCE: Design line 329 says "The repository currently has no updater configuration." Context line 105 says "The inspected repository has neither Renovate nor Dependabot configuration." At the target, `renovate.json` exists with `config:recommended`, `helpers:pinGitHubActionDigests` and the two github-actions manual-review rules (renovate.json:1-8). It was added by the T4 implementation after the R-21 baseline `a5917f9`. That change is one of the covered-drift paths `vh-adlc fresh` reports. The Owner summary (lines 58-63) and the AC-06 evidence line correctly say the configuration exists and App activation is pending. This does not change what is built or what a proof checks. Normative baseline nit only; it gives no revision authority on its own.
+PROPOSAL: At the next revision that touches Design, write line 329 as a dated 16 November pre-implementation observation, and say in Context that `renovate.json` now exists and managed App activation is pending.
+
+FINDING: F-02
+KIND: factual
+SEVERITY: nit
+WHERE: Design, Pipeline and reuse
+EVIDENCE: Design line 319 says to pass `dir --redact=100 --no-banner --config web/packages/.gitleaks.toml web/packages/` as the scanner arguments. The integrated workflow passes `dir --redact=100 --no-banner --exit-code 2 --config web/packages/.gitleaks.toml web/packages/` (.github/workflows/packages-site.yml:35). Design line 335, "Both a finding and a scanner error fail verification", still holds because both exit codes are nonzero. R-23 judged the implementation fresh at `a2d5806`. Normative baseline nit only; it gives no revision authority on its own.
+PROPOSAL: At the next revision that touches Design, list `--exit-code 2` in the stated arguments so the text matches the workflow and the T5 evidence that a finding exits 2.
+
+FINDING: F-03
+KIND: factual
+SEVERITY: nit
+WHERE: frontmatter `issue`
+EVIDENCE: Line 4 reads `issue: 9`. The pinned feature-documents standard defines `issue` as a link, for example `https://github.com/OWNER/REPO/issues/42`, or `null` for local-only work. `vh-adlc lint` at the target passed, so the binary accepts the value. A reader still has to infer the repository. This frontmatter field is outside the normative baseline.
+PROPOSAL: Replace it with `https://github.com/vhco-pro/opnsense-encrypted-git-backup/issues/9`. This can be applied at any time without making the review stale.
