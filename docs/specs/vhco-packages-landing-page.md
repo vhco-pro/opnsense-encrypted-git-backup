@@ -1,6 +1,6 @@
 ---
 status: in-progress
-status_description: "Reviewed homepage source and pipeline are merged at 6a74690. Main site verification passed. Live routing, protected dispatch and managed-bot activation are pending."
+status_description: "Homepage live at pkg.vhco.pro. Protected official-action run 44022104381 passed at 6a74690 with public and native package checks. Managed-bot evidence and final independent review remain pending."
 issue: 9
 branch: feat/vhco-packages-homepage
 goal: "Visitors to pkg.vhco.pro can identify VHCO package repositories and reach their setup and signing instructions."
@@ -67,11 +67,13 @@ For any non-success initial cutover result, the operator follows the private dep
 A permanent main-only manual trigger provides redeployment for repository writers under the publication flag and environment policy.
 
 The prototype passed 40 local Chromium/Firefox cases.
-Production hosting and native attestation integration are still unimplemented.
+Production hosting is live. Native package attestation integration remains a package-delivery follow-up.
 Independent R-21 found one factual citation nit and no blocking or should-fix findings.
 The owner accepted R-21 on 16 November 2026.
 The reviewed source and native pipeline merged at `6a74690`.
-Main site verification passed. Public route activation, the protected deployment and managed-bot activation remain pending.
+The first protected site dispatch passed at that main source on 17 November 2026.
+Live browser, exact public response and native package checks passed.
+Managed-bot evidence and final independent live verification remain pending.
 
 ### Background and revision
 
@@ -142,6 +144,54 @@ The public feed returned HTTP 200 for `/meta.conf` and HTTP 404 at `/` during th
 
 The initial dry-run configuration included the earlier proposed routes.
 The production configuration in Design is route-free.
+
+### Production cutover observation
+
+On 17 November 2026, the released feed baseline returned root HTTP 404 before route activation.
+The homepage then returned HTTP 200 with its approved assets.
+The single protected [site dispatch 44022104381](https://github.com/vhco-pro/opnsense-encrypted-git-backup/actions/runs/44022104381) passed verification and deployment on attempt 1 at `6a746900e56f72ffaf0a93285f1ec94069ce0be0`.
+The native owner-reviewed environment allowed only the `main` branch and disabled administrator bypass.
+GitHub recorded deployment `7844800798`.
+The official Wrangler action uploaded and deployed Worker version `52a0ea38-e8d5-481f-9235-8a05eb893a69` at 100 percent with tag `site-44022104381-1`.
+Native deployment readback confirmed deployment `0b980416-a312-4760-8580-dc99e38e36f5` serving that version, with workers.dev and previews disabled.
+Its public smoke check passed all eight responses.
+
+The following served bytes and media types matched that source before and after the protected deployment.
+
+| Public path | HTTP | Media type | SHA-256 |
+| --- | --- | --- | --- |
+| `/` | 200 | `text/html` | `3edf18207bd83d8647ae5ca82b441b1b53e3a4a059c45b1d7f2e5fff34f8d1ff` |
+| `/_site/style.css` | 200 | `text/css` | `c9d7ecd83c1dea7baded0fcefc218c97ac0500dd9851d9014a52b0ed6f4c5676` |
+| `/_site/page.js` | 200 | `text/javascript` | `98e495529bf672e99c9aaf7015c8645e33ebbcbe90b942eee04ef5ee008eb896` |
+| `/_site/vhco.png` | 200 | `image/png` | `bd5d562d7828717a0dd81bfd03694c51249ec055a9351e1ccca8e3411efc9616` |
+| `/_site/inter-latin.woff2` | 200 | `font/woff2` | `f7ab715caa2c78facb4334b211c81ee66f037cf9c99ca3f24acd543e84a93278` |
+| `/_site/INTER-LICENSE.txt` | 200 | `text/plain` | `262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a` |
+| `/_site/VHCO-LOGO-NOTICE.txt` | 200 | `text/plain` | `e9474e0d71e7ed56aa4a1e097f3d4240a40d57696bbfd82cd40fadb59b358a57` |
+| `/_site/__vhco_missing_asset__` | 404 | `text/html` | `1270fc8dcadb1f7ce647f9165db0c4e96417a84242d6aaffe3b3a6270e3f03d1` |
+
+A queried root returned HTTP 301 to `https://pkg.vhco.pro/`, dropping the query.
+A queried stylesheet returned the exact CSS bytes above.
+Missing catalogue and package requests returned HTTP 404.
+All four released feed files retained their baseline hashes before routing, after routing and after the official deployment.
+
+| Feed path | SHA-256 |
+| --- | --- |
+| `/meta.conf` | `ca7f091a4f9eccbf537a966a0d4d555cdfc4de34ad5be5c96a12c4485130664c` |
+| `/packagesite.pkg` | `cc7506ebb4b978b09f8a60034d1d2371bc319d85948a206af44804740ecfd66c` |
+| `/data.pkg` | `84400aea08ee782eb486f80caa9ab72ee1429d26ef30882ddc47c67effb81919` |
+| `/os-encrypted-git-backup-0.1.0.pkg` | `b0a23361eaa9ffa73ccc53234f9254b629912f0a42abb3a7eaf6fe2b77550064` |
+
+The identified native `feed-only` fixture from opaque rollout revision `9e29846e895c6f8d33f13e244ba5312690f10b21` passed at each boundary using released plugin fixture source `6ed99c21b95bb6f9f829de751e48dcb216bd0baa`.
+Fedora downloaded the actual public HTTPS bytes, and an owned disconnected native pkg guest authenticated the catalogue and fetched the expected package through guest-local HTTP.
+The wrong-package-digest negative check failed as expected.
+The final observation at 05:13:24 UTC recorded root HTTP 200 and those four feed hashes.
+
+Fresh Chromium/Firefox contexts against public HTTPS passed 43 cases, with the Chromium-only native zoom case explicitly skipped in Firefox.
+This run reused the versioned suite, excluding its local-origin case that expects direct `/404.html` to return HTTP 200.
+Actual public missing-path checks ran separately above.
+Desktop dark, mobile light and actual Chromium 200 percent zoom captures were inspected.
+All six public reference links reached their expected HTTP 200 routes.
+These are author observations. Final independent live criterion verification remains pending.
 
 ## Scope
 
@@ -410,11 +460,11 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 - [x] AC-03: Explicit URL copying and theme selection work with visible feedback, and reading and reference links work with JavaScript or storage/clipboard access unavailable.
   Evidence: R-23 met at a2d5806 through native copy/theme success and failure paths, keyboard access, unavailable storage and JavaScript-disabled reading.
 - [ ] AC-04: The public page and its assets return their expected HTTP responses while native repository paths retain catalogue authentication, package retrieval and missing-path HTTP 404 behaviour.
-  Evidence: R-23 not verified. Local native byte/header/restoration checks passed; public cutover and native package re-observation remain pending.
+  Evidence: R-23 not verified. Author live cutover, exact public responses and native package observations passed on 17 November as recorded in Context. Independent live re-observation remains pending.
 - [ ] AC-06: The public page contains repository information without private deployment inputs or credentials, uses its glossary terms consistently, has verified managed update coverage for its scanner/tooling and links to maintained package version information and the installation guide's independent trusted-channel verification of signing fingerprints.
   Evidence: R-23 not verified. Source, notices and native scanner checks passed; actual managed App/update evidence remains pending.
 - [ ] AC-07: A page edit and page rollback deploy independently of package releases, version calculation, package publication failures and package recovery.
-  Evidence: R-23 not verified. Native workflow guards and local restoration passed; the protected live dispatch and independent re-observation remain pending.
+  Evidence: R-23 not verified. Native workflow guards and local restoration passed. Author protected live dispatch 44022104381 passed on attempt 1. Independent live re-observation remains pending.
 
 ## Test Plan
 
@@ -440,11 +490,11 @@ Run these bootstrap, preview, aggregate, smoke and teardown procedures from a fr
 - [x] T5 `tests/packages/delivery.test.ts`, `web/packages/`, `.github/workflows/packages-site.yml`, `README.md`, `package.json` - repair R-22 proof gaps and small source findings, with observed public-reference routes and exact native workflow guards (AC-01, AC-06, AC-07)
   Evidence: `bun run packages:references` followed all six unique public references to their expected HTTP 200 routes. Bun delivery tests passed the exact workflow conditions and pinned action inputs. Native synthetic scans returned finding exit 2 for source and exit 0 for generated paths. R-22 records stay verbatim.
 - [x] T6 `.gitleaksignore`, `tests/appliance/inputs.sha256`, `tests/appliance/prepare-guest.sh` - apply bounded existing-check maintenance for the exact historical header-only false positive and removed vendor hotfix input, preserving real secret checks and checksum verification (Design, AC-04, AC-07)
-  Evidence: Native Gitleaks 8.21.2 first reproduced the exact historical header-only fingerprint, then scanned 360 commits with no leaks after its precise ignore entry. Bounded HEAD checks found one retired input among 104; the official replacement is OPNsense 26.7.9_3, ABI FreeBSD:15:amd64, SHA-256 `60d04f769c81b3ce7922c1d78124cdeb116ca83ae2f4f2b52e573c8d7ae0c2b4`. `bash -n tests/appliance/prepare-guest.sh` passed. Shellcheck was unavailable locally. The fresh full native CI boot remains pending.
+  Evidence: Native Gitleaks 8.21.2 first reproduced the exact historical header-only fingerprint, then scanned 360 commits with no leaks after its precise ignore entry. Bounded HEAD checks found one retired input among 104; the official replacement is OPNsense 26.7.9_3, ABI FreeBSD:15:amd64, SHA-256 `60d04f769c81b3ce7922c1d78124cdeb116ca83ae2f4f2b52e573c8d7ae0c2b4`. `bash -n tests/appliance/prepare-guest.sh` passed. Shellcheck was unavailable locally. Fresh full native browser CI passed at reviewed PR source in run 43940117068 and merged main in run 43944130038.
 - [x] T7 `tests/packages/page.spec.mjs` - wait for the actual zoomed viewport paint before native tab capture so the observed compositor readback race is repaired (AC-02)
   Evidence: The prior aggregate observed a native capture `image readback failed` after zoom geometry passed. Waiting for two actual animation frames repaired that paint race. The focused Chromium zoom check passed three consecutive runs, with its three Firefox Chromium-only cases explicitly skipped. First failure logs and context remain in ignored local evidence.
 - [ ] T8 `docs/specs/vhco-packages-landing-page.md` - record actual managed-bot activation, independent implementation review, successful public CI and the authorised site cutover with live HTTP and native package re-observation (AC-04, AC-06, AC-07)
-  Progress: PR source `a2d5806` passed site run 43940117146, PHP/native-feed/version/package-plan run 43940118023 and the fresh 26.7.9_3 native appliance browser run 43940117068. PR #11 merged as `6a74690`, whose tree equals the reviewed PR head. Main site run 43944130114 passed verification and skipped deployment while the enable flag was absent. Main PHP run 43944131477 passed. Live cutover and updater evidence remain pending.
+  Progress: PR source `a2d5806` passed site run 43940117146, PHP/native-feed/version/package-plan run 43940118023 and the fresh 26.7.9_3 native appliance browser run 43940117068. PR #11 merged as `6a74690`, whose tree equals the reviewed PR head. Main site run 43944130114 passed verification and skipped deployment while the enable flag was absent. Main PHP run 43944131477 and native appliance browser run 43944130038 passed. Protected site run 44022104381 passed verification, official deployment and public smoke on attempt 1. Live browser/HTTP/native package observations are recorded in Context. Managed-bot evidence and final independent review remain pending.
 
 ## Open Questions
 
