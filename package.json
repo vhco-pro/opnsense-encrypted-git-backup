@@ -10,7 +10,7 @@
     "packages:references": "bun web/packages/references.ts"
   },
   "devDependencies": {
-    "@playwright/test": "1.59.1",
+    "@playwright/test": "1.65.1",
     "wrangler": "4.163.0"
   }
 }
