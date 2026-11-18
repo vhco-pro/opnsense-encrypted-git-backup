@@ -59,7 +59,7 @@ jobs:
       actions: read
       contents: write
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.reviewed_source }}
           fetch-depth: 0
@@ -139,7 +139,7 @@ jobs:
     timeout-minutes: 5
     environment: signed-feed-production
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.reviewed_source }}
           persist-credentials: false
@@ -176,7 +176,7 @@ jobs:
         env:
           ENABLED: ${{ vars.SIGNED_FEED_PRODUCTION_APPROVED }}
         run: test "$ENABLED" = true
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.reviewed_source }}
           fetch-depth: 0
