@@ -152,7 +152,7 @@ test('reading and documentation links work without JavaScript', async ({ browser
 
 test('signing guidance directs readers to independent key verification', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.signing-guide')).toContainText('independent trusted channel');
+  await expect(page.locator('.signing-guide')).toContainText('Before configuring the repository, confirm the fingerprint through an independent trusted channel');
   await expect(page.getByRole('link', { name: 'Signing instructions' })).toHaveAttribute('href', /\/docs\/installation\.md#verify-the-signing-key$/);
   await expect(page.getByRole('link', { name: 'Release history' })).toHaveAttribute('href', /\/releases$/);
 });
