@@ -25,9 +25,9 @@ jobs:
           git init work/upstream/core
           git -C work/upstream/core fetch --depth=1 https://github.com/opnsense/core.git e1020455a7bbb8a94ecdcec4fa94cd2ee3bdbbc1
           git -C work/upstream/core checkout --detach FETCH_HEAD
-      - uses: vhco-pro/php-ci-action@d60489c9d9296708889f219297c8a603c60ae424
+      - uses: vhco-pro/php-ci-action@be6dd61400f264349353ba70fac011b11c47cc9b
         with:
-          php-version: '8.5.12'
+          php-version: '8.5.13'
           php-paths: |
             src
             tests
