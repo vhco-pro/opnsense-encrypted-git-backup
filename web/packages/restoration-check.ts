@@ -10,7 +10,7 @@ try {
   const copiedAssets = join(temporary, "public");
   await cp(publicDirectory, copiedAssets, { recursive: true });
   const original = await Bun.file(join(copiedAssets, "index.html")).text();
-  await Bun.write(join(copiedAssets, "index.html"), original.replace("Packages from", "Synthetic stale page from"));
+  await Bun.write(join(copiedAssets, "index.html"), original + "\n<!-- Synthetic stale page -->\n");
   const configuration = join(temporary, "wrangler.toml");
   await Bun.write(configuration, await Bun.file(join(import.meta.dir, "wrangler.toml")).text());
   child = Bun.spawn(["node", resolve("node_modules/wrangler/bin/wrangler.js"), "dev", "--local", "--ip", "127.0.0.1", "--port", "0", "--config", configuration], {

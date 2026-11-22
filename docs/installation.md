@@ -2,7 +2,11 @@
 
 Check [Runtime compatibility](compatibility.md) before configuring the repository.
 Version 0.1.0 uses the signed catalogue at `https://pkg.vhco.pro` for
-`FreeBSD:15:amd64`. Download `feed-signing-public.pem` from the
+`FreeBSD:15:amd64`.
+
+## Verify the signing key
+
+Download `feed-signing-public.pem` from the
 [v0.1.0 release](https://github.com/vhco-pro/opnsense-encrypted-git-backup/releases/tag/v0.1.0).
 Confirm the SHA-256 of its DER public key bytes through an independent
 trusted channel before configuring the client.

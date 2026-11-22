@@ -8,6 +8,7 @@ export const assets = {
   "_site/style.css": "text/css",
   "_site/page.js": "text/javascript",
   "_site/vhco.png": "image/png",
+  "_site/vhco.svg": "image/svg+xml",
   "_site/inter-latin.woff2": "font/woff2",
   "_site/INTER-LICENSE.txt": "text/plain",
   "_site/VHCO-LOGO-NOTICE.txt": "text/plain",

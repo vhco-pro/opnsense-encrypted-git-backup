@@ -12,6 +12,7 @@ export const publicFiles = [
   "_site/page.js",
   "_site/style.css",
   "_site/vhco.png",
+  "_site/vhco.svg",
   "index.html",
 ];
 

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="460" viewBox="0 0 460 460">
+  <defs>
+    <linearGradient id="brand" gradientUnits="userSpaceOnUse" x1="128" y1="163" x2="306" y2="291">
+      <stop stop-color="#00d7e8"/>
+      <stop offset=".2" stop-color="#05baf0"/>
+      <stop offset=".38" stop-color="#057eff"/>
+      <stop offset=".64" stop-color="#3f47fb"/>
+      <stop offset="1" stop-color="#8c13fb"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#brand)">
+    <path fill-rule="evenodd" d="M215 102Q227 95.5 239 102L328 153.5Q345 163 345 183V278Q345 298 330 307L240 357.5Q227 365 214 357.5L124 307Q107.7 298 107.7 278V183Q107.7 164 124 154ZM219 118Q227 113.5 235 118L320 167.5Q329 173 329 184V278Q329 290 319 295L235 341.5Q227 346 219 341.5L134 294Q123.5 288 123.5 277V184Q123.5 174 134 168Z"/>
+    <path d="M139 181.5L153.5 172.6Q157 170.5 158.6 175L191.6 250Q193.5 254.7 196 249.5L230.6 174Q232.5 169.5 237 169.5H259L205 286.5Q202.8 292 198 292H191Q186 292 183.6 286.5L137 186Q135.6 183 139 181.5Z"/>
+    <path d="M293 166L313 177.8Q316.4 180 316.4 184V275Q316.4 280 312.4 282.7L293.4 293V246.5Q293.4 242.2 289 242.2H239.3L251 218.5H289Q293 218.5 293 214.5Z"/>
+  </g>
+</svg>

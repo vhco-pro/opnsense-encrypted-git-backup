@@ -23,11 +23,20 @@ for (const theme of ['light', 'dark']) {
       await page.setViewportSize(viewport);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
       await page.goto('/');
-      await expect(page.locator('h1')).toHaveText('Packages fromVH & Co.');
+      await expect(page.locator('h1')).toHaveText('Packages from VH & Co.');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.getByRole('switch', { name: 'Dark theme' })).toHaveAttribute('aria-checked', String(theme === 'dark'));
       await expect(page.locator('.package-name')).toHaveText('os-encrypted-git-backup');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const label = await page.locator('.address-label').boundingBox();
+      const address = await page.locator('#repository-url').boundingBox();
+      if (viewport.width <= 680) {
+        await expect(page.locator('.hero-mark')).toBeHidden();
+        expect(label.y + label.height).toBeLessThanOrEqual(address.y);
+      } else {
+        await expect(page.locator('.hero-mark')).toBeVisible();
+        expect(Math.abs(label.y + label.height / 2 - (address.y + address.height / 2))).toBeLessThan(1);
+      }
       for (const button of await page.locator('button:visible, .button').all()) {
         expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
       }
@@ -54,20 +63,46 @@ test('theme selection survives reload and keyboard navigation reaches setup', as
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
+test('the header links through the company brand and a labeled GitHub icon', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/');
+  const header = page.getByRole('banner');
+  const brand = header.getByRole('link', { name: 'VH & Co', exact: true });
+  await expect(brand).toHaveAttribute('href', 'https://vhco.pro/');
+  await expect(header.getByRole('link', { name: 'vhco.pro', exact: true })).toHaveCount(0);
+  const github = header.getByRole('link', { name: 'VH & Co on GitHub', exact: true });
+  await expect(github).toHaveAttribute('href', 'https://github.com/vhco-pro');
+  await expect(github.locator('svg')).toBeVisible();
+  await expect(page.locator('.hero').getByText('pkg.vhco.pro', { exact: true })).toHaveCount(0);
+  for (const name of [brand, page.getByRole('link', { name: 'VH & Co logo notice' })]) {
+    const lines = await name.locator(':scope > span:last-child').evaluate(label => {
+      const range = document.createRange();
+      range.selectNode(label.firstChild);
+      return range.getClientRects().length;
+    });
+    expect(lines).toBe(1);
+  }
+});
+
 test('theme switch supports keyboard activation with a stable accessible label', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   const themeSwitch = page.getByRole('switch', { name: 'Dark theme' });
+  const thumb = themeSwitch.locator('.theme-thumb');
   await expect(themeSwitch).toHaveAttribute('aria-checked', 'false');
-  await expect(themeSwitch.locator('.theme-thumb')).toHaveCSS('transition-duration', '0s');
+  await expect(themeSwitch.locator('.theme-track')).toBeVisible();
+  await expect(thumb).toHaveCSS('transition-duration', '0s');
+  const lightPosition = (await thumb.boundingBox()).x;
   await themeSwitch.focus();
   await page.keyboard.press('Space');
   await expect(themeSwitch).toBeFocused();
   await expect(themeSwitch).toHaveAttribute('aria-checked', 'true');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect((await thumb.boundingBox()).x - lightPosition).toBe(28);
   await page.keyboard.press('Enter');
   await expect(themeSwitch).toHaveAttribute('aria-checked', 'false');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  expect((await thumb.boundingBox()).x).toBe(lightPosition);
 });
 
 test('URL copy resolves through the browser and denial selects the URL', async ({ page, context, browserName }) => {
@@ -118,7 +153,7 @@ test('reading and documentation links work without JavaScript', async ({ browser
 test('signing guidance directs readers to independent key verification', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.signing-guide')).toContainText('independent trusted channel');
-  await expect(page.getByRole('link', { name: 'Signing instructions' })).toHaveAttribute('href', /\/docs\/installation\.md$/);
+  await expect(page.getByRole('link', { name: 'Signing instructions' })).toHaveAttribute('href', /\/docs\/installation\.md#verify-the-signing-key$/);
   await expect(page.getByRole('link', { name: 'Release history' })).toHaveAttribute('href', /\/releases$/);
 });
 
@@ -134,19 +169,29 @@ test('missing asset and catalogue routes return the explicit 404 document', asyn
   }
 });
 
-test('company logo has its own accessible rights notice', async ({ page, request }) => {
+test('the footer logo opens its accessible rights notice', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Logo notice' })).toHaveAttribute('href', '/_site/VHCO-LOGO-NOTICE.txt');
-  const response = await request.get('/_site/VHCO-LOGO-NOTICE.txt');
-  expect(response.status()).toBe(200);
-  expect(await response.text()).toContain('Copyright (c) 2026 VH & Co BV');
-  expect(await response.text()).toContain('All rights reserved.');
-  expect(await response.text()).toContain('display and redistribute');
+  const footer = page.getByRole('contentinfo');
+  const publisher = footer.getByRole('link', { name: 'VH & Co logo notice', exact: true });
+  await expect(publisher.locator('img')).toHaveAttribute('src', '/_site/vhco.svg');
+  await expect(footer.getByRole('link', { name: 'Logo notice', exact: true })).toHaveCount(0);
+  await publisher.click();
+  await expect(page).toHaveURL(/\/_site\/VHCO-LOGO-NOTICE\.txt$/);
+  await expect(page.locator('body')).toContainText('Copyright (c) 2026 VH & Co BV');
+  await expect(page.locator('body')).toContainText('All rights reserved.');
+  await expect(page.locator('body')).toContainText('display and redistribute');
+});
+
+test('the publisher fingerprint is visible to readers', async ({ page }) => {
+  await page.goto('/#signing-key');
+  const fingerprint = page.locator('#signing-key');
+  await expect(fingerprint).toBeInViewport();
+  await expect(fingerprint).toContainText('96a1a891e63c16061d968d9d1c64105d14ab64e6e9201b1c2a6dff989df06837');
 });
 
 test('native public responses match the exact approved bytes and media types', async () => {
   const result = execFileSync('bun', ['web/packages/smoke.ts', test.info().project.use.baseURL], { encoding: 'utf8' });
-  expect(JSON.parse(result)).toMatchObject({ checkedResponses: 8 });
+  expect(JSON.parse(result)).toMatchObject({ checkedResponses: 9 });
 });
 
 test('another authored repository entry fits the static layout', async ({ page }) => {
