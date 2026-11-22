@@ -51,3 +51,5 @@ Restore earlier page files in a new main commit to recover through the same veri
 ## Assets and rights
 
 The approved design snapshot remains in [the prototype directory](../../docs/prototypes/vhco-packages/README.md). Production assets retain the [VHCO logo notice](public/_site/VHCO-LOGO-NOTICE.txt) and [Inter font licence](public/_site/INTER-LICENSE.txt). Additional repository entries are authored as ordinary static content.
+
+The displayed company mark is copied from `app/public/landing/vhco.svg` in the VH & Co website repository. It was traced from the existing `vhco-github.png` artwork. The original PNG remains available at its existing path and serves as the favicon.

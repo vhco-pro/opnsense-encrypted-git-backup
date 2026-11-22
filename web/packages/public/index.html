@@ -14,53 +14,78 @@
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
-      <div class="header-content">
-        <a class="brand" href="/" aria-label="VHCO Packages home">
-          <span class="brand-mark"><img src="/_site/vhco.png" width="64" height="64" alt=""></span>
-          <span>VH & Co<span class="brand-section">Packages</span></span>
+      <div class="shell header-content">
+        <a class="brand" href="https://vhco.pro/" aria-label="VH &amp; Co">
+          <span class="brand-mark"><img src="/_site/vhco.svg" width="64" height="64" alt=""></span>
+          <span>VH &amp; Co<span class="brand-section">Packages</span></span>
         </a>
         <nav aria-label="Main navigation">
-          <a href="https://vhco.pro/">vhco.pro <span aria-hidden="true">↗</span></a>
-          <a href="https://github.com/vhco-pro">GitHub <span aria-hidden="true">↗</span></a>
+          <!--
+            GitHub mark from https://github.com/primer/octicons/blob/v19.19.0/icons/mark-github-16.svg
+            MIT License
+
+            Copyright (c) 2025 GitHub Inc.
+
+            Permission is hereby granted, free of charge, to any person obtaining a copy
+            of this software and associated documentation files (the "Software"), to deal
+            in the Software without restriction, including without limitation the rights
+            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+            copies of the Software, and to permit persons to whom the Software is
+            furnished to do so, subject to the following conditions:
+            The above copyright notice and this permission notice shall be included in all
+            copies or substantial portions of the Software.
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+            SOFTWARE.
+          -->
+          <a class="github-link" href="https://github.com/vhco-pro" aria-label="VH &amp; Co on GitHub" title="GitHub">
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">
+              <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>
+            </svg>
+          </a>
           <button class="theme-toggle" type="button" role="switch" aria-label="Dark theme" aria-checked="false" hidden>
             <span class="theme-track" aria-hidden="true">
               <span class="theme-thumb"></span>
-              <span class="theme-sun"></span>
-              <span class="theme-moon"></span>
+              <span class="theme-sun">☼</span>
+              <span class="theme-moon">☾</span>
             </span>
           </button>
         </nav>
       </div>
     </header>
 
-    <main id="main">
+    <main id="main" class="shell">
       <section class="hero" aria-labelledby="page-title">
         <div class="hero-copy">
-          <p class="eyebrow">pkg.vhco.pro</p>
-          <h1 id="page-title">Packages from<br><span>VH & Co.</span></h1>
-          <p class="intro">Software packages and repository setup guides<br class="desktop-break"> from VH & Co.</p>
+          <h1 id="page-title">Packages from <br><span>VH &amp; Co.</span></h1>
+          <p class="intro">Software packages and repository setup guides from VH &amp; Co.</p>
         </div>
-        <img class="hero-mark" src="/_site/vhco.png" width="300" height="300" alt="VH & Co logo">
+        <img class="hero-mark" src="/_site/vhco.svg" width="260" height="260" alt="">
       </section>
 
-      <section class="repositories" aria-labelledby="repositories-title">
+      <section class="repositories" id="repositories" aria-labelledby="repositories-title">
         <h2 id="repositories-title">Repositories</h2>
         <article class="repository" aria-labelledby="opnsense-title">
           <div class="repository-header">
-            <div>
-              <h3 id="opnsense-title">OPNsense</h3>
-              <p>Native firewall plugins</p>
+            <div class="platform">
+              <div>
+                <h3 id="opnsense-title">OPNsense</h3>
+                <p>Third-party firewall packages</p>
+              </div>
             </div>
-            <a class="text-link" href="https://github.com/vhco-pro/opnsense-encrypted-git-backup/blob/main/docs/compatibility.md">Compatibility <span aria-hidden="true">↗</span></a>
+            <a class="text-link" href="https://github.com/vhco-pro/opnsense-encrypted-git-backup/blob/main/docs/compatibility.md">Compatibility</a>
           </div>
           <div class="package-content">
             <div class="package-description">
               <h4>Encrypted Git backup</h4>
+              <p>Keep encrypted snapshots of your OPNsense configuration in a Git repository you control.</p>
               <code class="package-name">os-encrypted-git-backup</code>
-              <p>Back up your OPNsense configuration to Git using native encrypted exports.</p>
-              <a class="text-link" href="https://github.com/vhco-pro/opnsense-encrypted-git-backup">View source <span aria-hidden="true">↗</span></a>
             </div>
-            <a class="button primary" href="#repository-setup">Repository setup <span aria-hidden="true">↓</span></a>
+            <a class="button primary" href="#repository-setup">Repository setup</a>
           </div>
           <div class="repository-address">
             <span class="address-label">Repository URL</span>
@@ -74,23 +99,32 @@
       <section class="setup" id="repository-setup" aria-labelledby="setup-title">
         <div class="setup-guide">
           <h2 id="setup-title">Add the repository</h2>
-          <p>Check the supported runtime and verify the signing key before configuring the feed on your appliance.</p>
-          <a class="button secondary" href="https://github.com/vhco-pro/opnsense-encrypted-git-backup/blob/main/docs/installation.md">Read the installation guide <span aria-hidden="true">↗</span></a>
-        </div>
-        <div class="signing-guide">
-          <h2>Verify the publisher</h2>
-          <p>Follow the installation guide to verify the signing key through an independent trusted channel before adding the repository.</p>
-          <div class="signing-links">
-            <a class="text-link" href="https://github.com/vhco-pro/opnsense-encrypted-git-backup/blob/main/docs/installation.md">Signing instructions <span aria-hidden="true">↗</span></a>
-            <a class="text-link" href="https://github.com/vhco-pro/opnsense-encrypted-git-backup/releases">Release history <span aria-hidden="true">↗</span></a>
+          <p>Follow the guide to check compatibility, verify the key and install the package.</p>
+          <a class="button secondary" href="https://github.com/vhco-pro/opnsense-encrypted-git-backup/blob/main/docs/installation.md">Read the installation guide</a>
+          <div class="secondary-links">
+            <a href="https://github.com/vhco-pro/opnsense-encrypted-git-backup">View source</a>
+            <a href="https://github.com/vhco-pro/opnsense-encrypted-git-backup/releases">Release history</a>
           </div>
+        </div>
+        <div class="signing-guide" id="signing-key">
+          <h2>Signing key</h2>
+          <p>This is the SHA-256 fingerprint of the v0.1.0 release key’s DER bytes. Before configuring the repository, confirm the fingerprint through an independent trusted channel, such as a maintainer contact you already trust.</p>
+          <code class="fingerprint">96a1a891e63c16061d968d9d1c64105d14ab64e6e9201b1c2a6dff989df06837</code>
+          <a class="text-link" href="https://github.com/vhco-pro/opnsense-encrypted-git-backup/blob/main/docs/installation.md#verify-the-signing-key">Signing instructions</a>
         </div>
       </section>
     </main>
 
-    <footer>
-      <a href="https://vhco.pro/">VH & Co</a>
-      <p>Software & platform engineering. <a href="/_site/VHCO-LOGO-NOTICE.txt">Logo notice</a></p>
+    <footer class="site-footer">
+      <div class="shell footer-content">
+        <a class="brand footer-brand" href="/_site/VHCO-LOGO-NOTICE.txt" aria-label="VH &amp; Co logo notice" title="Logo notice">
+          <span class="brand-mark"><img src="/_site/vhco.svg" width="64" height="64" alt=""></span>
+          <span>VH &amp; Co</span>
+        </a>
+        <nav aria-label="Footer navigation">
+          <a href="https://github.com/vhco-pro">GitHub</a>
+        </nav>
+      </div>
     </footer>
   </body>
 </html>
