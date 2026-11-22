@@ -148,6 +148,27 @@ evidence: At `caf685d5` the committed record blob is `db5b76ce455d377d512937b1ee
 required action: Commit the record update. Supply its commit and blob ID as `record_target`, and confirm that the source paths are unchanged from `caf685d5`. Then rerun the review against that pair.
 ```
 
+### R-5
+
+Isolation: read-only file tool with exact committed source and record identities.
+
+```text
+MODEL: claude-opus-5-5
+TARGET: 3e557d455f86e041e094ad1c837888cf5f3651e8
+
+NO FINDINGS
+
+---
+
+This passes review, but it does not release anything. Under the authorized outcome I have no permission to act, and publishing still has to go through the existing workflow after merge, as the Definition says.
+
+- **What I checked myself:** I opened all six images. Both matrix images show 12 homepage captures each. They show light and dark themes, the switch in both positions, the vector mark keeping its proportions, readable signing and setup content including the fingerprint, and no horizontal overflow. All four 404 captures show the "Page not found" page with a visible "Browse VHCO Packages" link in both engines and both themes.
+- **Not a finding:**
+  - **Dark 404 banding:** The dark 404 desktop captures show the background gradient repeating in horizontal bands with visible seams, at roughly 262 px intervals. The base stylesheet already had this background rule, and this change only added the `shell` class to `404.html`. So it predates this work and isn't caused by it. The record describes it accurately. It could be its own maintenance item if you want it fixed.
+  - **Mobile thumbnails:** In the matrix images the mobile captures are too small for me to judge fine typography or contrast. Layout, ordering and content are visible.
+- **What I couldn't check:** My only tool reads files, so I couldn't recompute the image SHA-256 values or run the `git diff` source-equivalence command myself. I relied on the hashes and exit status you supplied for those, and on the fixed runner's log for the test results.
+```
+
 ## State
 
-Review pending.
+Local checks and independent review passed. Public checks and the protected deployment remain pending.
