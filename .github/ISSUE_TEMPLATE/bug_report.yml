@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a problem with the encrypted Git backup plugin
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue will be public. Use synthetic values in your steps. Keep firewall
+        exports, backups, credentials, hostnames, IP addresses, account names, Git
+        URLs, and identifying repository or branch names out of the report.
+        For a suspected vulnerability, follow the
+        [security policy](https://github.com/vhco-pro/opnsense-encrypted-git-backup/security/policy).
+
+  - type: input
+    id: opnsense-version
+    attributes:
+      label: OPNsense version
+      description: Enter the edition and full version, including any patch suffix.
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: Enter the installed os-encrypted-git-backup version from System → Firmware → Packages. If installation failed, enter the version you tried or write "unknown."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where did it happen?
+      options:
+        - Install or update
+        - Backup setup
+        - Manual backup
+        - Scheduled backup
+        - Status page
+        - Restore
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+      description: Describe the result you saw and what you expected.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps or conditions
+      description: Give the shortest steps that show the problem using synthetic values. If it happened once, describe the action immediately before it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error or status excerpt
+      description: Paste only the relevant line or two. Replace identifying values with placeholders. Leave this blank if you cannot safely share an excerpt.

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+- name: Report a security vulnerability
+  url: https://github.com/vhco-pro/opnsense-encrypted-git-backup/security/policy
+  about: Find the private reporting instructions for this plugin and its package feed.
+- name: Installation and recovery help
+  url: https://github.com/vhco-pro/opnsense-encrypted-git-backup/blob/main/SUPPORT.md
+  about: Find the installation, compatibility, and recovery guides.
