@@ -2,7 +2,12 @@
 
 Retrieve `config.xml.enc` at the verified remote commit. Obtain the password for the key identifier in that commit's `snapshot.json` from independent recovery storage. Verify the encrypted file's SHA-256 against the metadata obtained from the expected branch and commit.
 
-On an isolated appliance, open **System → Configuration → Backups**. Upload the encrypted export, select decryption, enter its password, and select the full configuration for restore. Contain the restored appliance's network identity and services before attaching it to any network. Confirm the restored fields and reprovision the external credentials from their independent copies before enabling delivery.
+Isolate the test appliance before uploading the backup so its restored network
+identity and services cannot affect other systems. Open **System →
+Configuration → Backups**. Upload the encrypted export, select decryption,
+enter its password, and select the full configuration for restore. Keep the
+appliance isolated while confirming the restored fields. Reprovision external
+credentials from their independent copies before enabling delivery.
 
 ## Prepare a legacy migration
 
@@ -14,7 +19,15 @@ Remove the legacy Git plugin through native package administration, confirm its 
 
 After draining the legacy writer, make a native password-encrypted export of the current configuration and store it independently. Retrieve and decrypt that retained export in protected storage, verify the complete configuration against its source, and record both digests. The configuration digest is SHA-256 of the PHP string representation of the native `Config` object. Use the same source revision for the export and digest. A concurrent save invalidates the evidence and requires a fresh export.
 
-The activation checkpoint is root-owned, mode 0600, at `/conf/encrypted-git-backup/activation.json`. For fresh setup use `version` 1, `destination`, `branch` and `legacy` set to null. For legacy cutover use `version` 2 and the same destination and branch fields. Record the final local `tip`, the previous `remote` tip and the encrypted bundle's `archiveSha256` in the `legacy` object. Set top-level `exportSha256` to the encrypted native export digest and `configurationSha256` to the source configuration digest. A version 1 checkpoint with a legacy entry needs fresh verification before it can authorize cutover.
+The activation checkpoint is root-owned, mode 0600, at
+`/conf/encrypted-git-backup/activation.json`. For legacy cutover, set `version`
+to 2 and set `destination` and `branch` to the exact values you will enter in
+the Backups form. Record the final local `tip`, the previous `remote` tip and the
+encrypted bundle's `archiveSha256` in the `legacy` object. Set top-level
+`exportSha256` to the encrypted native export digest and
+`configurationSha256` to the source configuration digest. A version 1
+checkpoint cannot authorize legacy migration. For a new repository with no
+legacy history, use the [fresh setup example](installation.md#complete-a-first-backup).
 
 Write the checkpoint atomically after verification. Keep the archives and passwords independently recoverable. Save activation in the native Backups form before running delivery. If the first delivery fails, keep the plaintext writer disabled. The verified pre-cutover configuration remains the recovery point until the first verified delivery. Restore that export and reapply the provider settings and external credentials from independent records if the configured appliance is lost.
 

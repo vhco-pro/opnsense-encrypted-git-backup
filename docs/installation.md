@@ -1,31 +1,115 @@
 # Install the encrypted Git backup provider
 
-Check [Runtime compatibility](compatibility.md) before configuring the repository.
-Version 0.1.0 uses the signed catalogue at `https://pkg.vhco.pro` for
-`FreeBSD:15:amd64`.
+Start on a test appliance. The initial verified target is OPNsense Community
+Edition 26.7.9_1 on amd64. Check [runtime compatibility](compatibility.md) and
+run `pkg config ABI` on the appliance. Version 0.1.0 requires
+`FreeBSD:15:amd64`. Stop if the appliance reports a different ABI.
 
 ## Verify the signing key
 
-Download `feed-signing-public.pem` from the
-[v0.1.0 release](https://github.com/vhco-pro/opnsense-encrypted-git-backup/releases/tag/v0.1.0).
-Confirm the SHA-256 of its DER public key bytes through an independent
-trusted channel before configuring the client.
+Download [feed-signing-public.pem](https://github.com/vhco-pro/opnsense-encrypted-git-backup/releases/download/v0.1.0/feed-signing-public.pem)
+from the v0.1.0 GitHub release. In a separate browser tab, open
+[Signing key at pkg.vhco.pro](https://pkg.vhco.pro/#signing-key) over HTTPS and
+check the hostname. Run the following command on FreeBSD or OPNsense from the
+directory containing the downloaded key.
 
 ```sh
 openssl pkey -pubin -in feed-signing-public.pem -outform DER | sha256 -q
 ```
 
-The first release fingerprint is
+The v0.1.0 fingerprint is
 `96a1a891e63c16061d968d9d1c64105d14ab64e6e9201b1c2a6dff989df06837`.
-Set the package repository URL to `https://pkg.vhco.pro`, set
-`signature_type` to `pubkey` and point `pubkey` to the verified key file.
-Keep the native OPNsense repositories configured for their existing packages.
+Compare all 64 characters with the fingerprint shown on the package site.
+Before configuring the repository, confirm that fingerprint through an
+independent trusted channel, such as a maintainer contact you already trust.
+Stop if you cannot confirm the fingerprint or if any of the values differ.
 
-On the appliance, use the native Firmware package administration to install `os-encrypted-git-backup` from the verified repository. The provider appears under **System → Configuration → Backups**.
+## Add the feed and install
 
-Keep deployment identities, known-hosts files and encryption passwords in the root-owned directory `/conf/encrypted-git-backup/credentials`. Its parent and the credential directory require mode 0700. Credential files require mode 0400 or 0600 and a single link. For the reference `example`, the filenames are `identity-example`, `hosts-example`, and `password-example`. Keep recovery copies independently of the appliance. For rotation, provision a new identifier and retain the old password until its snapshots are retired.
+On the appliance, place the verified key at
+`/usr/local/etc/pkg/vhco-feed-signing-public.pem`, owned by root and readable by
+pkg. Create `/usr/local/etc/pkg/repos/vhco.conf` with the following contents.
+Keep the existing native OPNsense repository definitions enabled.
 
-Complete the [activation checkpoint](recovery.md#prepare-a-legacy-migration) before enabling the provider. Enter the SSH URL, Git branch, three file references and maximum freshness age. Save and test through the native form. Schedule the existing **Remote backup** job through native cron.
+```ucl
+VHCO: {
+  url: "https://pkg.vhco.pro",
+  enabled: yes,
+  signature_type: "pubkey",
+  pubkey: "/usr/local/etc/pkg/vhco-feed-signing-public.pem"
+}
+```
+
+Refresh and query the VHCO catalogue from a root shell.
+
+```sh
+pkg update -f -r VHCO
+pkg rquery -U -r VHCO '%n %v' os-encrypted-git-backup
+```
+
+Continue only if the update reports no signature error and the query prints
+`os-encrypted-git-backup 0.1.0`. A zero exit status from `pkg update` alone does
+not establish signature acceptance. Install from the verified VHCO repository
+and confirm the installed version.
+
+```sh
+pkg install -r VHCO os-encrypted-git-backup
+pkg query '%n %v' os-encrypted-git-backup
+```
+
+The provider appears under **System → Configuration → Backups**.
+
+## Complete a first backup
+
+If the plaintext Git backup hook or the legacy repository
+`/conf/backup/git` exists, follow [legacy migration](recovery.md#prepare-a-legacy-migration)
+before enabling encrypted delivery. Use the [recovery guide](recovery.md) when
+resuming an existing encrypted backup.
+
+1. Create a private Git repository and choose a branch that does not exist yet.
+   Leave that branch uncreated. For an empty repository, skip initialization
+   with a README or licence. Grant a dedicated SSH identity permission to create
+   and write that branch. The backup runs unattended, so its key must work
+   without an interactive passphrase. Verify the Git server's host key and put
+   the verified entry in a dedicated known-hosts file.
+2. Put the identity, known-hosts file and encryption password under
+   `/conf/encrypted-git-backup/credentials`. The parent and credentials
+   directories must be owned by root with mode 0700. Each credential file must
+   be owned by root, have mode 0400 or 0600, and have a single link. For reference
+   `example`, use `identity-example`, `hosts-example` and `password-example`.
+   Keep independent recovery copies of all three.
+3. Prepare `/conf/encrypted-git-backup/activation.json` with the fields below.
+   Replace the example URL and branch with the exact values you will enter in
+   the form. Write the file in the same directory as a temporary file owned by
+   root with mode 0600, then rename it into place.
+
+   ```json
+   {
+     "version": 1,
+     "destination": "ssh://git@backup.example/config.git",
+     "branch": "snapshots",
+     "legacy": null
+   }
+   ```
+
+4. In **System → Configuration → Backups**, enter the matching **SSH repository
+   URL** and **Git branch**. If you used the example filenames, enter `example`
+   in **SSH identity reference**, **SSH known hosts reference** and **Encryption
+   key identifier**. Set **Freshness limit in hours** between 1 and 8760. Enable
+   and save the provider. Saving an enabled provider can start delivery
+   immediately.
+5. Open **System → Configuration → Encrypted Git Backup**. Check that the latest
+   **Outcome** is `verified`, and that **Last verified success** and **Remote
+   commit** are from this run. A failed attempt can leave an earlier successful
+   receipt visible. From a trusted Git client, resolve the configured remote
+   branch and compare its tip with **Remote commit**. At that exact commit,
+   confirm that `config.xml.enc` and `snapshot.json` are present and that the
+   encrypted file's SHA-256 equals the metadata's `sha256` field. Only then
+   schedule **Remote backup** under **System → Settings → Cron**. Use the
+   [recovery instructions](recovery.md) to test an isolated restore.
+
+For password rotation, provision a new identifier and keep the old password
+until you retire every snapshot that uses it.
 
 An account granted **System: Configuration: Encrypted Git backup status** can read `/api/encrypted_git_backup/status/read`. The attempt and verification timestamps distinguish a failed or interrupted attempt from the last retained artifact. An independent monitor must also resolve the expected remote branch and hash the encrypted artifact at that commit.
 
