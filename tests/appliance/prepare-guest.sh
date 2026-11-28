@@ -6,9 +6,9 @@ build=/tmp/browser-build
 mkdir "$build"
 case "$1" in
     sets)
-        opnsense-verify "$input/base-26.7.9-amd64.txz"
-        opnsense-verify "$input/kernel-26.7.9-amd64.txz"
-        opnsense-update -bkf -l "$input" -r 26.7.9
+        opnsense-verify "$input/base-26.7.10-amd64.txz"
+        opnsense-verify "$input/kernel-26.7.10-amd64.txz"
+        opnsense-update -bkf -l "$input" -r 26.7.10
         ;;
     package)
         pkg-static add -f "$input"/All/pkg-*.pkg
@@ -19,9 +19,9 @@ case "$1" in
         pkg -o REPOS_DIR="$build/repos" update -f
         pkg -o REPOS_DIR="$build/repos" upgrade -y -r Fixture
         pkg -o REPOS_DIR="$build/repos" install -y -r Fixture bash git
-        test "$(freebsd-version -k)" = 15.1-RELEASE-p6
-        test "$(pkg query '%v' opnsense)" = 26.7.9_3
-        test "$(php -r 'echo PHP_VERSION;')" = 8.5.12
+        test "$(freebsd-version -k)" = 15.1-RELEASE-p7
+        test "$(pkg query '%v' opnsense)" = 26.7.10
+        test "$(php -r 'echo PHP_VERSION;')" = 8.5.13
         test "$(pkg config ABI)" = FreeBSD:15:amd64
         git clone "$input/plugin.bundle" "$build/plugin"
         git clone "$input/framework.bundle" "$build/framework"
