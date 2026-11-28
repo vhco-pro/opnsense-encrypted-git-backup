@@ -16,7 +16,7 @@ Verify the repository's signing key before installing.
 
 See the [installation guide](docs/installation.md) for installation requirements,
 the [compatibility notes](docs/compatibility.md) for the verified runtime, and
-the [recovery guide](docs/recovery.md) for restore and rollback.
+the [recovery guide](docs/recovery.md) to test restoring a backup.
 
 ## Design references
 
